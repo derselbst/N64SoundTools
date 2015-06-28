@@ -1,0 +1,301 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\N64SoundListTool.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""     // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\N64SoundListTool.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_N64SOUNDLISTTOOL_DIALOG DIALOGEX 0, 0, 385, 363
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "N64 Sound Tool (By SubDrag and Ice Mario)"
+MENU IDR_MENUMAIN
+FONT 8, "MS Shell Dlg", 400, 0, 0x0
+BEGIN
+    COMBOBOX        IDC_COMBOSOUNDBANK,14,18,355,50,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_COMBOSOUND,13,70,112,78,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    RTEXT           "Sample Rate",IDC_STATIC,25,89,41,11
+    EDITTEXT        IDC_EDITSAMPLINGRATE,72,88,52,14,ES_AUTOHSCROLL
+    RTEXT           "Vol",IDC_STATIC,151,77,14,11
+    EDITTEXT        IDC_EDITVOL,168,75,30,14,ES_AUTOHSCROLL
+    RTEXT           "Pan",IDC_STATIC,151,93,14,11
+    EDITTEXT        IDC_EDITPAN,168,91,30,14,ES_AUTOHSCROLL
+    RTEXT           "Priority",IDC_STATIC,142,109,24,11
+    EDITTEXT        IDC_EDITPRIORITY,168,107,30,14,ES_AUTOHSCROLL
+    RTEXT           "Type",IDC_STATIC,221,76,25,11
+    EDITTEXT        IDC_EDITTREMTYPE,249,75,32,14,ES_AUTOHSCROLL
+    RTEXT           "Rate",IDC_STATIC,221,92,25,11
+    EDITTEXT        IDC_EDITTREMRATE,249,91,32,14,ES_AUTOHSCROLL
+    RTEXT           "Depth",IDC_STATIC,221,108,25,11
+    EDITTEXT        IDC_EDITTREMDEPTH,249,107,32,14,ES_AUTOHSCROLL
+    RTEXT           "Delay",IDC_STATIC,221,124,24,11
+    EDITTEXT        IDC_EDITTREMDELAY,249,123,32,14,ES_AUTOHSCROLL
+    RTEXT           "Type",IDC_STATIC,297,76,24,11
+    EDITTEXT        IDC_EDITTVIBTYPE,327,75,30,14,ES_AUTOHSCROLL
+    RTEXT           "Rate",IDC_STATIC,302,92,19,11
+    EDITTEXT        IDC_EDITVIBRATE,327,91,30,14,ES_AUTOHSCROLL
+    RTEXT           "Depth",IDC_STATIC,297,108,25,11
+    EDITTEXT        IDC_EDITVIBDEPTH,327,107,30,14,ES_AUTOHSCROLL
+    RTEXT           "Delay",IDC_STATIC,299,123,24,11
+    EDITTEXT        IDC_EDITVIBDELAY,327,123,29,14,ES_AUTOHSCROLL
+    COMBOBOX        IDC_COMBOSOUND2,13,166,86,126,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "^",IDC_BUTTONUP,99,167,10,6
+    PUSHBUTTON      "v",IDC_BUTTONDOWN,99,173,10,6
+    PUSHBUTTON      "Play",IDC_BUTTONPLAYSND,125,166,35,16
+    PUSHBUTTON      "16-bit Raw Wav",IDC_BUTTON1,286,165,84,17
+    PUSHBUTTON      "16-Bit Raw Wav",IDC_BUTTONADDSOUND,286,257,85,17
+    PUSHBUTTON      "Delete",IDC_BUTTONDELETESOUND,164,166,36,16
+    PUSHBUTTON      "16-bit VADPCM Wav",IDC_BUTTONVADPCMIMPORT,286,184,84,17
+    PUSHBUTTON      "16-Bit VADPCM Wav",IDC_BUTTONADDSOUND2,286,276,85,17
+    PUSHBUTTON      "Save",IDC_BUTTONDELETESOUND2,202,166,36,16
+    RTEXT           "Base",IDC_STATIC,32,272,20,11
+    EDITTEXT        IDC_EDITBASE,56,272,60,14,ES_AUTOHSCROLL | ES_READONLY
+    RTEXT           "Length",IDC_STATIC,25,290,26,11
+    EDITTEXT        IDC_EDITLENGTH,56,288,60,14,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         "Raw",IDC_CHECKRAW,"Button",BS_AUTOCHECKBOX | WS_DISABLED | WS_TABSTOP,122,283,30,10
+    RTEXT           "Sample Pan",IDC_STATIC,17,198,38,11
+    EDITTEXT        IDC_EDITSAMPLEPAN,57,196,23,14,ES_AUTOHSCROLL
+    RTEXT           "Sample Vol",IDC_STATIC,16,216,38,11
+    EDITTEXT        IDC_EDITSAMPLEVOL,57,214,23,14,ES_AUTOHSCROLL
+    RTEXT           "Attack Time",IDC_STATIC,158,198,38,11
+    EDITTEXT        IDC_EDITATTACKTIME,204,198,66,14,ES_AUTOHSCROLL
+    RTEXT           "Decay Time",IDC_STATIC,158,216,38,11
+    EDITTEXT        IDC_EDITDECAYTIME,204,216,66,14,ES_AUTOHSCROLL
+    RTEXT           "Release Time",IDC_STATIC,146,234,54,11
+    EDITTEXT        IDC_EDITRELEASETIME,204,234,66,14,ES_AUTOHSCROLL
+    RTEXT           "Attack Volume",IDC_STATIC,151,252,49,11
+    EDITTEXT        IDC_EDITATTACKVOLUME,204,252,38,14,ES_AUTOHSCROLL
+    RTEXT           "Decay Volume",IDC_STATIC,142,270,54,11
+    EDITTEXT        IDC_EDITDECAYVOLUME,204,270,38,14,ES_AUTOHSCROLL
+    RTEXT           "Vel Min",IDC_STATIC,24,233,30,11
+    EDITTEXT        IDC_EDITVELMIN,57,232,23,14,ES_AUTOHSCROLL
+    RTEXT           "Vel Max",IDC_STATIC,24,251,30,11
+    EDITTEXT        IDC_EDITVELMAX,57,250,23,14,ES_AUTOHSCROLL
+    RTEXT           "Key Min",IDC_STATIC,89,198,30,11
+    EDITTEXT        IDC_EDITKEYMIN,123,196,23,14,ES_AUTOHSCROLL
+    RTEXT           "Key Max",IDC_STATIC,88,216,30,11
+    EDITTEXT        IDC_EDITKEYMAX,123,214,23,14,ES_AUTOHSCROLL
+    RTEXT           "Key Base",IDC_STATIC,88,233,30,11
+    EDITTEXT        IDC_EDITKEYBASE,123,232,23,14,ES_AUTOHSCROLL
+    RTEXT           "Detune",IDC_STATIC,87,252,30,11
+    EDITTEXT        IDC_EDITDETUNE,123,250,23,14,ES_AUTOHSCROLL
+    CONTROL         "Looping enabled",IDC_CHECKLOOPENABLED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,23,308,72,8
+    RTEXT           "Start",IDC_STATICL1,21,324,18,11
+    EDITTEXT        IDC_EDITLOOP,43,322,44,14,ES_AUTOHSCROLL
+    RTEXT           "End",IDC_STATICL2,90,323,17,11
+    EDITTEXT        IDC_EDITEND,112,322,44,14,ES_AUTOHSCROLL
+    RTEXT           "Count",IDC_STATICL3,160,324,21,12
+    EDITTEXT        IDC_EDITCOUNT,189,322,29,14,ES_AUTOHSCROLL
+    PUSHBUTTON      "Export Ctl/Tbl",IDC_EXPORTCTLTBL,129,34,58,16
+    PUSHBUTTON      "Inject in Place",IDC_INJECTPLACE,252,34,56,16
+    PUSHBUTTON      "Rip Sound Bank",IDC_BUTTONRIP,191,34,58,16
+    PUSHBUTTON      "TEST",IDC_BUTTONTEST,312,34,57,16,NOT WS_VISIBLE
+    PUSHBUTTON      "16-bit Raw",IDC_BUTTONIMPORT16BITRAW,286,203,84,17
+    PUSHBUTTON      "16-Bit Raw",IDC_BUTTONEXPORTRAW,286,311,83,17
+    PUSHBUTTON      "Import Predictors",IDC_BUTTONIMPORTPREDICTORS,286,222,83,18
+    PUSHBUTTON      "Export Predictors",IDC_BUTTONEXPORTPREDITORS,286,330,83,18
+    GROUPBOX        "Sounds",IDC_STATIC,7,153,269,200
+    GROUPBOX        "Import",IDC_STATIC,281,154,95,91
+    GROUPBOX        "Add to End",IDC_STATIC,281,246,95,52
+    GROUPBOX        "Export",IDC_STATIC,281,300,93,53
+    GROUPBOX        "Instruments",IDC_STATIC,7,61,371,90
+    GROUPBOX        "Trem",IDC_STATIC,215,65,74,78
+    GROUPBOX        "Vibr",IDC_STATIC,295,65,74,78
+    GROUPBOX        "Misc",IDC_STATIC,136,65,74,78
+    GROUPBOX        "Soundbank",IDC_STATIC,7,7,369,50
+END
+
+IDD_DIALOGSPECIFYLOCATION DIALOGEX 0, 0, 134, 79
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Open Ctl/Tbl from ROM"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,16,53,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,70,53,50,14
+    LTEXT           "Ctl",IDC_STATIC,17,18,10,8
+    LTEXT           "Tbl",IDC_STATIC,17,38,10,8
+    EDITTEXT        IDC_EDITCTL,40,16,75,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_EDITTBL,40,33,75,14,ES_AUTOHSCROLL
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "Rare Witch Project"
+            VALUE "FileDescription", "Sound Ripper/Tool"
+            VALUE "FileVersion", "1.0.0.1"
+            VALUE "InternalName", "N64SoundListTool.exe"
+            VALUE "LegalCopyright", "(c) RWP 2010"
+            VALUE "OriginalFilename", "N64SoundListTool.exe"
+            VALUE "ProductName", "N64 Sound Tool"
+            VALUE "ProductVersion", "1.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_N64SOUNDLISTTOOL_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 378
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 356
+    END
+
+    IDD_DIALOGSPECIFYLOCATION, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 127
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 72
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENUMAIN MENU 
+BEGIN
+    POPUP "File"
+    BEGIN
+        MENUITEM "Open ROM",                    ID_FILE_OPENROM
+        MENUITEM "Open ROM (Explicit Ctl/Tbl)", ID_FILE_OPENROMEXPLICIT
+        MENUITEM "Save ROM",                    ID_FILE_SAVE
+        MENUITEM SEPARATOR
+        MENUITEM "Quit",                        ID_FILE_QUIT
+    END
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\N64SoundListTool.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"     // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
