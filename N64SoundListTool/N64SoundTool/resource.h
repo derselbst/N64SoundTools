@@ -13,6 +13,48 @@
 #define IDC_EDITCTL                     1005
 #define IDC_EDITCTL2                    1006
 #define IDC_EDITTBL                     1006
+#define IDC_STATICNAME                  1006
+#define IDC_EDITBANKNAME                1007
+#define IDC_STATICIMPORTGROUPBOX        1008
+#define IDC_STATICADDTOENDGROUPBOX      1009
+#define IDC_STATICEXPORTGROUPBOX        1010
+#define IDC_STATICMISCGROUPBOX          1011
+#define IDC_STATICTREMGROUPBOX          1012
+#define IDC_STATICVIBRGROUPBOX          1013
+#define IDC_STATICSAMPLEPANSTATIC       1014
+#define IDC_STATICSAMPLEVOLTEXT         1015
+#define IDC_STATICVELMINTEXT            1016
+#define IDC_STATICVELMAXTEXT            1017
+#define IDC_STATICKEYMINTEXT            1018
+#define IDC_STATICKEYMAXTEXT            1019
+#define IDC_STATICKEYBASETEXT           1020
+#define IDC_STATICDETUNETEXT            1021
+#define IDC_STATICATTACKTIMETEXT        1022
+#define IDC_STATICDECAYTIMETEXT         1023
+#define IDC_STATICRELEASETIMETEXT       1024
+#define IDC_STATICATTACKVOLUMETEXT      1025
+#define IDC_STATICDECAYVOLUMETEXT       1026
+#define IDC_STATICINSTRVOL              1027
+#define IDC_STATICINSTRPAN              1028
+#define IDC_STATICINSTRPRIORITY         1029
+#define IDC_STATICINSTRTREM             1030
+#define IDC_STATICINSTRRATE             1031
+#define IDC_STATICINSTRDEPTH            1032
+#define IDC_STATICINSTRDELAY            1033
+#define IDC_STATICINSTRVIBTYPE          1034
+#define IDC_STATICINSTRVIBRATE          1035
+#define IDC_STATICINSTRVIBDEPTH         1036
+#define IDC_STATICINSTRVIBDELAY         1037
+#define IDC_CHECKSHORTWAVFILENAME       1039
+#define IDC_BUTTONIMPORTLOOPPREDICTORS  1040
+#define IDC_BUTTONEXPORTLOOPPREDICTORS  1041
+#define IDC_BUTTONADDPREV               1042
+#define IDC_BUTTONREMOVEPREV            1043
+#define IDC_BUTTONADDPREV2              1044
+#define IDC_BUTTONREMOVEPREV2           1045
+#define IDC_CHECK1                      1046
+#define IDC_CHECK2                      1047
+#define IDC_CHECKHALFSAMPLINGRATE       1047
 #define IDC_BUTTON1                     1058
 #define IDC_BUTTONUP                    1653
 #define IDC_BUTTONDOWN                  1654
@@ -50,6 +92,7 @@
 #define IDC_EDITEND                     1699
 #define IDC_EDITCOUNT                   1700
 #define IDC_CHECKLOOPENABLED            1701
+#define IDC_COMBOSOUNDSUBSOUND          1702
 #define IDC_CHECKRAW                    1703
 #define IDC_STATICL1                    1704
 #define IDC_STATICL2                    1705
@@ -57,6 +100,7 @@
 #define IDC_BUTTONRIP                   1707
 #define IDC_BUTTONRIP2                  1707
 #define IDC_STATICSFXBANKINST           1708
+#define IDC_BUTTONRIP3                  1708
 #define IDC_STATICSOUNDSCOMBO           1709
 #define IDC_BUTTONADDSOUND              1710
 #define IDC_BUTTONDELETESOUND           1711
@@ -72,14 +116,22 @@
 #define ID_FILE_OPENROM                 32771
 #define ID_FILE_QUIT                    32772
 #define ID_FILE_OPENROMEXPLICIT         32773
+#define ID_FILE_OPENKNOWNROM            32774
+#define ID_OPENKNOWNROM_64DEHAKKEN      32775
+#define ID_OPENKNOWNROM_64OOZUMOU       32776
+#define ID_OPENKNOWNROM_64OOZUMOU2      32777
+#define ID_OPENKNOWNROM_64TRUMPCOLLECTION 32778
+#define ID_FILE_EXTRACTALLKNOWNGAMES    32779
+#define ID_FILE_OPENSTARFOXROM          32780
+#define ID_FILE_OPENROMN64PTRWAVETABLE2 32781
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        131
-#define _APS_NEXT_COMMAND_VALUE         32774
-#define _APS_NEXT_CONTROL_VALUE         1006
+#define _APS_NEXT_COMMAND_VALUE         32782
+#define _APS_NEXT_CONTROL_VALUE         1047
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

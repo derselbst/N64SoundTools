@@ -188,6 +188,30 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\BlitzDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\EASportsDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\FolderDialog.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\GECompression.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\MKMythologiesDecode.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\n643docompression.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\N64AIFCAudio.cpp"
 				>
 			</File>
@@ -201,6 +225,10 @@
 			</File>
 			<File
 				RelativePath=".\OpenSpecificCtlTbl.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\rnc_deco.cpp"
 				>
 			</File>
 			<File
@@ -227,12 +255,44 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\SupermanDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\yay0.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\BlitzDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\EASportsDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\FolderDialog.h"
+				>
+			</File>
+			<File
+				RelativePath=".\GECompression.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MKMythologiesDecode.h"
+				>
+			</File>
+			<File
+				RelativePath=".\n643docompression.h"
+				>
+			</File>
 			<File
 				RelativePath=".\N64AIFCAudio.h"
 				>
@@ -254,6 +314,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\rnc_deco.h"
+				>
+			</File>
+			<File
 				RelativePath=".\SharedFunctions.h"
 				>
 			</File>
@@ -262,7 +326,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\SupermanDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\targetver.h"
+				>
+			</File>
+			<File
+				RelativePath=".\yay0.h"
 				>
 			</File>
 		</Filter>
@@ -284,6 +356,10 @@
 				>
 			</File>
 		</Filter>
+		<File
+			RelativePath=".\gameconfig.ini"
+			>
+		</File>
 		<File
 			RelativePath=".\ReadMe.txt"
 			>
