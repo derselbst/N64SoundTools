@@ -6,11 +6,20 @@
 #define IDR_MAINFRAME                   128
 #define IDR_MENUMAIN                    129
 #define IDD_DIALOGSPECIFYLOCATION       130
+#define IDS_STRINGERRORREADINGCONFIG    131
+#define IDS_STRINGERROR                 132
+#define IDS_STRINGERRORREADINGROM       133
+#define IDS_STRINGERROROPENING          134
+#define IDS_STRINGERRORPROCESSING       135
+#define IDS_STRINGERRORTOOSMALLFILE     136
+#define IDS_STRINGERROREXTRACTINGSOUND  137
+#define IDS_STRINGERROROPENINGROMOUTPUT 138
 #define IDC_EXPORTCTLTBL                1000
 #define IDC_INJECTPLACE                 1001
 #define IDC_BUTTONPLAYSND               1003
 #define IDC_BUTTONTEST                  1004
 #define IDC_EDITCTL                     1005
+#define IDC_BUTTONSTOPSOUND             1005
 #define IDC_EDITCTL2                    1006
 #define IDC_EDITTBL                     1006
 #define IDC_STATICNAME                  1006
@@ -53,8 +62,11 @@
 #define IDC_BUTTONADDPREV2              1044
 #define IDC_BUTTONREMOVEPREV2           1045
 #define IDC_CHECK1                      1046
-#define IDC_CHECK2                      1047
 #define IDC_CHECKHALFSAMPLINGRATE       1047
+#define IDC_EDITBENDRANGE               1050
+#define IDC_STATICBENDRANGE             1051
+#define IDC_PERCUSSIONLABEL             1054
+#define IDC_SFXLABEL                    1056
 #define IDC_BUTTON1                     1058
 #define IDC_BUTTONUP                    1653
 #define IDC_BUTTONDOWN                  1654
@@ -101,10 +113,12 @@
 #define IDC_BUTTONRIP2                  1707
 #define IDC_STATICSFXBANKINST           1708
 #define IDC_BUTTONRIP3                  1708
-#define IDC_STATICSOUNDSCOMBO           1709
+#define IDC_COMBOPERCUSSION             1709
 #define IDC_BUTTONADDSOUND              1710
 #define IDC_BUTTONDELETESOUND           1711
 #define IDC_STATICSOUNDBANK             1712
+#define IDC_COMBOPERCUSSION2            1712
+#define IDC_COMBOSFX                    1712
 #define IDC_BUTTONDELETESOUND2          1713
 #define IDC_BUTTONADDSOUND2             1714
 #define IDC_BUTTONIMPORT16BITRAW        1715
@@ -129,9 +143,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        131
+#define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         32782
-#define _APS_NEXT_CONTROL_VALUE         1047
+#define _APS_NEXT_CONTROL_VALUE         1055
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

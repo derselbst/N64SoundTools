@@ -3,30 +3,14 @@
 
 #pragma once
 #include "afxwin.h"
-#include "N64AIFCAudio.h"
+#include "..\N64SoundLibrary\N64AIFCAudio.h"
+#include "..\N64SoundToolReader\N64SoundToolReader.h"
 #include "shlobj.h"
 #include <string>
-#include "SharedFunctions.h"
-#include "yay0.h"
-#include "SupermanDecoder.h"
-#include "n643docompression.h"
-#include "MKMythologiesDecode.h"
 
-struct CtlTblConfig
-{
-	unsigned long ctl;
-	unsigned long tbl;
-	unsigned long numberInstruments;
-	unsigned long mask;
-};
-
-struct GameConfig
-{
-	int numberSoundBanks;
-	CString gameType;
-	CString gameName;
-	CtlTblConfig* soundBanks;
-};
+#define NORMAL 0
+#define PERCUSSION 1
+#define SFX 2
 
 // CN64SoundListToolDlg dialog
 class CN64SoundListToolDlg : public CDialog
@@ -94,10 +78,13 @@ public:
 	CN64AIFCAudio n64AudioLibrary;
 	unsigned char* ROM;
 	int romSize;
-	ctlTblResult* results;
+	std::vector<ctlTblResult> results;
 	int numberResults;
 	afx_msg void OnClose();
 	afx_msg void OnCbnSelchangeCombosoundbank();
+	void ShowSoundBankControls();
+	void ShowPercussionControls();
+	void ShowSfxControls();
 	bool dontupdateitall;
 	ALBank* alBankCurrent;
 	afx_msg void OnCbnSelchangeCombosound();
@@ -169,8 +156,8 @@ public:
 	CButton m_importPredictors;
 	CButton m_exportPredictors;
 	afx_msg void OnOpenknownrom64dehakken();
-	void OpenROMSpecific(GameConfig gameConfig);
-	GameConfig* gameConfig;
+	void OpenROMSpecific(SoundGameConfig gameConfig);
+	SoundGameConfig* gameConfig;
 	int countGames;
 	BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo);
 	afx_msg void OnFileExtractallknowngames();
@@ -235,5 +222,22 @@ public:
 	afx_msg void OnBnClickedButtonremoveprev2();
 	CButton mIgnoreKeyBase;
 	CButton mHalfSamplingRate;
+	afx_msg void OnBnClickedButtonstopsound();
+	CButton m_stopButton;
+	CString LoadResourceText(int resourceTextId);
+	void ReadSoundbanks(SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results);
+	HINSTANCE initiallyLoadedResource;
+	HINSTANCE mainExeResource;
+	CStatic m_InstrBendRangeStatic;
+	CEdit mBendRange;
+	afx_msg void OnEnChangeEditbendrange();
+	CComboBox mPercussionChoice;
+	int percussionMode;
+	afx_msg void OnCbnSelchangeCombopercussion();
+	CStatic mPercussionLabel;
+	CButton mUpArrowButton;
+	CButton mDownArrowButton;
+	CStatic mSfxLabel;
+	CComboBox mSfxChoice;
+	afx_msg void OnCbnSelchangeCombosfx();
 };
-

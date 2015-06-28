@@ -57,6 +57,19 @@ BOOL CN64SoundListToolApp::InitInstance()
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 
 	CN64SoundListToolDlg dlg;
+	dlg.initiallyLoadedResource = AfxGetResourceHandle();
+
+	HINSTANCE hRes = NULL;
+	hRes = LoadLibrary(_T("N64SoundListTool.exe"));
+	if(hRes)
+	{
+	   dlg.mainExeResource = hRes;
+	}
+	else
+	{
+		dlg.mainExeResource = dlg.initiallyLoadedResource;
+	}
+
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
 	if (nResponse == IDOK)

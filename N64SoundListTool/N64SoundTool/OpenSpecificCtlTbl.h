@@ -1,6 +1,6 @@
 #pragma once
 #include "afxwin.h"
-#include "SharedFunctions.h"
+#include "..\N64SoundLibrary\SharedFunctions.h"
 
 // COpenSpecificCtlTbl dialog
 
