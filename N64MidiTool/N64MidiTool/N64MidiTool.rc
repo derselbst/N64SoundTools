@@ -1,0 +1,193 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\N64MidiTool.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""     // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\N64MidiTool.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_N64MIDITOOL_DIALOG DIALOGEX 0, 0, 227, 221
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "N64 Midi Tool by SubDrag"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_COMBOGAME,44,20,131,151,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Game",IDC_STATIC,18,23,19,8
+    PUSHBUTTON      "Load ROM",IDC_BUTTONLOADROM,16,36,84,14
+    GROUPBOX        "ROM",IDC_STATIC,7,7,175,64
+    GROUPBOX        "Midi",IDC_STATIC,7,73,220,112
+    COMBOBOX        IDC_COMBOMIDI,51,79,125,117,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Spot",IDC_STATIC,16,81,16,8
+    PUSHBUTTON      "Export Bin",IDC_BUTTONExportBin,18,106,50,14
+    PUSHBUTTON      "Export Midi",IDC_BUTTONExportMidi,70,106,50,14
+    PUSHBUTTON      "Import Midi",IDC_BUTTONImportMidi,69,125,50,14
+    PUSHBUTTON      "Import Bin",IDC_BUTTONImportBin,16,125,50,14
+    CONTROL         "Loop",IDC_CHECKLOOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,124,128,31,10
+    PUSHBUTTON      "Write ROM",IDC_BUTTONWriteROM,104,37,76,14
+    PUSHBUTTON      "Export All to Midi",IDC_BUTTONEXPORTALLTOMIDI,17,157,66,14
+    PUSHBUTTON      "Export All to Raw Bin",IDC_BUTTONEXPORTALLTORAWBIN,87,157,72,14
+    PUSHBUTTON      "Play Midi",IDC_BUTTONPLAYMIDI,123,107,50,14
+    PUSHBUTTON      "Import Instruments Lookup",IDC_BUTTONIMPORTINSTRUMENTS,17,141,102,14
+    PUSHBUTTON      "Scan Dirs",IDC_BUTTONSCANDIRFORMIDIS,25,52,63,14
+    PUSHBUTTON      "Rip all ROMs",IDC_BUTTONRIPROMS,95,53,80,14
+    LTEXT           "Num Instruments",IDC_STATIC,15,94,57,8
+    EDITTEXT        IDC_EDITNUMINSTRUMENTS,96,92,80,14,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EDITLOOPPOINT,123,140,40,14,ES_AUTOHSCROLL
+    CONTROL         "No Repeaters",IDC_CHECKLOOP2,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,169,128,55,10
+    PUSHBUTTON      "Add Loop Debug",IDC_BUTTON4,24,187,67,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "TODO: <Company name>"
+            VALUE "FileDescription", "TODO: <File description>"
+            VALUE "FileVersion", "1.0.0.1"
+            VALUE "InternalName", "N64MidiTool.exe"
+            VALUE "LegalCopyright", "TODO: (c) <Company name>.  All rights reserved."
+            VALUE "OriginalFilename", "N64MidiTool.exe"
+            VALUE "ProductName", "TODO: <Product name>"
+            VALUE "ProductVersion", "1.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_N64MIDITOOL_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 214
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\N64MidiTool.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"     // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

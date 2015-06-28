@@ -1,0 +1,6 @@
+; N64MidiLibrary.def : Declares the module parameters for the DLL.
+
+LIBRARY      "N64MidiLibrary"
+
+EXPORTS
+    ; Explicit exports can go here

@@ -1,0 +1,250 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#ifndef APSTUDIO_INVOKED\r\n"
+    "#include ""targetver.h""\r\n"
+    "#endif\r\n"
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#include ""res\\N64MidiTool.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""     // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON                    "res\\N64MidiTool.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_N64MIDITOOL_DIALOG DIALOGEX 0, 0, 186, 185
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_MINIMIZEBOX | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "N64 Midi Tool by SubDrag"
+FONT 8, "MS Shell Dlg", 0, 0, 0x1
+BEGIN
+    COMBOBOX        IDC_COMBOGAME,55,20,106,173,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Game",IDC_STATIC,18,23,19,8
+    PUSHBUTTON      "Load ROM",IDC_BUTTONLOADROM,16,41,84,14
+    GROUPBOX        "ROM",IDC_STATIC,7,7,175,56
+    GROUPBOX        "Midi",IDC_STATIC,7,66,176,112
+    COMBOBOX        IDC_COMBOMIDI,51,76,125,117,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Spot",IDC_STATIC,16,78,16,8
+    PUSHBUTTON      "Export Bin",IDC_BUTTONExportBin,18,99,50,14
+    PUSHBUTTON      "Export Midi",IDC_BUTTONExportMidi,70,99,50,14
+    PUSHBUTTON      "Import Midi",IDC_BUTTONImportMidi,69,118,50,14
+    PUSHBUTTON      "Import Bin",IDC_BUTTONImportBin,16,118,50,14
+    CONTROL         "Loop",IDC_CHECKLOOP,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,124,121,31,10
+    PUSHBUTTON      "Write ROM",IDC_BUTTONWriteROM,104,42,76,14
+    PUSHBUTTON      "Export All to Midi",IDC_BUTTONEXPORTALLTOMIDI,17,150,66,14
+    PUSHBUTTON      "Export All to Raw Bin",IDC_BUTTONEXPORTALLTORAWBIN,87,150,72,14
+    PUSHBUTTON      "Play Midi",IDC_BUTTONPLAYMIDI,123,100,50,14
+    PUSHBUTTON      "Import Instruments Lookup",IDC_BUTTONIMPORTINSTRUMENTS,17,134,102,14
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904e4"
+        BEGIN
+            VALUE "CompanyName", "TODO: <Company name>"
+            VALUE "FileDescription", "TODO: <File description>"
+            VALUE "FileVersion", "1.0.0.1"
+            VALUE "InternalName", "N64MidiTool.exe"
+            VALUE "LegalCopyright", "TODO: (c) <Company name>.  All rights reserved."
+            VALUE "OriginalFilename", "N64MidiTool.exe"
+            VALUE "ProductName", "TODO: <Product name>"
+            VALUE "ProductVersion", "1.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1252
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_N64MIDITOOL_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 178
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog Info
+//
+
+IDD_N64MIDITOOL_DIALOG DLGINIT
+BEGIN
+    IDC_COMBOGAME, 0x403, 10, 0
+0x6f47, 0x646c, 0x6e65, 0x7945, 0x0065, 
+    IDC_COMBOGAME, 0x403, 13, 0
+0x6550, 0x6672, 0x6365, 0x2074, 0x6144, 0x6b72, "\000" 
+    IDC_COMBOGAME, 0x403, 13, 0
+0x6142, 0x6a6e, 0x4b6f, 0x7a61, 0x6f6f, 0x6569, "\000" 
+    IDC_COMBOGAME, 0x403, 11, 0
+0x6142, 0x6a6e, 0x546f, 0x6f6f, 0x6569, "\000" 
+    IDC_COMBOGAME, 0x403, 7, 0
+0x6f43, 0x6b6e, 0x7265, "\000" 
+    IDC_COMBOGAME, 0x403, 12, 0
+0x6f44, 0x6b6e, 0x7965, 0x4b20, 0x6e6f, 0x0067, 
+    IDC_COMBOGAME, 0x403, 17, 0
+0x6f44, 0x6b6e, 0x7965, 0x4b20, 0x6e6f, 0x2067, 0x6544, 0x6f6d, "\000" 
+    IDC_COMBOGAME, 0x403, 17, 0
+0x654a, 0x2074, 0x6f46, 0x6372, 0x2065, 0x6547, 0x696d, 0x696e, "\000" 
+    IDC_COMBOGAME, 0x403, 12, 0
+0x6c42, 0x7361, 0x2074, 0x6f43, 0x7072, 0x0073, 
+    IDC_COMBOGAME, 0x403, 13, 0
+0x6f42, 0x7964, 0x4820, 0x7261, 0x6576, 0x7473, "\000" 
+    IDC_COMBOGAME, 0x403, 13, 0
+0x7243, 0x6975, 0x6e73, 0x5720, 0x726f, 0x646c, "\000" 
+    IDC_COMBOGAME, 0x403, 18, 0
+0x6944, 0x6464, 0x2079, 0x6f4b, 0x676e, 0x5220, 0x6361, 0x6e69, 0x0067, 
+
+    IDC_COMBOGAME, 0x403, 22, 0
+0x6944, 0x6464, 0x2079, 0x6f4b, 0x676e, 0x5220, 0x6361, 0x6e69, 0x2067, 
+0x2e31, 0x0031, 
+    IDC_COMBOGAME, 0x403, 14, 0
+0x7544, 0x656b, 0x4e20, 0x6b75, 0x6d65, 0x3620, 0x0034, 
+    IDC_COMBOGAME, 0x403, 10, 0
+0x7845, 0x7274, 0x6d65, 0x2065, 0x0047, 
+    IDC_COMBOGAME, 0x403, 11, 0
+0x7845, 0x7274, 0x6d65, 0x2065, 0x3247, "\000" 
+    IDC_COMBOGAME, 0x403, 23, 0
+0x654a, 0x2074, 0x6f46, 0x6372, 0x2065, 0x6547, 0x696d, 0x696e, 0x4b20, 
+0x6f69, 0x6b73, "\000" 
+    IDC_COMBOGAME, 0x403, 21, 0
+0x694b, 0x6c6c, 0x7265, 0x4920, 0x736e, 0x6974, 0x636e, 0x2074, 0x6f47, 
+0x646c, "\000" 
+    IDC_COMBOGAME, 0x403, 25, 0
+0x694b, 0x6c6c, 0x7265, 0x4920, 0x736e, 0x6974, 0x636e, 0x2074, 0x6f47, 
+0x646c, 0x3120, 0x322e, "\000" 
+    IDC_COMBOGAME, 0x403, 9, 0
+0x694b, 0x6272, 0x2079, 0x3436, "\000" 
+    IDC_COMBOGAME, 0x403, 21, 0
+0x694d, 0x6b63, 0x7965, 0x2073, 0x7053, 0x6565, 0x7764, 0x7961, 0x5520, 
+0x4153, "\000" 
+    IDC_COMBOGAME, 0x403, 24, 0
+0x6152, 0x6f7a, 0x2072, 0x7246, 0x6565, 0x7473, 0x6c79, 0x2065, 0x6353, 
+0x6f6f, 0x6574, 0x0072, 
+    IDC_COMBOGAME, 0x403, 6, 0
+0x744f, 0x6568, 0x0072, 
+    0
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#include "res\N64MidiTool.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"     // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
