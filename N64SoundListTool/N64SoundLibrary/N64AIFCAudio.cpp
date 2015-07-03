@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "N64AIFCAudio.h"
 #include <math.h>
+#include <stdint.h>
 #include "..\N64SoundLibrary\flzh_rn.h"
 float CN64AIFCAudio::keyTable[0xFF];
 
@@ -1097,6 +1098,7 @@ bool CN64AIFCAudio::ExtractRawPCMData(CString mainFolder, ALBank* alBank, int in
 
 bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool ignoreKeyBase, bool halfSamplingRate)
 {
+	int nSamples=-1;
 	float samplingRateFloat = (float)samplingRate;
 
 	if (alBank->inst[instrument]->soundCount > 0)
@@ -1352,7 +1354,7 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 					return false;
 
 				signed short* outRawData = new signed short[alWave->len * 4];
-				int nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
+				nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
 				
 				FILE* outFileTempRaw = fopen(outputFile, "wb");
 				if (outFileTempRaw == NULL)
@@ -1867,6 +1869,126 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 
 				fclose(outFileTempRaw);
 			}
+			
+			
+			
+			FILE* outInfoSF = fopen(outputFile+".info", "wb");
+				if (outInfoSF == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary info file", "Error", NULL);
+					return true;
+				}
+#pragma pack(push,1)
+				struct infoSF
+				{
+					union
+					{
+						uint32_t samplingRate;
+						uint8_t b[4];
+					};
+
+					uint32_t nSamples;
+					int instr; // number of instrument this sample belongs to
+					int sample; // number of sample
+					
+					bool loopFlag; //alWave->adpcmWave->loop != NULL
+					uint32_t loopStart; //alWave->adpcmWave->loop->start
+					uint32_t loopEnd; // alWave->adpcmWave->loop->end
+					uint32_t count; //alWave->adpcmWave->loop->count default 0xFFFFFFFF
+					
+					uint8_t velocitymin; // alBank->inst[instrument]->sounds[sound]->key.velocitymin
+					uint8_t velocitymax; // alBank->inst[instrument]->sounds[sound]->key.velocitymax
+					uint8_t keymin; // alBank->inst[instrument]->sounds[sound]->key.keymin
+					uint8_t keymax; // alBank->inst[instrument]->sounds[sound]->key.keymax
+					uint8_t keybase; // alBank->inst[instrument]->sounds[sound]->key.keybase default 0x3c
+					int8_t detune; //alBank->inst[instrument]->sounds[sound]->key.detune
+					
+					int8_t	volume; // alBank->inst[instrument]->volume
+					int8_t	tremType;
+					int8_t	tremRate;
+					int8_t	tremDepth;
+					int8_t	tremDelay;
+					int8_t	vibType;
+					int8_t	vibRate; // halbschwingungen
+					int8_t	vibDepth; // percent tuning der vollen amplitude, die hälfte wäre pitch für sf2
+					int8_t	vibDelay; // centi-seconds
+					
+					uint32_t attackTime; // alBank->inst[instrument]->sounds[sound]->env.attackTime unit: microseconds
+					uint32_t decayTime; // alBank->inst[instrument]->sounds[sound]->env.
+					uint32_t releaseTime; // alBank->inst[instrument]->sounds[sound]->env.
+					uint16_t attackVolume; // alBank->inst[instrument]->sounds[sound]->env.
+					uint16_t decayVolume; // alBank->inst[instrument]->sounds[sound]->env.
+					uint32_t attackVolumeLong; // alBank->inst[instrument]->sounds[sound]->env.
+					uint32_t decayVolumeLong; // alBank->inst[instrument]->sounds[sound]->env.
+// 					unsigned long offset; // for uniqueness on SM64
+
+					uint16_t bendRange;
+				} sfinfo;
+#pragma pack(pop)
+
+				sfinfo.b[0] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				sfinfo.b[1] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				sfinfo.b[2] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				sfinfo.b[3] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+
+				if(nSamples==-1)
+				{
+					puts("");
+				}
+
+				sfinfo.nSamples = nSamples;
+				sfinfo.instr = instrument;
+				sfinfo.sample = sound;
+
+				sfinfo.loopFlag = alWave->adpcmWave->loop != NULL;
+				sfinfo.loopStart = sfinfo.loopFlag ? alWave->adpcmWave->loop->start : 0;
+				sfinfo.loopEnd = sfinfo.loopFlag ? alWave->adpcmWave->loop->end : 0;
+				sfinfo.count = sfinfo.loopFlag ? alWave->adpcmWave->loop->count : 0xFFFFFFFF;
+
+				sfinfo.velocitymin = alBank->inst[instrument]->sounds[sound]->key.velocitymin;
+				sfinfo.velocitymax = alBank->inst[instrument]->sounds[sound]->key.velocitymax;
+				sfinfo.keymin = alBank->inst[instrument]->sounds[sound]->key.keymin;
+				sfinfo.keymax = alBank->inst[instrument]->sounds[sound]->key.keymax;
+				sfinfo.keybase = alBank->inst[instrument]->sounds[sound]->key.keybase != 0 ? alBank->inst[instrument]->sounds[sound]->key.keybase : 0x3c;
+				sfinfo.detune = alBank->inst[instrument]->sounds[sound]->key.detune;
+				
+				sfinfo.volume = alBank->inst[instrument]->volume;
+				sfinfo.tremType = alBank->inst[instrument]->tremType;
+				sfinfo.tremRate = alBank->inst[instrument]->tremRate;
+				sfinfo.tremDepth = alBank->inst[instrument]->tremDepth;
+				sfinfo.tremDelay = alBank->inst[instrument]->tremDelay;
+				sfinfo.vibType = alBank->inst[instrument]->vibType;//-128
+				if (sfinfo.vibType!=0 || sfinfo.vibType!=-128)
+				{
+					printf("");;
+				}
+				sfinfo.vibRate = alBank->inst[instrument]->vibRate;//-9 : 10 halbschwingungen
+				sfinfo.vibDepth = alBank->inst[instrument]->vibDepth;//112 : percent der vollen amplitude, die hälfte wäre pitch für sf2
+				sfinfo.vibDelay = alBank->inst[instrument]->vibDelay;//11 : centi-seconds
+				
+				sfinfo.attackTime = alBank->inst[instrument]->sounds[sound]->env.attackTime;
+				sfinfo.decayTime = alBank->inst[instrument]->sounds[sound]->env.decayTime;
+				sfinfo.releaseTime = alBank->inst[instrument]->sounds[sound]->env.releaseTime;
+				sfinfo.attackVolume = alBank->inst[instrument]->sounds[sound]->env.attackVolume;
+				sfinfo.decayVolume = alBank->inst[instrument]->sounds[sound]->env.decayVolume;
+				sfinfo.attackVolumeLong = 0;//alBank->inst[instrument]->sounds[sound]->env.attackVolumeLong;
+				sfinfo.decayVolumeLong = 0;//alBank->inst[instrument]->sounds[sound]->env.decayVolumeLong;
+				
+				sfinfo.bendRange = alBank->inst[instrument]->bendRange;
+				
+				int wroteLen = fwrite(&sfinfo, sizeof(infoSF), 1, outInfoSF);
+				if(wroteLen != sizeof(infoSF))
+				{
+					printf("");;
+				}
+				fclose(outInfoSF);
+				
+			
+			
+			
+			
+			
+			
 
 			return true;
 
