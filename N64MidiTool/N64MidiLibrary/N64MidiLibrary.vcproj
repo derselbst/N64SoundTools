@@ -20,7 +20,7 @@
 			Name="Debug|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="4"
 			UseOfMFC="2"
 			CharacterSet="2"
 			>
@@ -44,7 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				PreprocessorDefinitions="WIN32;_WINDOWS;_DEBUG;_USRDLL"
+				PreprocessorDefinitions="MIDI_EXPORTS;WIN32;_WINDOWS;_DEBUG;_USRDLL"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -65,19 +65,10 @@
 				Name="VCPreLinkEventTool"
 			/>
 			<Tool
-				Name="VCLinkerTool"
-				LinkIncremental="2"
-				AdditionalLibraryDirectories=""
-				ModuleDefinitionFile=".\N64MidiLibrary.def"
-				GenerateDebugInformation="true"
-				SubSystem="2"
-				TargetMachine="1"
+				Name="VCLibrarianTool"
 			/>
 			<Tool
 				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
@@ -89,9 +80,6 @@
 				Name="VCFxCopTool"
 			/>
 			<Tool
-				Name="VCAppVerifierTool"
-			/>
-			<Tool
 				Name="VCPostBuildEventTool"
 			/>
 		</Configuration>
@@ -99,7 +87,7 @@
 			Name="Release|Win32"
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
-			ConfigurationType="2"
+			ConfigurationType="4"
 			UseOfMFC="2"
 			CharacterSet="2"
 			WholeProgramOptimization="1"
@@ -125,7 +113,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				PreprocessorDefinitions="WIN32;_WINDOWS;NDEBUG;_USRDLL"
+				PreprocessorDefinitions="MIDI_EXPORTS;WIN32;_WINDOWS;NDEBUG;_USRDLL"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="2"
@@ -145,20 +133,10 @@
 				Name="VCPreLinkEventTool"
 			/>
 			<Tool
-				Name="VCLinkerTool"
-				LinkIncremental="1"
-				ModuleDefinitionFile=".\N64MidiLibrary.def"
-				GenerateDebugInformation="true"
-				SubSystem="2"
-				OptimizeReferences="2"
-				EnableCOMDATFolding="2"
-				TargetMachine="1"
+				Name="VCLibrarianTool"
 			/>
 			<Tool
 				Name="VCALinkTool"
-			/>
-			<Tool
-				Name="VCManifestTool"
 			/>
 			<Tool
 				Name="VCXDCMakeTool"
@@ -168,9 +146,6 @@
 			/>
 			<Tool
 				Name="VCFxCopTool"
-			/>
-			<Tool
-				Name="VCAppVerifierTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -186,15 +161,23 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\GECompression.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\H20Decoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\MidiParse.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\N64MidiLibrary.cpp"
+				RelativePath=".\rnc_deco.cpp"
 				>
 			</File>
 			<File
-				RelativePath=".\N64MidiLibrary.def"
+				RelativePath=".\SharedFunctions.cpp"
 				>
 			</File>
 			<File
@@ -217,6 +200,14 @@
 					/>
 				</FileConfiguration>
 			</File>
+			<File
+				RelativePath=".\SupermanDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\TetrisphereDecoder.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -224,11 +215,19 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\MidiParse.h"
+				RelativePath=".\GECompression.h"
 				>
 			</File>
 			<File
-				RelativePath=".\N64MidiLibrary.h"
+				RelativePath=".\H20Decoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MidiExports.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MidiParse.h"
 				>
 			</File>
 			<File
@@ -236,11 +235,27 @@
 				>
 			</File>
 			<File
+				RelativePath=".\rnc_deco.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SharedFunctions.h"
+				>
+			</File>
+			<File
 				RelativePath=".\stdafx.h"
 				>
 			</File>
 			<File
+				RelativePath=".\SupermanDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\targetver.h"
+				>
+			</File>
+			<File
+				RelativePath=".\TetrisphereDecoder.h"
 				>
 			</File>
 		</Filter>

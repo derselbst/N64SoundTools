@@ -1,11 +1,8 @@
 #pragma once
 
-#ifdef MIDI_EXPORTS
-#define MIDI_API __declspec(dllexport)
-#else
-#define MIDI_API __declspec(dllimport)
-#endif
+#include "MidiExports.h"
 
+class GECompression;
 
 struct TrackEvent // referenced in order, but first = 2710, doors refer to 27XX + preset to it implicitly, 0x44 per
 {
@@ -19,25 +16,28 @@ struct TrackEvent // referenced in order, but first = 2710, doors refer to 27XX 
 };
 
 
-class CMidiParse
+class MIDI_API CMidiParse
 {
 public:
 
 
-	MIDI_API CMidiParse(void);
-	MIDI_API ~CMidiParse(void);
+	CMidiParse(void);
+	~CMidiParse(void);
 
-	MIDI_API void GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
-	MIDI_API void BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
-	MIDI_API void GloverMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, unsigned long division);
-	MIDI_API void MIDxMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
-	MIDI_API void MMLToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
-	MIDI_API void ImportMidiConfig(CString configFile);
-	MIDI_API bool MidiToGEFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters);
-	MIDI_API bool AddLoopGEFormat(byte* inputMID, CString output, int inputSize, bool loop, unsigned long loopPoint, bool useRepeaters);
-	MIDI_API bool MidiToBTFormatStageOne(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters);
-	MIDI_API bool MidiToBTFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters);
-	MIDI_API void MidiToDebugTextFile(CString midiFile, CString textFileOut);
+	void GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd);
+	void BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd);
+	void GloverMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, unsigned long division);
+	void MIDxMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
+	void MMLToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments);
+	bool MidiToGEFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters);
+	bool AddLoopGEFormat(byte* inputMID, CString output, int inputSize, bool loop, unsigned long loopPoint, bool useRepeaters);
+	bool MidiToBTFormatStageOne(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters, unsigned short& numTracks);
+	bool MidiToBTFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters);
+	void MidiToDebugTextFile(CString midiFile, CString textFileOut);
+	void ExportToBin(unsigned char* buffer, unsigned long address, unsigned long size, CString fileName, bool& compressed);
+	void ExportToMidi(CString gameName, unsigned char* gamebuffer, int gamebufferSize, unsigned long address, unsigned long size, CString fileName, CString gameType, int& numberInstruments, unsigned long division, bool& compressed, bool& hasLoopPoint, int& loopStart, int& loopEnd);
+	byte* Decompress(unsigned char* Buffer, unsigned long size, int& fileSize, int& compressedSize);
+	bool DecompressToFile(unsigned char* Buffer, unsigned long size, CString outputFile);
 private:
 	int HexToInt(char inChar);
 	unsigned short Flip16Bit(unsigned short ShortValue);
@@ -56,15 +56,12 @@ private:
 	unsigned char StringToUnsignedChar(CString inString);
 	unsigned short Flip16bit(unsigned short tempShort);
 
-	byte instrumentMidiToGEMapping[0x100];
-	static byte drumMidiToGEMapping[0x100];
-	static CString instrumentMidiNames[0x100];
-	static CString drumMidiNames[0x100];
-	static CString instrumentGEMidiNames[0x100];
-	static CString drumGEMidiNames[0x100];
-
 	int numberTracks;
 	TrackEvent** trackEvents;
 	int trackEventCount[0x20];
 
+	GECompression* compress;
+	CString mainFolder;
+
+	BOOL hiddenExec (PTSTR pCmdLine, CString currentDirectory);
 };
