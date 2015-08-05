@@ -22,6 +22,17 @@ struct CtlTblConfig
 	unsigned long numberInstruments;
 	unsigned long mask;
 	std::vector<CString> instrumentNames;
+	bool halfSamplingRate;
+	int samplingRate;
+	bool overrideSamplingRate;
+
+	CtlTblConfig()
+	{
+		halfSamplingRate = false;
+
+		overrideSamplingRate = false;
+		samplingRate = 22050;
+	}
 };
 
 struct SoundGameConfig

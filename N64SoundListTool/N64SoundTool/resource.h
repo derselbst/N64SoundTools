@@ -66,7 +66,10 @@
 #define IDC_EDITBENDRANGE               1050
 #define IDC_STATICBENDRANGE             1051
 #define IDC_PERCUSSIONLABEL             1054
+#define IDC_CHECKHALF_VADPCM            1055
 #define IDC_SFXLABEL                    1056
+#define IDC_CHECK2                      1057
+#define IDC_CHECKOVERRIDERATE           1057
 #define IDC_BUTTON1                     1058
 #define IDC_BUTTONUP                    1653
 #define IDC_BUTTONDOWN                  1654
@@ -117,7 +120,6 @@
 #define IDC_BUTTONADDSOUND              1710
 #define IDC_BUTTONDELETESOUND           1711
 #define IDC_STATICSOUNDBANK             1712
-#define IDC_COMBOPERCUSSION2            1712
 #define IDC_COMBOSFX                    1712
 #define IDC_BUTTONDELETESOUND2          1713
 #define IDC_BUTTONADDSOUND2             1714
@@ -145,7 +147,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        139
 #define _APS_NEXT_COMMAND_VALUE         32782
-#define _APS_NEXT_CONTROL_VALUE         1055
+#define _APS_NEXT_CONTROL_VALUE         1058
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
