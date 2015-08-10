@@ -9,8 +9,9 @@
 #include <string>
 
 #define NORMAL 0
-#define PERCUSSION 1
+#define EADPERCUSSION 1
 #define SFX 2
+#define PERCUSSION 3
 
 // CN64SoundListToolDlg dialog
 class CN64SoundListToolDlg : public CDialog
@@ -84,6 +85,7 @@ public:
 	afx_msg void OnCbnSelchangeCombosoundbank();
 	void ShowSoundBankControls();
 	void ShowPercussionControls();
+	void ShowEADPercussionControls();
 	void ShowSfxControls();
 	bool dontupdateitall;
 	ALBank* alBankCurrent;
@@ -240,4 +242,8 @@ public:
 	CStatic mSfxLabel;
 	CComboBox mSfxChoice;
 	afx_msg void OnCbnSelchangeCombosfx();
+	afx_msg void OnBnClickedCheckhalfsamplingrate();
+	CButton mHalfVADPCMPrecision;
+	CButton mOverrideRate;
+	afx_msg void OnBnClickedCheckoverriderate();
 };

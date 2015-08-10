@@ -64,6 +64,7 @@
 #define MARIOPARTY2E 39
 #define PAPERMARIO 40
 #define DUCKDODGERS 41
+#define B0 42
 
 #pragma once
 
@@ -131,12 +132,16 @@ struct ALWave
 	unsigned long unknown3;
 	unsigned long unknown4;
 
+	bool decode8Only;
+
 	ALWave()
 	{
 		type = AL_ADPCM_WAVE;
 		adpcmWave = NULL;
 		rawWave = NULL;
 		wavData = NULL;
+		flags = 0;
+		decode8Only = false;
 	}
 };
 
@@ -216,7 +221,7 @@ struct ALSound
 };
 
 
-struct ALPercussion
+struct EADPercussion
 {
 	unsigned char unknown1A;
 	unsigned char pan;
@@ -226,12 +231,20 @@ struct ALPercussion
 
 	unsigned short adsrEAD[0x8];
 
-	ALPercussion()
+	EADPercussion()
 	{
 		unknown1A = 0;
 		pan = 0;
 		unknown1C = 0;
 		keyBase = 0;
+
+		wav.base = 0;
+		wav.len = 0;
+		wav.type = 0;
+		wav.flags = 0;
+
+		keyBase = 0;
+		pan = 0;
 	}
 };
 
@@ -264,17 +277,17 @@ struct ALBank
 	unsigned short	flags;
 	unsigned short	pad;
 	unsigned short	samplerate;
-	unsigned long	percussion;
+	ALInst*	percussion;
 	ALInst**			inst;
 
 	// extras
 	int soundBankFormat;
 	CString bankName;
 
-	unsigned long countPercussion;
+	unsigned long countEADPercussion;
 	unsigned long unknown2;
 	unsigned long unknown3;
-	ALPercussion* alPercussion;
+	EADPercussion* eadPercussion;
 
 	// Ocarina third bank
 	unsigned long countSfx;
@@ -286,12 +299,12 @@ struct ALBank
 		flags = 0;
 		pad = 0;
 		samplerate = 22050;
-		percussion = 0;
+		percussion = NULL;
 		inst = NULL;
-		countPercussion = 0;
+		countEADPercussion = 0;
 		unknown2 = 0;
 		unknown3 = 0;
-		alPercussion = NULL;
+		eadPercussion = NULL;
 		countSfx = 0;
 		alSfx = NULL;
 	}
@@ -304,6 +317,17 @@ struct ctlTblResult
 	unsigned long tblOffset;
 	unsigned long tblSize;
 	ALBank* bank;
+	bool halfSamplingRate;
+	int samplingRate;
+	bool overrideSamplingRate;
+
+	ctlTblResult()
+	{
+		halfSamplingRate = false;
+
+		overrideSamplingRate = false;
+		samplingRate = 22050;
+	}
 };
 
 struct WaveInformation
@@ -351,6 +375,7 @@ public:
 	static ALBank* ReadAudioRawTest(unsigned char* rawData, int size);
 	static ALBank* ReadAudioFZero(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int instrumentCount, unsigned char* rom);
 	static ALBank* ReadAudioPaperMario(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
+	static ALBank* ReadAudioB0(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioDuckDodgers(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioN64PtrWavetableV2(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioSydney(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, int fileSizeCompressed);
@@ -386,40 +411,54 @@ public:
 	static void WriteAudioN64PtrWavetableV2Blitz(CString mainFolder, ALBank*& alBank, unsigned char*& ctl, int& ctlSize, unsigned char*& tbl, int& tblSize);
 	static void WriteAudioN64PtrWavetableV1(ALBank*& alBank, unsigned char*& ctl, int& ctlSize, unsigned char*& tbl, int& tblSize);
 	static bool ReadWavData(CString rawWavFileName, unsigned char*& rawData, int& rawLength, unsigned long& samplingRate, bool& hasLoopData, unsigned char& keyBase, unsigned long& loopStart, unsigned long& loopEnd, unsigned long& loopCount);
-	static bool ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType, byte primSel);
-	static bool ReplacePercussionWithWavData(ALBank*& alBank, int percussion, CString rawWavFileName, unsigned long& samplingRate, bool newType);
+	static bool ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType, byte primSel, bool decode8Only);
+	static bool ReplacePercussionWithWavData(ALBank*& alBank, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType);
+	static bool ReplaceEADPercussionWithWavData(ALBank*& alBank, int percussion, CString rawWavFileName, unsigned long& samplingRate, bool newType);
 	static CString CompareALBanks(ALBank* alBank1, ALBank* alBank2);
+	static CString CompareALInstrument(ALInst* alInst1, ALInst* alInst2);
 	static bool ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool ignoreKeyBase, bool halfSamplingRate);
-	static bool ExtractPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
+	static bool ExtractPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
+	static bool ExtractEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
 	static bool ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
 	static unsigned char ConvertEADGameValueToKeyBase(float eadKeyvalue);
 	static bool ExtractRawPCMData(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, byte primSel);
 	static bool ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile);
+	static bool ExtractEADPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile);
 	static bool ExtractSfxRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile);
 	static bool AddSound(ALBank*& alBank, int instrument, CString rawWavFileName, unsigned long& samplingRate, bool type);
 	static bool AddSound(ALBank*& alBank, int instrument);
+	static bool AddPercussion(ALBank*& alBank, CString rawWavFileName, unsigned long& samplingRate, bool type);
+	static bool AddPercussion(ALBank*& alBank);
 	static void DeleteSound(ALBank*& alBank, int instrument, int sound);
+	static void DeletePercussion(ALBank*& alBank, int sound);
 	static void MoveUpSound(ALBank*& alBank, int instrument, int sound);
 	static void MoveDownSound(ALBank*& alBank, int instrument, int sound);
+	static void MoveUpPercussion(ALBank*& alBank, int sound);
+	static void MoveDownPercussion(ALBank*& alBank, int sound);
 	static void ExportPredictors(ALBank*& alBank, int instrument, int sound, CString fileName, byte primSel);
-	static void ExportPercussionPredictors(ALBank*& alBank, int percussion, CString fileName);
+	static void ExportPercussionPredictors(ALBank*& alBank, int sound, CString fileName);
+	static void ExportEADPercussionPredictors(ALBank*& alBank, int percussion, CString fileName);
 	static void ExportSfxPredictors(ALBank*& alBank, int sfx, CString fileName);
 	static void ImportPredictors(ALBank*& alBank, int instrument, int sound, CString fileName, byte primSel);
-	static void ImportPercussionPredictors(ALBank*& alBank, int percussion, CString fileName);
+	static void ImportPercussionPredictors(ALBank*& alBank, int sound, CString fileName);
+	static void ImportEADPercussionPredictors(ALBank*& alBank, int percussion, CString fileName);
 	static void ImportSfxPredictors(ALBank*& alBank, int sfx, CString fileName);
 	static void ExportRawData(ALBank*& alBank, int instrument, int sound, CString fileName, byte primSel);
 	static void ImportRawData(ALBank*& alBank, int instrument, int sound, CString fileName, byte primSel);
-	static void ExportRawPercussionData(ALBank*& alBank, int sound, CString fileName);
-	static void ImportRawPercussionData(ALBank*& alBank, int sound, CString fileName);
+	static void ExportPercussionRawData(ALBank*& alBank, int sound, CString fileName);
+	static void ImportPercussionRawData(ALBank*& alBank, int sound, CString fileName);
+	static void ExportEADRawPercussionData(ALBank*& alBank, int sound, CString fileName);
+	static void ImportEADRawPercussionData(ALBank*& alBank, int sound, CString fileName);
 	static void ExportRawSfxData(ALBank*& alBank, int sound, CString fileName);
 	static void ImportRawSfxData(ALBank*& alBank, int sound, CString fileName);
 	static int ReadCtlTblLocations(unsigned char* ROM, int romSize, std::vector<ctlTblResult>& results);
 
 	static BOOL hiddenExec (PTSTR pCmdLine, CString currentDirectory);
 
-	static unsigned long decode( unsigned char *in, signed short *out, unsigned long len, ALADPCMBook *book );
+	static unsigned long decode( unsigned char *in, signed short *out, unsigned long len, ALADPCMBook *book, bool decode8Only );
 	static unsigned long decodemusyxadpcm( unsigned char *in, signed short *out, unsigned long len, ALADPCMBook *book );
 	static float encode(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
+	static float encode_half(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
 	static int GetSizeFile(CString filename);
 private:
 	static unsigned long CharArrayToLong(unsigned char* currentSpot);
@@ -431,6 +470,8 @@ private:
 	static void WriteShortToBuffer(unsigned char* Buffer, unsigned long address, unsigned short data);
 
 	static void decode_8( unsigned char *in, signed short *out , int index, signed short * pred1, signed short lastsmp[8]);
+	static void decode_8_half( unsigned char *in, signed short *out , int index, signed short * pred1, signed short lastsmp[8]);
+	static int determineBestEncodeIndexAndPredictor_half(signed short* predictors, int numPredictors, signed short* lastSampleSet, signed short* inPCMSamples, float& bestFitIndex, int& predictorIndex);
 	static int determineBestEncodeIndexAndPredictor(signed short* predictors, int numPredictors, signed short* lastSampleSet, signed short* inPCMSamples, float& bestFitIndex, int& predictorIndex);
 	static int determineBestEncodeIndex(signed short* pred1, signed short* pred2, signed short* lastSampleSet, signed short* inPCMSamples, float& bestFitIndex);
 	static signed short* determineBestPredictors(ALBank* alBank, unsigned long& npredictors, unsigned long& norder, signed short* inPCMSamples, int numberSamplesIn);

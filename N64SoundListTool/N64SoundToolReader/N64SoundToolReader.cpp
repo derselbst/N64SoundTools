@@ -185,6 +185,10 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 		{
 			nameCount++;
 		}
+		else if (currentLine[0] == '{')
+		{
+
+		}
 		else
 		{
 			soundBankCount++;
@@ -225,6 +229,9 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 	countGames = 0;
 	lastGame = "";
 
+	bool overrideSamplingRate = false;
+	int samplingRate = 22050;
+
 	while (!feof(inIni))
 	{
 		char currentLine[1000];
@@ -236,6 +243,8 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 			continue;
 		else if (currentLine[0] == '[')
 		{
+			overrideSamplingRate = false;
+
 			int spot = 0;
 			while (spot < 1000)
 			{
@@ -252,6 +261,34 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 		else if (currentLine[0] == '|')
 		{
 			gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].instrumentNames.push_back(&currentLine[1]);
+		}
+		else if (currentLine[0] == '{')
+		{
+			CString line;
+			line.Format("%s", currentLine);
+
+			line.Replace("{", "");
+			line.Replace("}", "");
+			line.Replace(" ", "");
+
+			if ((line.Find("HalfSampling")) != -1)
+			{
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].halfSamplingRate = true;
+			}
+			else if (line.Find("AllSamplingRate") != -1)
+			{
+				line.Replace("AllSamplingRate", "");
+				line.Replace(":", "");
+				overrideSamplingRate = true;
+				samplingRate = atoi(line);
+			}
+			else if (line.Find("SamplingRate") != -1)
+			{
+				line.Replace("SamplingRate", "");
+				line.Replace(":", "");
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].overrideSamplingRate = true;
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].samplingRate = atoi(line);
+			}
 		}
 		else
 		{
@@ -286,6 +323,15 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				third.Replace("\n", "");
 				fourth.Replace("\r", "");
 				fourth.Replace("\n", "");
+
+				if (overrideSamplingRate)
+				{
+					if (!gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].overrideSamplingRate)
+					{
+						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].overrideSamplingRate = true;
+						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].samplingRate = samplingRate;
+					}
+				}
 
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].ctl = StringHexToLong(first);
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].tbl = StringHexToLong(second);
@@ -527,6 +573,10 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioPaperMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
+			else if (gameConfig.gameType.Find("B0") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioB0(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
+			}
 			else if (gameConfig.gameType.Find("DuckDodgers") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioDuckDodgers(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
@@ -665,7 +715,12 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			}
 
 			if (results[numberResults].bank != NULL)
+			{
+				results[numberResults].halfSamplingRate = gameConfig.soundBanks[x].halfSamplingRate;
+				results[numberResults].overrideSamplingRate = gameConfig.soundBanks[x].overrideSamplingRate;
+				results[numberResults].samplingRate = gameConfig.soundBanks[x].samplingRate;
 				numberResults++;
+			}
 			else
 				results.resize(numberResults);
 		}
