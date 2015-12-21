@@ -232,11 +232,15 @@ CMidiParse::CMidiParse(void)
 
 	compress = new GECompression();
 
-	for (int i = 0; i < 32; i++)
+	for (int i = 0; i < 0x20; i++)
 		trackEventCount[i] = 0;
 	trackEvents = new TrackEvent *[0x20];
-	for (unsigned int x = 0; x < 0x20; x++ )
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
 		trackEvents[x] = new TrackEvent[0x10000];
+		for (int y = 0; y < 0x10000; y++)
+			trackEvents[x][y].contentSize = NULL;
+	}
 
 	/* GE Mapping
 	instrumentMidiToGEMapping[0x00] = 0x12;// 0x00
@@ -372,8 +376,18 @@ CMidiParse::CMidiParse(void)
 
 CMidiParse::~CMidiParse(void)
 {
-	for (unsigned int x = 0; x < 0x20; x++ )
-		delete [] trackEvents[x];
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x10000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		delete[] trackEvents[x];
+	}
 	delete [] trackEvents;
 
 	delete compress;
@@ -414,9 +428,9 @@ void CMidiParse::GloverMidiToMidi(byte* inputMID, int inputSize, CString outFile
 		unsigned long absoluteTime = 0;
 
 		int trackEventCount = 0;
-		TrackEvent* trackEvents = new TrackEvent[0x100000];
+		TrackEvent* trackEvents = new TrackEvent[0x10000];
 
-		for (int j = 0; j < 0x100000; j++)
+		for (int j = 0; j < 0x10000; j++)
 		{
 			trackEvents[j].contents = NULL;
 			trackEvents[j].obsoleteEvent = false;
@@ -769,15 +783,15 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 		{
 			unsigned long absoluteTime = 0;
 
-			int trackEventCount = 0;
-			TrackEvent* trackEvents = new TrackEvent[0x100000];
+			int trackEventCountSub = 0;
+			TrackEvent* trackEventsSub = new TrackEvent[0x10000];
 
-			for (int j = 0; j < 0x100000; j++)
+			for (int j = 0; j < 0x10000; j++)
 			{
-				trackEvents[j].contents = NULL;
-				trackEvents[j].obsoleteEvent = false;
-				trackEvents[j].deltaTime = 0;
-				trackEvents[j].absoluteTime = 0;
+				trackEventsSub[j].contents = NULL;
+				trackEventsSub[j].obsoleteEvent = false;
+				trackEventsSub[j].deltaTime = 0;
+				trackEventsSub[j].absoluteTime = 0;
 
 			}
 
@@ -799,19 +813,19 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				bool endFlag = false;
 				while ((position < inputSize) && !endFlag)
 				{
-					if (trackEventCount > 0x90000)
+					if (trackEventCountSub > 0x90000)
 						return;
 
 					int timePosition = position;
 
 					unsigned long original;
-					// trackEvents[trackEventCount].deltaTime is for loops
+					// trackEventsSub[trackEventCountSub].deltaTime is for loops
 					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
 
-					trackEvents[trackEventCount].deltaTime += timeTag;
+					trackEventsSub[trackEventCountSub].deltaTime += timeTag;
 
 					absoluteTime += timeTag;
-					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+					trackEventsSub[trackEventCountSub].absoluteTime = absoluteTime;
 
 					int vlLength = 0;
 					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
@@ -840,17 +854,17 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						{
 							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
 
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 5;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 5;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x51;
-							trackEvents[trackEventCount].contents[1] = 0x3;
-							trackEvents[trackEventCount].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
-							trackEvents[trackEventCount].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
-							trackEvents[trackEventCount].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[0] = 0x51;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x3;
+							trackEventsSub[trackEventCountSub].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							
 							int MICROSECONDS_PER_MINUTE = 60000000;
@@ -878,14 +892,14 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						}
 						else if (subType == 0x2F)
 						{
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 2;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x2F;
-							trackEvents[trackEventCount].contents[1] = 0x0;
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							endFlag = true;
 						}
@@ -900,13 +914,13 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						byte noteNumber;
 						if (statusBit)
 						{
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 							noteNumber = eventVal;
 							curEventVal = previousEventValue;
 						}
 						else
 						{
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							curEventVal = eventVal;
 						}
@@ -916,13 +930,13 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 						
 
-						trackEvents[trackEventCount].durationTime = timeDuration; // to be filled in
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = noteNumber;
-						trackEvents[trackEventCount].contents[1] = velocity;
+						trackEventsSub[trackEventCountSub].durationTime = timeDuration; // to be filled in
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = noteNumber;
+						trackEventsSub[trackEventCountSub].contents[1] = velocity;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -935,21 +949,21 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							controllerType = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = controllerType;
-						trackEvents[trackEventCount].contents[1] = controllerValue;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = controllerType;
+						trackEventsSub[trackEventCountSub].contents[1] = controllerValue;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -960,21 +974,21 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							instrument = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = instrument;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = instrument;
 						if (instrument >= numberInstruments)
 							numberInstruments = (instrument + 1);
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -985,19 +999,19 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							amount = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = amount;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = amount;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1008,22 +1022,22 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							valueLSB = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						
 						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = valueLSB;
-						trackEvents[trackEventCount].contents[1] = valueMSB;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = valueLSB;
+						trackEventsSub[trackEventCountSub].contents[1] = valueMSB;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1041,12 +1055,12 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					if (trackEventCount > 0x90000)
+					if (trackEventCountSub > 0x90000)
 						return;
 
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 					if ((trackEvent.type >= 0x90) && (trackEvent.type < 0xA0))
 					{
 						// need to split out
@@ -1055,140 +1069,140 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 							unsigned long shutoffTime = (trackEvent.absoluteTime + trackEvent.durationTime);
 
-							if (eventCount != (trackEventCount - 1))
+							if (eventCount != (trackEventCountSub - 1))
 							{
 
-								for (int i = (eventCount+1); i < trackEventCount; i++)
+								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEvents[i].absoluteTime > shutoffTime) && (i != (trackEventCount - 1)))
+									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
-										for (int j = (trackEventCount - 1); j >= i; j--)
+										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
-											trackEvents[j+1].absoluteTime = trackEvents[j].absoluteTime;
-											trackEvents[j+1].contentSize = trackEvents[j].contentSize;
-											if (trackEvents[j+1].contents != NULL)
+											trackEventsSub[j+1].absoluteTime = trackEventsSub[j].absoluteTime;
+											trackEventsSub[j+1].contentSize = trackEventsSub[j].contentSize;
+											if (trackEventsSub[j+1].contents != NULL)
 											{
-												delete [] trackEvents[j+1].contents;
-												trackEvents[j+1].contents = NULL;
+												delete [] trackEventsSub[j+1].contents;
+												trackEventsSub[j+1].contents = NULL;
 											}
-											trackEvents[j+1].contents = new byte[trackEvents[j].contentSize];
-											for (int r = 0; r < trackEvents[j].contentSize; r++)
+											trackEventsSub[j+1].contents = new byte[trackEventsSub[j].contentSize];
+											for (int r = 0; r < trackEventsSub[j].contentSize; r++)
 											{
-												trackEvents[j+1].contents[r] = trackEvents[j].contents[r];
+												trackEventsSub[j+1].contents[r] = trackEventsSub[j].contents[r];
 											}
-											trackEvents[j+1].deltaTime = trackEvents[j].deltaTime;
-											trackEvents[j+1].durationTime = trackEvents[j].durationTime;
-											trackEvents[j+1].obsoleteEvent = trackEvents[j].obsoleteEvent;
-											trackEvents[j+1].type = trackEvents[j].type;
+											trackEventsSub[j+1].deltaTime = trackEventsSub[j].deltaTime;
+											trackEventsSub[j+1].durationTime = trackEventsSub[j].durationTime;
+											trackEventsSub[j+1].obsoleteEvent = trackEventsSub[j].obsoleteEvent;
+											trackEventsSub[j+1].type = trackEventsSub[j].type;
 										}
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i-1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i-1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
 
 
-										if (trackEvents[i].contents != NULL)
+										if (trackEventsSub[i].contents != NULL)
 										{
-											delete [] trackEvents[i].contents;
+											delete [] trackEventsSub[i].contents;
 										}
 
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
 
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
 
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
-									else if (i == (trackEventCount - 1))
+									else if (i == (trackEventCountSub - 1))
 									{
-										trackEvents[i+1].absoluteTime = shutoffTime; // move end to end
-										trackEvents[i+1].contentSize = trackEvents[i].contentSize;
-										if (trackEvents[i+1].contents != NULL)
+										trackEventsSub[i+1].absoluteTime = shutoffTime; // move end to end
+										trackEventsSub[i+1].contentSize = trackEventsSub[i].contentSize;
+										if (trackEventsSub[i+1].contents != NULL)
 										{
-											delete [] trackEvents[i+1].contents;
-											trackEvents[i+1].contents = NULL;
+											delete [] trackEventsSub[i+1].contents;
+											trackEventsSub[i+1].contents = NULL;
 										}
-										trackEvents[i+1].contents = new byte[trackEvents[i].contentSize];
-										for (int r = 0; r < trackEvents[i].contentSize; r++)
+										trackEventsSub[i+1].contents = new byte[trackEventsSub[i].contentSize];
+										for (int r = 0; r < trackEventsSub[i].contentSize; r++)
 										{
-											trackEvents[i+1].contents[r] = trackEvents[i].contents[r];
+											trackEventsSub[i+1].contents[r] = trackEventsSub[i].contents[r];
 										}
-										trackEvents[i+1].deltaTime = trackEvents[i].deltaTime;
-										trackEvents[i+1].durationTime = trackEvents[i].durationTime;
-										trackEvents[i+1].obsoleteEvent = trackEvents[i].obsoleteEvent;
-										trackEvents[i+1].type = trackEvents[i].type;
+										trackEventsSub[i+1].deltaTime = trackEventsSub[i].deltaTime;
+										trackEventsSub[i+1].durationTime = trackEventsSub[i].durationTime;
+										trackEventsSub[i+1].obsoleteEvent = trackEventsSub[i].obsoleteEvent;
+										trackEventsSub[i+1].type = trackEventsSub[i].type;
 
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i - 1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i - 1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
 
-										if (trackEvents[i].contents != NULL)
+										if (trackEventsSub[i].contents != NULL)
 										{
-											delete [] trackEvents[i].contents;
+											delete [] trackEventsSub[i].contents;
 										}
 
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
 
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
 								}
 							}
 							else
 							{
-								trackEvents[eventCount+1].absoluteTime = shutoffTime; // move end to end
-								trackEvents[eventCount+1].contentSize = trackEvents[eventCount].contentSize;
-								if (trackEvents[eventCount+1].contents != NULL)
+								trackEventsSub[eventCount+1].absoluteTime = shutoffTime; // move end to end
+								trackEventsSub[eventCount+1].contentSize = trackEventsSub[eventCount].contentSize;
+								if (trackEventsSub[eventCount+1].contents != NULL)
 								{
-									delete [] trackEvents[eventCount+1].contents;
-									trackEvents[eventCount+1].contents = NULL;
+									delete [] trackEventsSub[eventCount+1].contents;
+									trackEventsSub[eventCount+1].contents = NULL;
 								}
-								trackEvents[eventCount+1].contents = new byte[trackEvents[eventCount].contentSize];
-								for (int r = 0; r < trackEvents[eventCount].contentSize; r++)
+								trackEventsSub[eventCount+1].contents = new byte[trackEventsSub[eventCount].contentSize];
+								for (int r = 0; r < trackEventsSub[eventCount].contentSize; r++)
 								{
-									trackEvents[eventCount+1].contents[r] = trackEvents[eventCount].contents[r];
+									trackEventsSub[eventCount+1].contents[r] = trackEventsSub[eventCount].contents[r];
 								}
-								trackEvents[eventCount+1].deltaTime = trackEvents[eventCount].deltaTime;
-								trackEvents[eventCount+1].durationTime = trackEvents[eventCount].durationTime;
-								trackEvents[eventCount+1].obsoleteEvent = trackEvents[eventCount].obsoleteEvent;
-								trackEvents[eventCount+1].type = trackEvents[eventCount].type;
+								trackEventsSub[eventCount+1].deltaTime = trackEventsSub[eventCount].deltaTime;
+								trackEventsSub[eventCount+1].durationTime = trackEventsSub[eventCount].durationTime;
+								trackEventsSub[eventCount+1].obsoleteEvent = trackEventsSub[eventCount].obsoleteEvent;
+								trackEventsSub[eventCount+1].type = trackEventsSub[eventCount].type;
 
 
-								trackEvents[eventCount].type = trackEvents[eventCount].type;
-								trackEvents[eventCount].absoluteTime = shutoffTime;
-								if ((trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime) > 0xFF000000)
+								trackEventsSub[eventCount].type = trackEventsSub[eventCount].type;
+								trackEventsSub[eventCount].absoluteTime = shutoffTime;
+								if ((trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime) > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEvents[eventCount].deltaTime = (trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime);
-								trackEvents[eventCount].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[eventCount].durationTime = 0;
-								trackEvents[eventCount].contents = new byte[trackEvents[eventCount].contentSize];
-								trackEvents[eventCount].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[eventCount].contents[1] = 0;
+								trackEventsSub[eventCount].deltaTime = (trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime);
+								trackEventsSub[eventCount].contentSize = trackEventsSub[eventCount].contentSize;
+								trackEventsSub[eventCount].durationTime = 0;
+								trackEventsSub[eventCount].contents = new byte[trackEventsSub[eventCount].contentSize];
+								trackEventsSub[eventCount].contents[0] = trackEventsSub[eventCount].contents[0];
+								trackEventsSub[eventCount].contents[1] = 0;
 
-								trackEvents[eventCount+1].deltaTime = (trackEvents[eventCount+1].absoluteTime - trackEvents[eventCount].absoluteTime);
-								if (trackEvents[eventCount].deltaTime > 0xFF000000)
+								trackEventsSub[eventCount+1].deltaTime = (trackEventsSub[eventCount+1].absoluteTime - trackEventsSub[eventCount].absoluteTime);
+								if (trackEventsSub[eventCount].deltaTime > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEventCount++;
+								trackEventCountSub++;
 							}
 						}
 					}
@@ -1201,9 +1215,9 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte previousTrackEvent = 0x0;
 
 				
-				for (int j = 0; j < trackEventCount; j++)
+				for (int j = 0; j < trackEventCountSub; j++)
 				{
-					TrackEvent trackEvent =  trackEvents[j];
+					TrackEvent trackEvent =  trackEventsSub[j];
 					if (trackEvent.obsoleteEvent)
 					{
 						timeOffset += trackEvent.deltaTime;
@@ -1233,9 +1247,9 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				timeOffset = 0;
 				previousTrackEvent = 0x0;
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 
 					if (trackEvent.obsoleteEvent)
 					{
@@ -1264,18 +1278,18 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				
 			}
 
-			for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+			for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 			{
-				if (trackEvents[eventCount].contents != NULL)
+				if (trackEventsSub[eventCount].contents != NULL)
 				{
-					delete [] trackEvents[eventCount].contents;
-					trackEvents[eventCount].contents = NULL;
+					delete [] trackEventsSub[eventCount].contents;
+					trackEventsSub[eventCount].contents = NULL;
 				}
 			}
 
 			counterTrack++;
 
-			delete [] trackEvents;
+			delete [] trackEventsSub;
 		}
 
 
@@ -1757,16 +1771,16 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 		{
 			unsigned long absoluteTime = 0;
 
-			int trackEventCount = 0;
-			TrackEvent* trackEvents = new TrackEvent[0x90000];
+			int trackEventCountSub = 0;
+			TrackEvent* trackEventsSub = new TrackEvent[0x90000];
 
 			for (int j = 0; j < 0x90000; j++)
 			{
-				trackEvents[j].contents = NULL;
-				trackEvents[j].contentSize = 0;
-				trackEvents[j].obsoleteEvent = false;
-				trackEvents[j].deltaTime = 0;
-				trackEvents[j].absoluteTime = 0;
+				trackEventsSub[j].contents = NULL;
+				trackEventsSub[j].contentSize = 0;
+				trackEventsSub[j].obsoleteEvent = false;
+				trackEventsSub[j].deltaTime = 0;
+				trackEventsSub[j].absoluteTime = 0;
 			}
 
 			unsigned long offset = CharArrayToLong(&inputMID[(iii * 4) + 0x8]);
@@ -1792,10 +1806,10 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 					unsigned long original;
 					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
 
-					trackEvents[trackEventCount].deltaTime += timeTag;
+					trackEventsSub[trackEventCountSub].deltaTime += timeTag;
 
 					absoluteTime += timeTag;
-					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+					trackEventsSub[trackEventCountSub].absoluteTime = absoluteTime;
 
 					int vlLength = 0;
 					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
@@ -1824,17 +1838,17 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						{
 							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
 
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 5;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 5;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x51;
-							trackEvents[trackEventCount].contents[1] = 0x3;
-							trackEvents[trackEventCount].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
-							trackEvents[trackEventCount].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
-							trackEvents[trackEventCount].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[0] = 0x51;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x3;
+							trackEventsSub[trackEventCountSub].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							
 							int MICROSECONDS_PER_MINUTE = 60000000;
@@ -1862,14 +1876,14 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						}
 						else if (subType == 0x2F)
 						{
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 2;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x2F;
-							trackEvents[trackEventCount].contents[1] = 0x0;
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							endFlag = true;
 						}
@@ -1884,13 +1898,13 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						byte noteNumber;
 						if (statusBit)
 						{
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 							noteNumber = eventVal;
 							curEventVal = previousEventValue;
 						}
 						else
 						{
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							curEventVal = eventVal;
 						}
@@ -1900,13 +1914,13 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 						
 
-						trackEvents[trackEventCount].durationTime = timeDuration; // to be filled in
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = noteNumber;
-						trackEvents[trackEventCount].contents[1] = velocity;
+						trackEventsSub[trackEventCountSub].durationTime = timeDuration; // to be filled in
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = noteNumber;
+						trackEventsSub[trackEventCountSub].contents[1] = velocity;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1919,21 +1933,21 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							controllerType = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = controllerType;
-						trackEvents[trackEventCount].contents[1] = controllerValue;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = controllerType;
+						trackEventsSub[trackEventCountSub].contents[1] = controllerValue;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1944,21 +1958,21 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							instrument = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = instrument;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = instrument;
 						if (instrument >= numberInstruments)
 							numberInstruments = (instrument + 1);
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1969,19 +1983,19 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							amount = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = amount;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = amount;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1992,22 +2006,22 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							valueLSB = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						
 						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = valueLSB;
-						trackEvents[trackEventCount].contents[1] = valueMSB;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = valueLSB;
+						trackEventsSub[trackEventCountSub].contents[1] = valueMSB;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -2025,9 +2039,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 					if ((trackEvent.type >= 0x90) && (trackEvent.type < 0xA0))
 					{
 						// need to split out
@@ -2036,130 +2050,130 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 							unsigned long shutoffTime = (trackEvent.absoluteTime + trackEvent.durationTime);
 
-							if (eventCount != (trackEventCount - 1))
+							if (eventCount != (trackEventCountSub - 1))
 							{
 
-								for (int i = (eventCount+1); i < trackEventCount; i++)
+								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEvents[i].absoluteTime > shutoffTime) && (i != (trackEventCount - 1)))
+									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
-										for (int j = (trackEventCount - 1); j >= i; j--)
+										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
-											trackEvents[j+1].absoluteTime = trackEvents[j].absoluteTime;
-											trackEvents[j+1].contentSize = trackEvents[j].contentSize;
- 											if (trackEvents[j+1].contents != NULL)
+											trackEventsSub[j+1].absoluteTime = trackEventsSub[j].absoluteTime;
+											trackEventsSub[j+1].contentSize = trackEventsSub[j].contentSize;
+ 											if (trackEventsSub[j+1].contents != NULL)
 											{
-												delete [] trackEvents[j+1].contents;
-												trackEvents[j+1].contents = NULL;
+												delete [] trackEventsSub[j+1].contents;
+												trackEventsSub[j+1].contents = NULL;
 											}
-											trackEvents[j+1].contents = new byte[trackEvents[j].contentSize];
-											for (int r = 0; r < trackEvents[j].contentSize; r++)
+											trackEventsSub[j+1].contents = new byte[trackEventsSub[j].contentSize];
+											for (int r = 0; r < trackEventsSub[j].contentSize; r++)
 											{
-												trackEvents[j+1].contents[r] = trackEvents[j].contents[r];
+												trackEventsSub[j+1].contents[r] = trackEventsSub[j].contents[r];
 											}
-											trackEvents[j+1].deltaTime = trackEvents[j].deltaTime;
-											trackEvents[j+1].durationTime = trackEvents[j].durationTime;
-											trackEvents[j+1].obsoleteEvent = trackEvents[j].obsoleteEvent;
-											trackEvents[j+1].type = trackEvents[j].type;
+											trackEventsSub[j+1].deltaTime = trackEventsSub[j].deltaTime;
+											trackEventsSub[j+1].durationTime = trackEventsSub[j].durationTime;
+											trackEventsSub[j+1].obsoleteEvent = trackEventsSub[j].obsoleteEvent;
+											trackEventsSub[j+1].type = trackEventsSub[j].type;
 										}
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i-1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i-1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
 
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
 
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
-									else if (i == (trackEventCount - 1))
+									else if (i == (trackEventCountSub - 1))
 									{
-										trackEvents[i+1].absoluteTime = shutoffTime; // move end to end
-										trackEvents[i+1].contentSize = trackEvents[i].contentSize;
-										if (trackEvents[i+1].contents != NULL)
+										trackEventsSub[i+1].absoluteTime = shutoffTime; // move end to end
+										trackEventsSub[i+1].contentSize = trackEventsSub[i].contentSize;
+										if (trackEventsSub[i+1].contents != NULL)
 										{
-											delete [] trackEvents[i+1].contents;
-											trackEvents[i+1].contents = NULL;
+											delete [] trackEventsSub[i+1].contents;
+											trackEventsSub[i+1].contents = NULL;
 										}
-										trackEvents[i+1].contents = new byte[trackEvents[i].contentSize];
-										for (int r = 0; r < trackEvents[i].contentSize; r++)
+										trackEventsSub[i+1].contents = new byte[trackEventsSub[i].contentSize];
+										for (int r = 0; r < trackEventsSub[i].contentSize; r++)
 										{
-											trackEvents[i+1].contents[r] = trackEvents[i].contents[r];
+											trackEventsSub[i+1].contents[r] = trackEventsSub[i].contents[r];
 										}
-										trackEvents[i+1].deltaTime = trackEvents[i].deltaTime;
-										trackEvents[i+1].durationTime = trackEvents[i].durationTime;
-										trackEvents[i+1].obsoleteEvent = trackEvents[i].obsoleteEvent;
-										trackEvents[i+1].type = trackEvents[i].type;
+										trackEventsSub[i+1].deltaTime = trackEventsSub[i].deltaTime;
+										trackEventsSub[i+1].durationTime = trackEventsSub[i].durationTime;
+										trackEventsSub[i+1].obsoleteEvent = trackEventsSub[i].obsoleteEvent;
+										trackEventsSub[i+1].type = trackEventsSub[i].type;
 
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i - 1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i - 1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
 								}
 							}
 							else
 							{
-								trackEvents[eventCount+1].absoluteTime = shutoffTime; // move end to end
-								trackEvents[eventCount+1].contentSize = trackEvents[eventCount].contentSize;
-								if (trackEvents[eventCount+1].contents != NULL)
+								trackEventsSub[eventCount+1].absoluteTime = shutoffTime; // move end to end
+								trackEventsSub[eventCount+1].contentSize = trackEventsSub[eventCount].contentSize;
+								if (trackEventsSub[eventCount+1].contents != NULL)
 								{
-									delete [] trackEvents[eventCount+1].contents;
-									trackEvents[eventCount+1].contents = NULL;
+									delete [] trackEventsSub[eventCount+1].contents;
+									trackEventsSub[eventCount+1].contents = NULL;
 								}
-								trackEvents[eventCount+1].contents = new byte[trackEvents[eventCount].contentSize];
-								for (int r = 0; r < trackEvents[eventCount].contentSize; r++)
+								trackEventsSub[eventCount+1].contents = new byte[trackEventsSub[eventCount].contentSize];
+								for (int r = 0; r < trackEventsSub[eventCount].contentSize; r++)
 								{
-									trackEvents[eventCount+1].contents[r] = trackEvents[eventCount].contents[r];
+									trackEventsSub[eventCount+1].contents[r] = trackEventsSub[eventCount].contents[r];
 								}
-								trackEvents[eventCount+1].deltaTime = trackEvents[eventCount].deltaTime;
-								trackEvents[eventCount+1].durationTime = trackEvents[eventCount].durationTime;
-								trackEvents[eventCount+1].obsoleteEvent = trackEvents[eventCount].obsoleteEvent;
-								trackEvents[eventCount+1].type = trackEvents[eventCount].type;
+								trackEventsSub[eventCount+1].deltaTime = trackEventsSub[eventCount].deltaTime;
+								trackEventsSub[eventCount+1].durationTime = trackEventsSub[eventCount].durationTime;
+								trackEventsSub[eventCount+1].obsoleteEvent = trackEventsSub[eventCount].obsoleteEvent;
+								trackEventsSub[eventCount+1].type = trackEventsSub[eventCount].type;
 
 
-								trackEvents[eventCount].type = trackEvents[eventCount].type;
-								trackEvents[eventCount].absoluteTime = shutoffTime;
-								if ((trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime) > 0xFF000000)
+								trackEventsSub[eventCount].type = trackEventsSub[eventCount].type;
+								trackEventsSub[eventCount].absoluteTime = shutoffTime;
+								if ((trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime) > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEvents[eventCount].deltaTime = (trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime);
-								trackEvents[eventCount].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[eventCount].durationTime = 0;
-								trackEvents[eventCount].contents = new byte[trackEvents[eventCount].contentSize];
-								trackEvents[eventCount].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[eventCount].contents[1] = 0;
+								trackEventsSub[eventCount].deltaTime = (trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime);
+								trackEventsSub[eventCount].contentSize = trackEventsSub[eventCount].contentSize;
+								trackEventsSub[eventCount].durationTime = 0;
+								trackEventsSub[eventCount].contents = new byte[trackEventsSub[eventCount].contentSize];
+								trackEventsSub[eventCount].contents[0] = trackEventsSub[eventCount].contents[0];
+								trackEventsSub[eventCount].contents[1] = 0;
 
-								trackEvents[eventCount+1].deltaTime = (trackEvents[eventCount+1].absoluteTime - trackEvents[eventCount].absoluteTime);
-								if (trackEvents[eventCount].deltaTime > 0xFF000000)
+								trackEventsSub[eventCount+1].deltaTime = (trackEventsSub[eventCount+1].absoluteTime - trackEventsSub[eventCount].absoluteTime);
+								if (trackEventsSub[eventCount].deltaTime > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEventCount++;
+								trackEventCountSub++;
 							}
 						}
 					}
@@ -2172,9 +2186,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte previousTrackEvent = 0x0;
 
 				
-				for (int j = 0; j < trackEventCount; j++)
+				for (int j = 0; j < trackEventCountSub; j++)
 				{
-					TrackEvent trackEvent =  trackEvents[j];
+					TrackEvent trackEvent =  trackEventsSub[j];
 					if (trackEvent.obsoleteEvent)
 					{
 						timeOffset += trackEvent.deltaTime;
@@ -2204,9 +2218,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				timeOffset = 0;
 				previousTrackEvent = 0x0;
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 
 					if (trackEvent.obsoleteEvent)
 					{
@@ -2230,12 +2244,12 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 					}
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					if (trackEvents[eventCount].contents != NULL)
+					if (trackEventsSub[eventCount].contents != NULL)
 					{
-						delete [] trackEvents[eventCount].contents;
-						trackEvents[eventCount].contents = NULL;
+						delete [] trackEventsSub[eventCount].contents;
+						trackEventsSub[eventCount].contents = NULL;
 					}
 				}
 			}
@@ -2245,7 +2259,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 			}
 
 			counterTrack++;
-			delete [] trackEvents;
+			delete [] trackEventsSub;
 		}
 
 
@@ -2264,6 +2278,20 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 bool CMidiParse::MidiToBTFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters)
 {
+	numberTracks = 0;
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x10000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
+
 	CString tempOutput = (output + "temp.bin");
 
 	unsigned short numberTracks = 0x20;
@@ -2348,6 +2376,19 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 	int numberInstruments = 0;
 	numberTracks = 0x10;
+
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x10000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
 
 	try
 	{
@@ -2562,9 +2603,6 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 
 
-		trackEvents = new TrackEvent*[0x10];
-
-
 		int counterTrack = 0;
 
 		for (int iii = 0; iii < (lengthHeader - 4); iii+=4) // ignore last 00000180
@@ -2573,9 +2611,8 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 			unsigned long absoluteTime = 0;
 
 			trackEventCount[counterTrack] = 0;
-			trackEvents[counterTrack] = new TrackEvent[0x100000];
 
-			for (int j = 0; j < 0x100000; j++)
+			for (int j = 0; j < 0x10000; j++)
 			{
 				trackEvents[counterTrack][j].contents = NULL;
 				trackEvents[counterTrack][j].obsoleteEvent = false;
@@ -3351,6 +3388,8 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 
 	}
+
+	return true;
 }
 
 bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters, unsigned short& numTracks)
@@ -4560,6 +4599,20 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 {
 	try
 	{
+
+	numberTracks = 0;
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x10000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
 
 	CString tempFileName = input;
 
@@ -6331,7 +6384,8 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 		fclose(outTempROM);
 
 		CString tempStr;
-		tempStr.Format("seq64.exe -rom=\"%s\" -descriptor=\"%s\" -midi=%d -output=\"%s\"", tempROMStr, mainFolder + "romdesc\\" + gameName + ".xml", address, fileName);
+		::DeleteFile(fileName);
+		tempStr.Format("seq64.exe --rom=\"%s\" --romdesc=\"%s\" --export_midi=%d --output=\"%s\"", tempROMStr, mainFolder + "romdesc\\" + gameName + ".xml", address, fileName);
 		hiddenExec(_T(tempStr.GetBuffer()), (mainFolder));
 
 		::DeleteFile(tempROMStr);
@@ -6399,8 +6453,8 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 
 			CH20Decoder h20dec;
 			int compressedSize = -1;
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
-			unsigned char* cleanDecompressed = new unsigned char[0x100000];
+			unsigned char* outputDecompressed = new unsigned char[0x10000];
+			unsigned char* cleanDecompressed = new unsigned char[0x10000];
 
 			int decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, outputDecompressed);
 			decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, cleanDecompressed);
@@ -6455,7 +6509,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 					fwrite(cleanDecompressed, 1, position, outFile);
 
 					CTetrisphereDecoder tetDec;
-					unsigned char* outputLz = new unsigned char[0x1000000];
+					unsigned char* outputLz = new unsigned char[0x100000];
 					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], length, outputLz, true);
 					returnSize = returnSize;
 
@@ -6497,7 +6551,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 				}
 				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
 
-				unsigned char* outputDecompressedInstrument = new unsigned char[0x100000];
+				unsigned char* outputDecompressedInstrument = new unsigned char[0x10000];
 
 				int decSizeInstrument = h20dec.decPolaris(&gamebuffer[location], compressedSize, outputDecompressedInstrument);
 				fwrite(outputDecompressedInstrument, 1, sampleSize, outFile);
@@ -6528,8 +6582,8 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 
 			unsigned long decSize = ((((((gamebuffer[address+0x9] << 8) | gamebuffer[address+0x8]) << 8) | gamebuffer[address+0x7]) << 8) | gamebuffer[address+0x6]);
 			
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
-			unsigned char* cleanDecompressed = new unsigned char[0x100000];
+			unsigned char* outputDecompressed = new unsigned char[0x10000];
+			unsigned char* cleanDecompressed = new unsigned char[0x10000];
 			memcpy(outputDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
 			memcpy(cleanDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
 
@@ -6583,7 +6637,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 					fwrite(cleanDecompressed, 1, position, outFile);
 
 					CTetrisphereDecoder tetDec;
-					unsigned char* outputLz = new unsigned char[0x1000000];
+					unsigned char* outputLz = new unsigned char[0x100000];
 					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], (decSize - 4), outputLz, true);
 					returnSize = returnSize;
 
@@ -6631,7 +6685,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 				}
 				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
 
-				unsigned char* outputDecompressedInstrument = new unsigned char[0x100000];
+				unsigned char* outputDecompressedInstrument = new unsigned char[0x10000];
 
 				CTetrisphereDecoder tetDec;
 				tetDec.sphereDecompress(&gamebuffer[location], outputDecompressedInstrument);
@@ -6679,7 +6733,17 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 		}
 		else
 		{
-			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < size; x++)
+			{
+				fwrite(&gamebuffer[address+x], 1, 1, outFile);
+			}
+			fclose(outFile);
 		}
 	}
 	else if (gameType.Find("RNCMidi") == 0)
@@ -6688,7 +6752,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 		{
 			int fileSizeCompressed = -1;
 			RncDecoder decode;
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
+			unsigned char* outputDecompressed = new unsigned char[0x10000];
 			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
 			
 			FILE* outFile = fopen(fileName, "wb");
