@@ -416,10 +416,10 @@ public:
 	static bool ReplaceEADPercussionWithWavData(ALBank*& alBank, int percussion, CString rawWavFileName, unsigned long& samplingRate, bool newType);
 	static CString CompareALBanks(ALBank* alBank1, ALBank* alBank2);
 	static CString CompareALInstrument(ALInst* alInst1, ALInst* alInst2);
-	static bool ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool ignoreKeyBase, bool halfSamplingRate);
-	static bool ExtractPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
-	static bool ExtractEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
-	static bool ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate);
+	static bool ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool halfSamplingRate);
+	static bool ExtractPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
+	static bool ExtractEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
+	static bool ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
 	static unsigned char ConvertEADGameValueToKeyBase(float eadKeyvalue);
 	static bool ExtractRawPCMData(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, byte primSel);
 	static bool ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile);
@@ -460,6 +460,7 @@ public:
 	static float encode(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
 	static float encode_half(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
 	static int GetSizeFile(CString filename);
+	static float keyTable[0xFF];
 private:
 	static unsigned long CharArrayToLong(unsigned char* currentSpot);
 	static unsigned long Flip32Bit(unsigned long inLong);
@@ -477,8 +478,6 @@ private:
 	static signed short* determineBestPredictors(ALBank* alBank, unsigned long& npredictors, unsigned long& norder, signed short* inPCMSamples, int numberSamplesIn);
 
 	static void selectionSortAscending(float *array, signed short** arrayCopy, int length);
-
-	static float keyTable[0xFF];
 	static void InitializeKeyTable();
 };
 

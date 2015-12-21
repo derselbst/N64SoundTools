@@ -496,6 +496,8 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			currentIndex++;
 		}
 
+		results.resize(numberResults + 1);
+
 		results[numberResults].ctlOffset = gameConfig.soundBanks[start].ctl;
 		results[numberResults].ctlSize = ctlSize;
 		results[numberResults].tblOffset = gameConfig.soundBanks[start].tbl;

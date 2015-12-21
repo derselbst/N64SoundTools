@@ -404,8 +404,8 @@ int RncDecoder::unpackM1(const void *input, void *output, unsigned short key, in
 
 	if (version != 0x81)
 	{
-		if (crcBlock((unsigned char *)output, unpackLen) != crcUnpacked)
-			return UNPACKED_CRC;
+		//if (crcBlock((unsigned char *)output, unpackLen) != crcUnpacked)
+			//return UNPACKED_CRC;
 	}
 
 	// all is done..return the amount of unpacked bytes

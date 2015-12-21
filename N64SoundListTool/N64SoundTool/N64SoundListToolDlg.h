@@ -7,6 +7,7 @@
 #include "..\N64SoundToolReader\N64SoundToolReader.h"
 #include "shlobj.h"
 #include <string>
+#include "afxcmn.h"
 
 #define NORMAL 0
 #define EADPERCUSSION 1
@@ -150,7 +151,7 @@ public:
 	unsigned short CharArrayToShort(unsigned char* currentSpot);
 	afx_msg void OnFileQuit();
 	virtual BOOL DestroyWindow();
-	afx_msg void OnFileOpenromexplicit();
+	/*afx_msg*/ void OnFileOpenromexplicit();
 	afx_msg void OnBnClickedButtonimportpredictors();
 	afx_msg void OnBnClickedButtonexportpreditors();
 	afx_msg void OnBnClickedButtonimport16bitraw();
@@ -164,7 +165,7 @@ public:
 	BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo);
 	afx_msg void OnFileExtractallknowngames();
 	bool OpenROMFilename(CString filename, bool quiet);
-	afx_msg void OnFileOpenromn64ptrwavetable2();
+	/*afx_msg*/ void OnFileOpenromn64ptrwavetable2();
 	afx_msg void OnBnClickedButtonrip3();
 	CEdit m_bankName;
 	CButton m_injectInPlaceButton;
@@ -222,7 +223,6 @@ public:
 	afx_msg void OnBnClickedButtonremoveprev();
 	afx_msg void OnBnClickedButtonaddprev2();
 	afx_msg void OnBnClickedButtonremoveprev2();
-	CButton mIgnoreKeyBase;
 	CButton mHalfSamplingRate;
 	afx_msg void OnBnClickedButtonstopsound();
 	CButton m_stopButton;
@@ -246,4 +246,7 @@ public:
 	CButton mHalfVADPCMPrecision;
 	CButton mOverrideRate;
 	afx_msg void OnBnClickedCheckoverriderate();
+	CListCtrl mKeyBaseListCtrl;
+	void UpdateSamplingRateKeyBaseList();
+	void UpdateSamplingRateSelection();
 };
