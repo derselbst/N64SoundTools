@@ -21,6 +21,7 @@
 #include "SydneyDecoder.h"
 #include "NinDec.h"
 #include "SharedFunctions.h"
+#include "MidwayDecoder.h"
 
 #define STANDARDFORMAT 0
 #define STARFOX64FORMAT 1
@@ -65,6 +66,9 @@
 #define PAPERMARIO 40
 #define DUCKDODGERS 41
 #define B0 42
+#define AVL_0PTR 43
+#define KONAMICTL 44
+#define KONAMI8CTL 45
 
 #pragma once
 
@@ -236,14 +240,14 @@ struct EADPercussion
 		unknown1A = 0;
 		pan = 0;
 		unknown1C = 0;
-		keyBase = 0;
+		keyBase = 0x3C;
 
 		wav.base = 0;
 		wav.len = 0;
 		wav.type = 0;
 		wav.flags = 0;
 
-		keyBase = 0;
+		keyBase = 0x3C;
 		pan = 0;
 	}
 };
@@ -271,6 +275,23 @@ struct ALInst
 	unsigned short samplerate;
 };
 
+//AABBCCDDEE AA=course tune correction. BB=fine tune correction. CC=Attack (01=really slow to reach max attack. 7F=max). DD=decay (01=hold decay for awhile. 7F=none). EE=release time (01=really long. 7F=none.).
+struct KonamiADSR
+{
+	signed char coarseTune;
+	signed char fineTune;
+	unsigned char attackTime;
+	unsigned char decayTime;
+	unsigned char releaseTime;
+	unsigned char unknownOne;
+	unsigned char unknownTwo;
+};
+
+struct KonamiADSRDrum : KonamiADSR
+{
+	unsigned char instrumentLookup;
+};
+
 struct ALBank
 {
 	unsigned short	count;
@@ -279,6 +300,9 @@ struct ALBank
 	unsigned short	samplerate;
 	ALInst*	percussion;
 	ALInst**			inst;
+
+	std::vector<KonamiADSR> konamiADSR;
+	std::vector<KonamiADSRDrum> konamiDrumsADSR;
 
 	// extras
 	int soundBankFormat;
@@ -352,7 +376,10 @@ public:
 
 	static bool InjectCtlTblIntoROMArrayInPlace(unsigned char* ROM, unsigned char* ctl, int ctlSize, unsigned char* tbl, int tblSize, unsigned long ctlOffset, unsigned long tblOffset, unsigned long maxCtl, unsigned long maxTbl);
 	static void DisposeALBank(ALBank*& alBank);
+	static void DisposeALInst(ALInst*& alInst);
 	static ALBank* ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask, int bankNumber);
+	static ALBank* ReadAudioKonami(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
+	static ALBank* ReadAudioKonami8(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
 	static ALBank* ReadAudioMarioParty2E(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask);
 	static ALBank* ReadAudioMusyx(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int numberInstruments, int lastSoundEnd);
 	static ALBank* ReadAudioMusyxSmallerTable(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int numberInstruments, int lastSoundEnd);
@@ -393,6 +420,7 @@ public:
 	static ALBank* ReadRNCAudio(unsigned char* ROM, unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, int bankNumber);
 	static ALBank* ReadAudioSno(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, unsigned long expectedSize);
 	static ALBank* ReadAudioRNCN64Ptr(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
+	static ALBank* ReadAudioAVL_0Ptr(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioRNCN64PtrOffset(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, unsigned long offset);
 	static ALBank* ReadAudioH20Raw816(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, int numberInstruments);
 	static ALBank* ReadAudioTetrisphereRaw816(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, int numberInstruments);
@@ -401,6 +429,8 @@ public:
 	static ALBank* ReadAudioTurok(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl, int bankTrueOffset, unsigned long mask, unsigned char* ROM, int bankNumber);
 	static void UpdateAudioOffsets(ALBank*& alBank);
 	static void WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSize, unsigned char*& tbl, int& tblSize);
+	static void WriteKonamiADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
+	static void WriteKonami8ADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
 	static bool CompareBooks(ALWave* wavIn, ALWave* wavOut);
 	static bool CompareLoops(ALWave* wavIn, ALWave* wavOut);
 	static bool CompareWavs(ALWave* wavIn, ALWave* wavOut);
@@ -429,6 +459,8 @@ public:
 	static bool AddSound(ALBank*& alBank, int instrument);
 	static bool AddPercussion(ALBank*& alBank, CString rawWavFileName, unsigned long& samplingRate, bool type);
 	static bool AddPercussion(ALBank*& alBank);
+	static bool AddInstrument(ALBank*& alBank);
+	static bool DeleteInstrument(ALBank*& alBank, int instrSel);
 	static void DeleteSound(ALBank*& alBank, int instrument, int sound);
 	static void DeletePercussion(ALBank*& alBank, int sound);
 	static void MoveUpSound(ALBank*& alBank, int instrument, int sound);
@@ -460,7 +492,7 @@ public:
 	static float encode(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
 	static float encode_half(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book);
 	static int GetSizeFile(CString filename);
-	static float keyTable[0xFF];
+	static float keyTable[0x100];
 private:
 	static unsigned long CharArrayToLong(unsigned char* currentSpot);
 	static unsigned long Flip32Bit(unsigned long inLong);

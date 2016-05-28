@@ -192,6 +192,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\KonamiADSRDlg.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\N64SoundListTool.cpp"
 				>
 			</File>
@@ -231,6 +235,10 @@
 			>
 			<File
 				RelativePath=".\FolderDialog.h"
+				>
+			</File>
+			<File
+				RelativePath=".\KonamiADSRDlg.h"
 				>
 			</File>
 			<File

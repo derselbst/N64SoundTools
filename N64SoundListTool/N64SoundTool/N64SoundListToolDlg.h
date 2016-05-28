@@ -85,6 +85,7 @@ public:
 	afx_msg void OnClose();
 	afx_msg void OnCbnSelchangeCombosoundbank();
 	void ShowSoundBankControls();
+	void ShowOfficialSDKImport();
 	void ShowPercussionControls();
 	void ShowEADPercussionControls();
 	void ShowSfxControls();
@@ -139,6 +140,8 @@ public:
 	afx_msg void OnBnClickedExportctltbl();
 	afx_msg void OnBnClickedInjectplace();
 	BOOL hiddenExec (PTSTR pCmdLine, CString currentDirectory);
+	BOOL hiddenExec (PTSTR pCmdLine, CString currentDirectory, HANDLE out);
+	BOOL IsFileExist(LPSTR lpszFilename);
 	void PlayWMPlayerSound(CString wavFileSound);
 	void KillWMPlayer();
 	afx_msg void OnBnClickedButtonrip();
@@ -161,6 +164,7 @@ public:
 	afx_msg void OnOpenknownrom64dehakken();
 	void OpenROMSpecific(SoundGameConfig gameConfig);
 	SoundGameConfig* gameConfig;
+	SoundGameConfig currentGameConfig;
 	int countGames;
 	BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra, AFX_CMDHANDLERINFO* pHandlerInfo);
 	afx_msg void OnFileExtractallknowngames();
@@ -249,4 +253,13 @@ public:
 	CListCtrl mKeyBaseListCtrl;
 	void UpdateSamplingRateKeyBaseList();
 	void UpdateSamplingRateSelection();
+	CButton mAddInstrumentButton;
+	afx_msg void OnBnClickedButtonaddinstrument();
+	CButton mDeleteInstrumentButton;
+	afx_msg void OnBnClickedButtondeleteinstrument();
+	void ImportVadpcmSGIWav(int order);
+	afx_msg void OnBnClickedButtonimportsdktools();
+	CButton mImportFromSDKTools;
+	afx_msg void OnBnClickedButtonkonamiadsrbutton();
+	CButton mKonamiADSREditorButton;
 };

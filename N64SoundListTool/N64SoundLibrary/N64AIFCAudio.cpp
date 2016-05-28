@@ -4,7 +4,7 @@
 #include "N64AIFCAudio.h"
 #include <math.h>
 #include "..\N64SoundLibrary\flzh_rn.h"
-float CN64AIFCAudio::keyTable[0xFF];
+float CN64AIFCAudio::keyTable[0x100];
 
 CN64AIFCAudio::CN64AIFCAudio(void)
 {
@@ -2839,6 +2839,68 @@ bool CN64AIFCAudio::AddPercussion(ALBank*& alBank, CString rawWavFileName, unsig
 	}
 	return replace;
 }
+
+bool CN64AIFCAudio::DeleteInstrument(ALBank*& alBank, int instrSel)
+{
+	if (instrSel >= alBank->count)
+		return false;
+
+	DisposeALInst(alBank->inst[instrSel]);
+
+	ALInst** newInstruments = new ALInst*[alBank->count - 1];
+	for (int x = 0; x < instrSel; x++)
+	{
+		newInstruments[x] = alBank->inst[x];
+	}
+
+	for (int x = (instrSel + 1); x < alBank->count; x++)
+	{
+		newInstruments[x-1] = alBank->inst[x];
+	}
+
+	delete [] alBank->inst;
+	alBank->inst = newInstruments;
+
+	alBank->count--;
+	return true;
+}
+
+bool CN64AIFCAudio::AddInstrument(ALBank*& alBank)
+{
+	ALInst** newInstruments = new ALInst*[alBank->count + 1];
+	for (int x = 0; x < alBank->count; x++)
+	{
+		newInstruments[x] = alBank->inst[x];
+	}
+
+	newInstruments[alBank->count] = new ALInst();
+	newInstruments[alBank->count]->bendRange = 0x0000;
+	newInstruments[alBank->count]->flags = 0x00;
+	newInstruments[alBank->count]->pan = 0x40;
+	newInstruments[alBank->count]->priority = 0x05;
+	newInstruments[alBank->count]->samplerate = 0;
+
+	newInstruments[alBank->count]->soundCount = 0;
+	newInstruments[alBank->count]->sounds = new ALSound*[1];
+	newInstruments[alBank->count]->sounds[0] = NULL;
+
+	newInstruments[alBank->count]->tremDelay = 0x00;
+	newInstruments[alBank->count]->tremDepth = 0x00;
+	newInstruments[alBank->count]->tremRate = 0x00;
+	newInstruments[alBank->count]->tremType = 0x00;
+	newInstruments[alBank->count]->vibDelay = 0x00;
+	newInstruments[alBank->count]->vibDepth = 0x00;
+	newInstruments[alBank->count]->vibRate = 0x00;
+	newInstruments[alBank->count]->vibType = 0x00;
+	newInstruments[alBank->count]->volume = 0x7F;
+
+	delete [] alBank->inst;
+	alBank->inst = newInstruments;
+
+	alBank->count++;
+	return true;
+}
+
 bool CN64AIFCAudio::AddPercussion(ALBank*& alBank)
 {
 	ALSound** newSounds = new ALSound*[alBank->percussion->soundCount + 1];
@@ -3561,12 +3623,14 @@ bool CN64AIFCAudio::ReadWavData(CString rawWavFileName, unsigned char*& rawData,
 
 	if (((((((wavData[0] << 8) | wavData[1]) << 8) | wavData[2]) << 8) | wavData[3]) != 0x52494646)
 	{
+		delete [] wavData;
 		MessageBox(NULL, "Error not RIFF wav", "Error", NULL);
 		return false;
 	}
 
 	if (((((((wavData[0x8] << 8) | wavData[0x9]) << 8) | wavData[0xA]) << 8) | wavData[0xB]) != 0x57415645)
 	{
+		delete [] wavData;
 		MessageBox(NULL, "Error not WAVE wav", "Error", NULL);
 		return false;
 	}
@@ -4334,6 +4398,7 @@ void CN64AIFCAudio::WriteAudioToFile(ALBank*& alBank, CString outFileNameCtl, CS
 	FILE* outFileTbl = fopen(outFileNameTbl, "wb");
 	if (outFileTbl == NULL)
 	{
+		fclose(outFileCtl);
 		MessageBox(NULL, "Cannot open tbl file", "Error", NULL);
 		return;
 	}
@@ -4536,7 +4601,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV1(ALBank*& alBank, unsigned char*&
 
 		if (sameBank == -1)
 		{
-			bookOffsetsWav[x] = bookWriteSpot;
+			bookOffsetsWav[x] = outputCtlCounter;
 			WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
 
 			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
@@ -4806,7 +4871,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 
 		if (sameBank == -1)
 		{
-			bookOffsetsWav[x] = bookWriteSpot;
+			bookOffsetsWav[x] = outputCtlCounter;
 			WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
 
 			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
@@ -4878,6 +4943,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 
 	for (int x = 0; x < alBank->count; x++)
 	{
+		// Coarse Tune
 		temporaryCtlBuffer[outputCtlCounter] = alBank->inst[x]->volume;
 		outputCtlCounter++;
 	}
@@ -4892,6 +4958,22 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 	}
 
 	WriteLongToBuffer(temporaryCtlBuffer, 0x28, outputCtlCounter);
+
+	for (int x = 0; x < alBank->count; x++)
+	{
+		// Fine tune
+		temporaryCtlBuffer[outputCtlCounter] = alBank->inst[x]->pan;
+		outputCtlCounter++;
+	}
+
+	if ((outputCtlCounter % 4) != 0)
+	{
+		int pad = 4 - (outputCtlCounter % 4);
+		for (int z = 0; z < pad; z++)
+		{
+			temporaryCtlBuffer[outputCtlCounter++] = 0;
+		}
+	}
 
 	delete [] instrumentSoundStartLookup;
 	delete [] bookOffsetsWav;
@@ -7119,6 +7201,68 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 	tblSize = outputTblCounter;
 }
 
+void CN64AIFCAudio::WriteKonamiADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		for (int x = 0; x < alBank->konamiADSR.size(); x++)
+		{
+			KonamiADSR adsr = alBank->konamiADSR[x];
+			ROM[instrumentOffset + (x * 7)] = adsr.coarseTune;
+			ROM[instrumentOffset + (x * 7) + 1] = adsr.fineTune;
+			ROM[instrumentOffset + (x * 7) + 2] = adsr.attackTime;
+			ROM[instrumentOffset + (x * 7) + 3] = adsr.decayTime;
+			ROM[instrumentOffset + (x * 7) + 4] = adsr.releaseTime;
+			ROM[instrumentOffset + (x * 7) + 5] = adsr.unknownOne;
+			ROM[instrumentOffset + (x * 7) + 6] = adsr.unknownTwo;
+		}
+
+		for (int x = 0; x < alBank->konamiDrumsADSR.size(); x++)
+		{
+			KonamiADSRDrum adsr = alBank->konamiDrumsADSR[x];
+			ROM[startDrumOffset + (x * 8)] = adsr.instrumentLookup;
+			ROM[startDrumOffset + (x * 8) + 1] = adsr.coarseTune;
+			ROM[startDrumOffset + (x * 8) + 2] = adsr.fineTune;
+			ROM[startDrumOffset + (x * 8) + 3] = adsr.attackTime;
+			ROM[startDrumOffset + (x * 8) + 4] = adsr.decayTime;
+			ROM[startDrumOffset + (x * 8) + 5] = adsr.releaseTime;
+			ROM[startDrumOffset + (x * 8) + 6] = adsr.unknownOne;
+			ROM[startDrumOffset + (x * 8) + 7] = adsr.unknownTwo;
+		}
+	}
+}
+
+void CN64AIFCAudio::WriteKonami8ADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		for (int x = 0; x < alBank->konamiADSR.size(); x++)
+		{
+			KonamiADSR adsr = alBank->konamiADSR[x];
+			ROM[instrumentOffset + (x * 8)] = adsr.coarseTune;
+			ROM[instrumentOffset + (x * 8) + 1] = adsr.fineTune;
+			ROM[instrumentOffset + (x * 8) + 2] = adsr.attackTime;
+			ROM[instrumentOffset + (x * 8) + 3] = adsr.decayTime;
+			ROM[instrumentOffset + (x * 8) + 4] = adsr.releaseTime;
+			ROM[instrumentOffset + (x * 8) + 5] = adsr.unknownOne;
+			ROM[instrumentOffset + (x * 8) + 6] = adsr.unknownTwo;
+		}
+
+		for (int x = 0; x < alBank->konamiDrumsADSR.size(); x++)
+		{
+			KonamiADSRDrum adsr = alBank->konamiDrumsADSR[x];
+			ROM[startDrumOffset + (x * 0xA)] = adsr.coarseTune;
+			ROM[startDrumOffset + (x * 0xA) + 1] = adsr.fineTune;
+			ROM[startDrumOffset + (x * 0xA) + 2] = adsr.attackTime;
+			ROM[startDrumOffset + (x * 0xA) + 3] = adsr.decayTime;
+			ROM[startDrumOffset + (x * 0xA) + 4] = adsr.releaseTime;
+			ROM[startDrumOffset + (x * 0xA) + 5] = adsr.unknownOne;
+			ROM[startDrumOffset + (x * 0xA) + 6] = adsr.unknownTwo;
+			ROM[startDrumOffset + (x * 0xA) + 9] = adsr.instrumentLookup;
+		}
+	}
+}
+
 void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSize, unsigned char*& tbl, int& tblSize)
 {
 	unsigned char* temporaryCtlBuffer = new unsigned char[0x1000000];
@@ -8816,10 +8960,170 @@ bool CN64AIFCAudio::InjectCtlTblIntoROMArrayInPlace(unsigned char* ROM, unsigned
 	return true;
 }
 
+void CN64AIFCAudio::DisposeALInst(ALInst*& alInst)
+{
+	if (alInst->sounds != NULL)
+	{
+		for (int y = 0; y < alInst->soundCount; y++)
+		{
+			if (alInst->sounds[y] != NULL)
+			{
+				if (alInst->sounds[y]->wav.type == AL_ADPCM_WAVE)
+				{
+					if (alInst->sounds[y]->wav.adpcmWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.adpcmWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.adpcmWave->loop;
+						}
+						if (alInst->sounds[y]->wav.adpcmWave->book != NULL)
+						{
+							delete [] alInst->sounds[y]->wav.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wav.adpcmWave->book;
+						}
+						delete alInst->sounds[y]->wav.adpcmWave;
+					}
+				}
+				else if (alInst->sounds[y]->wav.type == AL_RAW16_WAVE)
+				{
+					if (alInst->sounds[y]->wav.rawWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.rawWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.rawWave->loop;
+						}
+						delete alInst->sounds[y]->wav.rawWave;
+					}
+				}
+				else if (alInst->sounds[y]->wav.type == AL_MUSYX_WAVE)
+				{
+					if (alInst->sounds[y]->wav.adpcmWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.adpcmWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.adpcmWave->loop;
+						}
+						if (alInst->sounds[y]->wav.adpcmWave->book != NULL)
+						{
+							delete [] alInst->sounds[y]->wav.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wav.adpcmWave->book;
+						}
+						delete alInst->sounds[y]->wav.adpcmWave;
+					}
+				}
+
+				if (alInst->sounds[y]->wav.wavData != NULL)
+					delete [] alInst->sounds[y]->wav.wavData;
+
+
+
+
+				if (alInst->sounds[y]->hasWavePrevious)
+				{
+					if (alInst->sounds[y]->wavPrevious.type == AL_ADPCM_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave->book;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavPrevious.type== AL_RAW16_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.rawWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.rawWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.rawWave->loop;
+							}
+							delete alInst->sounds[y]->wavPrevious.rawWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavPrevious.type == AL_MUSYX_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave->book;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave;
+						}
+					}
+
+					if (alInst->sounds[y]->wavPrevious.wavData != NULL)
+						delete [] alInst->sounds[y]->wavPrevious.wavData;
+				}
+
+				if (alInst->sounds[y]->hasWaveSecondary)
+				{
+					if (alInst->sounds[y]->wavSecondary.type == AL_ADPCM_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave->book;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavSecondary.type == AL_RAW16_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.rawWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.rawWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.rawWave->loop;
+							}
+							delete alInst->sounds[y]->wavSecondary.rawWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavSecondary.type == AL_MUSYX_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave->book;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave;
+						}
+					}
+
+					if (alInst->sounds[y]->wavSecondary.wavData != NULL)
+						delete [] alInst->sounds[y]->wavSecondary.wavData;
+				}
+
+
+				delete alInst->sounds[y];
+			}
+		}
+
+		delete alInst->sounds;
+	}
+
+	delete alInst;
+}
+
 void CN64AIFCAudio::DisposeALBank(ALBank*& alBank)
 {
 	if (alBank != NULL)
 	{
+		alBank->konamiADSR.clear();
+		alBank->konamiDrumsADSR.clear();
+
 		if (alBank->eadPercussion != NULL)
 		{
 			for (int y = 0; y < alBank->countEADPercussion; y++)
@@ -9091,159 +9395,7 @@ void CN64AIFCAudio::DisposeALBank(ALBank*& alBank)
 		{
 			for (int x = 0; x < alBank->count; x++)
 			{
-				if (alBank->inst[x]->sounds != NULL)
-				{
-					for (int y = 0; y < alBank->inst[x]->soundCount; y++)
-					{
-						if (alBank->inst[x]->sounds[y] != NULL)
-						{
-							if (alBank->inst[x]->sounds[y]->wav.type == AL_ADPCM_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.adpcmWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->loop;
-									}
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->book != NULL)
-									{
-										delete [] alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->book;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.adpcmWave;
-								}
-							}
-							else if (alBank->inst[x]->sounds[y]->wav.type == AL_RAW16_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.rawWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.rawWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.rawWave->loop;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.rawWave;
-								}
-							}
-							else if (alBank->inst[x]->sounds[y]->wav.type == AL_MUSYX_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.adpcmWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->loop;
-									}
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->book != NULL)
-									{
-										delete [] alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->book;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.adpcmWave;
-								}
-							}
-
-							if (alBank->inst[x]->sounds[y]->wav.wavData != NULL)
-								delete [] alBank->inst[x]->sounds[y]->wav.wavData;
-
-
-
-
-							if (alBank->inst[x]->sounds[y]->hasWavePrevious)
-							{
-								if (alBank->inst[x]->sounds[y]->wavPrevious.type == AL_ADPCM_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavPrevious.type== AL_RAW16_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.rawWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.rawWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.rawWave->loop;
-										}
-										delete alBank->inst[x]->sounds[y]->wavPrevious.rawWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavPrevious.type == AL_MUSYX_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave;
-									}
-								}
-
-								if (alBank->inst[x]->sounds[y]->wavPrevious.wavData != NULL)
-									delete [] alBank->inst[x]->sounds[y]->wavPrevious.wavData;
-							}
-
-							if (alBank->inst[x]->sounds[y]->hasWaveSecondary)
-							{
-								if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_ADPCM_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_RAW16_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.rawWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.rawWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.rawWave->loop;
-										}
-										delete alBank->inst[x]->sounds[y]->wavSecondary.rawWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_MUSYX_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave;
-									}
-								}
-
-								if (alBank->inst[x]->sounds[y]->wavSecondary.wavData != NULL)
-									delete [] alBank->inst[x]->sounds[y]->wavSecondary.wavData;
-							}
-
-
-							delete alBank->inst[x]->sounds[y];
-						}
-					}
-
-					delete alBank->inst[x]->sounds;
-				}
-
-				delete alBank->inst[x];
+				DisposeALInst(alBank->inst[x]);
 			}
 
 			delete alBank->inst;
@@ -9541,10 +9693,23 @@ ALBank* CN64AIFCAudio::ReadAudioRNCN64PtrOffset(unsigned char* ctl, unsigned lon
 	unsigned char* outputDecompressed = new unsigned char[0x1000000];
 	int fileSizeCompressed = -1;
 	RncDecoder rnc;
-	rnc.unpackM1(&ctl[ctlOffset], outputDecompressed, 0x0, fileSizeCompressed);
+	int returnedSize = rnc.unpackM1(&ctl[ctlOffset], outputDecompressed, 0x0, fileSizeCompressed);
 	unsigned long ctlSizeUncompressed = fileSizeCompressed;
 	ALBank* alBank = ReadAudioN64PtrWavetableV2(&outputDecompressed[offset], ctlSizeUncompressed, 0, tbl);
 	alBank->soundBankFormat = RNCCOMPRESSEDN64PTR;
+	delete [] outputDecompressed;
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioAVL_0Ptr(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl)
+{
+	unsigned char* outputDecompressed = new unsigned char[0x1000000];
+	int fileSizeCompressed = ctlSize;
+	CMidwayDecoder midwayDec;
+	int returnedSize = midwayDec.dec(&ctl[ctlOffset], fileSizeCompressed, outputDecompressed, "LZSS");
+	unsigned long ctlSizeUncompressed = fileSizeCompressed;
+	ALBank* alBank = ReadAudioN64PtrWavetableV2(outputDecompressed, ctlSizeUncompressed, 0, tbl);
+	alBank->soundBankFormat = AVL_0PTR;
 	delete [] outputDecompressed;
 	return alBank;
 }
@@ -10101,6 +10266,7 @@ ALBank* CN64AIFCAudio::ReadAudioMegamanN64PtrWavetableV2(unsigned char* ctl, uns
 		int fileSizeCompressed = -1;
 		MidwayLZ compression;
 		ctlSize = compression.decLZSS0B(&ctl[ctlOffset], fileSizeCompressed, outputDecompressed);
+
 		ALBank* alBank = ReadAudioN64PtrWavetableV2(&outputDecompressed[0], ctlSize, 0, tbl);
 		alBank->soundBankFormat = MEGAMAN64PTRV2;
 		delete [] outputDecompressed;
@@ -10817,9 +10983,16 @@ ALBank* CN64AIFCAudio::ReadAudioN64PtrWavetableV2(unsigned char* ctl, unsigned l
 			}
 		}
 
+		// Semitones
 		for (int x = 0; x < alBank->count; x++)
 		{
 			alBank->inst[x]->volume = ctl[endOffsets + x];
+		}
+
+		// Fine tones
+		for (int x = 0; x < alBank->count; x++)
+		{
+			alBank->inst[x]->pan = ctl[endExtraBytes + x];
 		}
 	}
 	else
@@ -13291,6 +13464,96 @@ ALBank* CN64AIFCAudio::ReadAudioMusyx(unsigned char* ctl, int ctlSize, int ctlOf
 			for (int  r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
 			{
 				alBank->inst[x]->sounds[y]->wav.wavData[r] = tbl[alBank->inst[x]->sounds[y]->wav.base + r];
+			}
+		}
+	}
+
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioKonami(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	ALBank* alBank = ReadAudio(ROM, &ROM[0], ctlSize, ctlOffset, tbl, 0x0, 0xFFFFFFFF, 0);
+	alBank->soundBankFormat = KONAMICTL;
+
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		alBank->konamiADSR.clear();
+		for (int x = 0; x < (endInstrumentOffset - instrumentOffset) / 7; x++)
+		{
+			KonamiADSR adsr;
+			adsr.coarseTune = ROM[instrumentOffset + (x * 7)];
+			adsr.fineTune = ROM[instrumentOffset + (x * 7) + 1];
+			adsr.attackTime = ROM[instrumentOffset + (x * 7) + 2];
+			adsr.decayTime = ROM[instrumentOffset + (x * 7) + 3];
+			adsr.releaseTime = ROM[instrumentOffset + (x * 7) + 4];
+			adsr.unknownOne = ROM[instrumentOffset + (x * 7) + 5];
+			adsr.unknownTwo = ROM[instrumentOffset + (x * 7) + 6];
+
+			alBank->konamiADSR.push_back(adsr);
+		}
+
+		alBank->konamiDrumsADSR.clear();
+		if (endDrumOffset != 0x00000000)
+		{
+			for (int x = 0; x < (endDrumOffset - startDrumOffset) / 8; x++)
+			{
+				KonamiADSRDrum adsr;
+				adsr.instrumentLookup = ROM[startDrumOffset + (x * 8)];
+				adsr.coarseTune = ROM[startDrumOffset + (x * 8) + 1];
+				adsr.fineTune = ROM[startDrumOffset + (x * 8) + 2];
+				adsr.attackTime = ROM[startDrumOffset + (x * 8) + 3];
+				adsr.decayTime = ROM[startDrumOffset + (x * 8) + 4];
+				adsr.releaseTime = ROM[startDrumOffset + (x * 8) + 5];
+				adsr.unknownOne = ROM[startDrumOffset + (x * 8) + 6];
+				adsr.unknownTwo = ROM[startDrumOffset + (x * 8) + 7];
+
+				alBank->konamiDrumsADSR.push_back(adsr);
+			}
+		}
+	}
+
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioKonami8(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	ALBank* alBank = ReadAudio(ROM, &ROM[0], ctlSize, ctlOffset, tbl, 0x0, 0xFFFFFFFF, 0);
+	alBank->soundBankFormat = KONAMI8CTL;
+
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		alBank->konamiADSR.clear();
+		for (int x = 0; x < (endInstrumentOffset - instrumentOffset) / 8; x++)
+		{
+			KonamiADSR adsr;
+			adsr.coarseTune = ROM[instrumentOffset + (x * 8)];
+			adsr.fineTune = ROM[instrumentOffset + (x * 8) + 1];
+			adsr.attackTime = ROM[instrumentOffset + (x * 8) + 2];
+			adsr.decayTime = ROM[instrumentOffset + (x * 8) + 3];
+			adsr.releaseTime = ROM[instrumentOffset + (x * 8) + 4];
+			adsr.unknownOne = ROM[instrumentOffset + (x * 8) + 5];
+			adsr.unknownTwo = ROM[instrumentOffset + (x * 8) + 6];
+
+			alBank->konamiADSR.push_back(adsr);
+		}
+
+		alBank->konamiDrumsADSR.clear();
+		if (endDrumOffset != 0x00000000)
+		{
+			for (int x = 0; x < (endDrumOffset - startDrumOffset) / 0xA; x++)
+			{
+				KonamiADSRDrum adsr;
+				adsr.coarseTune = ROM[startDrumOffset + (x * 0xA)];
+				adsr.fineTune = ROM[startDrumOffset + (x * 0xA) + 1];
+				adsr.attackTime = ROM[startDrumOffset + (x * 0xA) + 2];
+				adsr.decayTime = ROM[startDrumOffset + (x * 0xA) + 3];
+				adsr.releaseTime = ROM[startDrumOffset + (x * 0xA) + 4];
+				adsr.unknownOne = ROM[startDrumOffset + (x * 0xA) + 5];
+				adsr.unknownTwo = ROM[startDrumOffset + (x * 0xA) + 6];
+				adsr.instrumentLookup = ROM[startDrumOffset + (x * 0xA) + 9];
+
+				alBank->konamiDrumsADSR.push_back(adsr);
 			}
 		}
 	}

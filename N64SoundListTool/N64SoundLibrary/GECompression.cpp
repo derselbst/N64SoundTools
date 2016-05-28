@@ -260,6 +260,8 @@ bool GECompression::CompressGZipFile(CString inputFile, CString outputFile, bool
 		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
 		if (tempOutputFile == 0)
 		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
 			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
 			return false;
 		}
@@ -305,6 +307,7 @@ bool GECompression::CompressGZipFile(CString inputFile, CString outputFile, bool
 			FILE* outputFileName = fopen(outputFile, "wb");
 			if (outputFileName == NULL)
 			{
+				delete [] tempBufferNew;
 				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
 				return false;
 			}
@@ -521,7 +524,7 @@ unsigned char* GECompression::OutputDecompressedBuffer(int& fileSize, int& compr
 		return NULL;
 
 
-	if ((((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x1172) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x1173) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x68DE) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x78DA) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x789C) && (((compressedBuffer[0] << 24) | (compressedBuffer[1]<<16) | (compressedBuffer[2]<<8) | (compressedBuffer[3])) != 0x1F8B0800) && (((compressedBuffer[0] << 24) | (compressedBuffer[1]<<16) | (compressedBuffer[2]<<8) | (compressedBuffer[3])) != 0x1F8B0808) && (game != BLASTCORPS) && (game != BANJOTOOIE) && (game != CONKER)  && (game != TOPGEARRALLY) && (game != JFG) && (game != DKR) && (game != JFGKIOSK) && (game != MICKEYSPEEDWAY) && (game != MORTALKOMBAT) && (game != GAUNTLETLEGENDS))
+	if ((((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x1172) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x1173) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x68DE) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x78DA) && (((compressedBuffer[0] << 8) | compressedBuffer[1]) != 0x789C) && (((compressedBuffer[0] << 24) | (compressedBuffer[1]<<16) | (compressedBuffer[2]<<8) | (compressedBuffer[3])) != 0x1F8B0800) && (((compressedBuffer[0] << 24) | (compressedBuffer[1]<<16) | (compressedBuffer[2]<<8) | (compressedBuffer[3])) != 0x1F8B0808) && (game != BLASTCORPS) && (game != BANJOTOOIE) && (game != CONKER)  && (game != TOPGEARRALLY) && (game != JFG) && (game != DKR) && (game != JFGKIOSK) && (game != MICKEYSPEEDWAY)  && (game != MORTALKOMBAT) && (game != ZLB) && (game != NOHEADER) && (game != GAUNTLETLEGENDS))
 	{
 		MessageBox(NULL, "Not 1172/1173/1F8B0800/1F8B0808 Compressed", "Error", NULL);
 		return NULL;
@@ -553,6 +556,10 @@ unsigned char* GECompression::OutputDecompressedBuffer(int& fileSize, int& compr
 		bytesIndex = 0x2;
 	else if (game == RESIDENTEVIL2)
 		bytesIndex = 0x2;
+	else if (game == ZLB)
+		bytesIndex = 0x12;
+	else if (game == NOHEADER)
+		bytesIndex = 0;
 
 
 	if (((game == DONKEYKONG64) || (game == DONKEYKONG64KIOSK) || (game == BLASTCORPS)) && (((compressedBuffer[0] << 24) | (compressedBuffer[1]<<16) | (compressedBuffer[2]<<8) | (compressedBuffer[3])) == 0x1F8B0808))
@@ -1085,6 +1092,7 @@ void GECompression::CreateGlobalDecompressionTable(int bit1TableChoice, int size
 			{
 				if ((thisTableStart+nu_accum_a3) > 0xFFFF)
 				{
+					delete [] moreWords;
 					return;
 				}
 				unpackTable[thisTableStart+nu_accum_a3].bits = localTableEntry.bits;

@@ -185,6 +185,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\LZARIDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\MidwayDecoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath="MidwayLZ.cpp"
 				>
 			</File>
@@ -213,7 +221,7 @@
 				>
 			</File>
 			<File
-				RelativePath="SnoDecoder.cpp"
+				RelativePath=".\SnoDecoder.cpp"
 				>
 			</File>
 			<File
@@ -287,6 +295,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\LZARIDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MidwayDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath="MidwayLZ.h"
 				>
 			</File>
@@ -319,7 +335,7 @@
 				>
 			</File>
 			<File
-				RelativePath="SnoDecoder.h"
+				RelativePath=".\SnoDecoder.h"
 				>
 			</File>
 			<File

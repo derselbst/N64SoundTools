@@ -21,6 +21,8 @@ struct CtlTblConfig
 	unsigned long tbl;
 	unsigned long numberInstruments;
 	unsigned long mask;
+	unsigned long extra;
+	unsigned long extra2;
 	std::vector<CString> instrumentNames;
 	bool halfSamplingRate;
 	int samplingRate;
@@ -32,6 +34,11 @@ struct CtlTblConfig
 
 		overrideSamplingRate = false;
 		samplingRate = 22050;
+
+		numberInstruments = 0;
+		mask = 0xFFFFFFFF;
+		extra = 0;
+		extra2 = 0;
 	}
 };
 

@@ -152,6 +152,7 @@ unsigned char CSharedFunctions::StringToUnsignedChar(CString inString)
 
 unsigned long CSharedFunctions::StringHexToLong(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 8)
 	{

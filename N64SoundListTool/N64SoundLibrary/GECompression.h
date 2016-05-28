@@ -28,6 +28,9 @@
 #define GAUNTLETLEGENDS 16
 #define ROGUESQUADRON 17
 #define RESIDENTEVIL2 18
+#define STUNTRACER64 19
+#define ZLB 20
+#define NOHEADER 22
 
 struct tableEntry {
 	unsigned long bits;
