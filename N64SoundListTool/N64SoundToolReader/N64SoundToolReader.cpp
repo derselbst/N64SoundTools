@@ -65,6 +65,7 @@ int CN64SoundToolReader::HexToInt(char inChar)
 
 unsigned long CN64SoundToolReader::StringHexToLong(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 8)
 	{
@@ -185,6 +186,10 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 		{
 			nameCount++;
 		}
+		else if (currentLine[0] == '{')
+		{
+
+		}
 		else
 		{
 			soundBankCount++;
@@ -197,16 +202,14 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				gameConfig[countGames].soundBanks = new CtlTblConfig[soundBankCount];
 				countGames++;
 			}
-			else
-			{
-				gameConfig[countGames].gameName = lastGameNew;
-			}
 
 			soundBankCount = 0;
 			nameCount = 0;
 			lastGame = lastGameNew;
 			gameConfig[countGames].gameName = lastGameNew;
+			gameConfig[countGames].gameName.Trim();
 			gameConfig[countGames].gameType = gameType;
+			gameConfig[countGames].gameType.Trim();
 			gameConfig[countGames].numberSoundBanks = 0;
 		}
 	}
@@ -215,6 +218,7 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 	{
 		gameConfig[countGames].soundBanks = new CtlTblConfig[soundBankCount];
 		gameConfig[countGames].gameType = gameType;
+		gameConfig[countGames].gameType.Trim();
 		gameConfig[countGames].numberSoundBanks = 0;
 		countGames++;
 	}
@@ -224,6 +228,9 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 
 	countGames = 0;
 	lastGame = "";
+
+	bool overrideSamplingRate = false;
+	int samplingRate = 22050;
 
 	while (!feof(inIni))
 	{
@@ -236,6 +243,8 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 			continue;
 		else if (currentLine[0] == '[')
 		{
+			overrideSamplingRate = false;
+
 			int spot = 0;
 			while (spot < 1000)
 			{
@@ -253,6 +262,34 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 		{
 			gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].instrumentNames.push_back(&currentLine[1]);
 		}
+		else if (currentLine[0] == '{')
+		{
+			CString line;
+			line.Format("%s", currentLine);
+
+			line.Replace("{", "");
+			line.Replace("}", "");
+			line.Replace(" ", "");
+
+			if ((line.Find("HalfSampling")) != -1)
+			{
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].halfSamplingRate = true;
+			}
+			else if (line.Find("AllSamplingRate") != -1)
+			{
+				line.Replace("AllSamplingRate", "");
+				line.Replace(":", "");
+				overrideSamplingRate = true;
+				samplingRate = atoi(line);
+			}
+			else if (line.Find("SamplingRate") != -1)
+			{
+				line.Replace("SamplingRate", "");
+				line.Replace(":", "");
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].overrideSamplingRate = true;
+				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].samplingRate = atoi(line);
+			}
+		}
 		else
 		{
 			CString line;
@@ -264,6 +301,8 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				CString second = line.Mid((commaSpot + 1), (line.GetLength() - commaSpot - 1));
 				CString third = "";
 				CString fourth = "";
+				CString fifth = "";
+				CString sixth = "";
 
 				int commaSpot2 = second.Find(",");
 				if (commaSpot2 != -1)
@@ -277,6 +316,20 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 					{
 						fourth = third.Mid((commaSpot3 + 1), (third.GetLength() - commaSpot3 - 1));
 						third = third.Mid(0,commaSpot3);
+
+						int commaSpot4 = fourth.Find(",");
+						if (commaSpot4 != -1)
+						{
+							fifth = fourth.Mid((commaSpot4 + 1), (fourth.GetLength() - commaSpot4 - 1));
+							fourth = fourth.Mid(0,commaSpot4);
+
+							int commaSpot5 = fifth.Find(",");
+							if (commaSpot5 != -1)
+							{
+								sixth = fifth.Mid((commaSpot5 + 1), (fifth.GetLength() - commaSpot5 - 1));
+								fifth = fifth.Mid(0,commaSpot5);
+							}
+						}
 					}
 				}
 
@@ -286,12 +339,25 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				third.Replace("\n", "");
 				fourth.Replace("\r", "");
 				fourth.Replace("\n", "");
+				fifth.Replace("\r", "");
+				fifth.Replace("\n", "");
+				sixth.Replace("\r", "");
+				sixth.Replace("\n", "");
+
+				if (overrideSamplingRate)
+				{
+					if (!gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].overrideSamplingRate)
+					{
+						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].overrideSamplingRate = true;
+						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].samplingRate = samplingRate;
+					}
+				}
 
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].ctl = StringHexToLong(first);
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].tbl = StringHexToLong(second);
 				if (third.GetLength() > 0)
 				{
-					if (gameConfig[countGames].gameType.Find("vox") == 0)
+					if (gameConfig[countGames].gameType.CompareNoCase("vox") == 0)
 						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = atoi(third);
 					else
 						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = StringHexToLong(third);
@@ -302,6 +368,15 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = StringHexToLong(fourth);
 				else
 					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = -1;
+				if (fifth.GetLength() > 0)
+					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].extra = StringHexToLong(fifth);
+				else
+					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].extra = 0;
+				if (sixth.GetLength() > 0)
+					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].extra2 = StringHexToLong(sixth);
+				else
+					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].extra2 = 0;
+
 				gameConfig[countGames].numberSoundBanks++;
 				soundBankCount++;
 			}
@@ -353,7 +428,7 @@ unsigned long CN64SoundToolReader::GetRegionSize(unsigned long currentSpot, Soun
 void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results)
 {
 	numberResults = 0;
-	if (gameConfig.gameType.Find("MultiPartERZN64WavePtrV2") == 0)
+	if (gameConfig.gameType.CompareNoCase("MultiPartERZN64WavePtrV2") == 0)
 	{
 		unsigned char* ctlBinaryPre = new unsigned char[0x1000000];
 		unsigned long  ctlSize = 0;
@@ -390,7 +465,7 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 		delete [] ctlBinary;
 		numberResults = 1;
 	}
-	else if (gameConfig.gameType.Find("MultiPartTigWavePtrV2") == 0)
+	else if (gameConfig.gameType.CompareNoCase("MultiPartTigWavePtrV2") == 0)
 	{
 		unsigned char* ctlBinaryPre = new unsigned char[0x1000000];
 		unsigned long  ctlSize = 0;
@@ -450,6 +525,8 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			currentIndex++;
 		}
 
+		results.resize(numberResults + 1);
+
 		results[numberResults].ctlOffset = gameConfig.soundBanks[start].ctl;
 		results[numberResults].ctlSize = ctlSize;
 		results[numberResults].tblOffset = gameConfig.soundBanks[start].tbl;
@@ -471,191 +548,207 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			results[numberResults].ctlSize = GetRegionSize(results[numberResults].ctlOffset, gameConfig, romSize);
 			results[numberResults].tblSize = GetRegionSize(results[numberResults].tblOffset, gameConfig, romSize);
 			
-			if (gameConfig.gameType.Find("RawTest") == 0)
+			if (gameConfig.gameType.CompareNoCase("RawTest") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioRawTest(&ROM[0], results[numberResults].ctlSize);
 			}
-			else if (gameConfig.gameType.Find("SF64Uncompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SF64Uncompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioStarFox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("ZeldaUncompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ZeldaUncompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioZelda(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, &ROM[0]);
 			}
-			else if (gameConfig.gameType.Find("TurokUncompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("TurokUncompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioTurok(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, &ROM[0], 0);
 			}
-			else if (gameConfig.gameType.Find("ArmyMenCompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ArmyMenCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioArmyMenCompressed(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], true, false);
 			}
-			else if (gameConfig.gameType.Find("SargeArmyMenCompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SargeArmyMenCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioArmyMenCompressed(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], true, true);
 			}
-			else if (gameConfig.gameType.Find("ArmyMenAirCombatCompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ArmyMenAirCombatCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioArmyMenCompressed(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], false, false);
 			}
-			else if (gameConfig.gameType.Find("SnoWave") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SnoWave") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioSno(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("RNCCompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("RNCCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadRNCAudio(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("RNXCompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("RNXCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadRNXAudio(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("FZeroUncompressed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("FZeroUncompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioFZero(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, &ROM[0]);
 			}
-			else if (gameConfig.gameType.Find("MegaManN64WavePtrTableV2") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MegaManN64WavePtrTableV2") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMegamanN64PtrWavetableV2(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("N64WavePtrTableV2") == 0)
+			else if (gameConfig.gameType.CompareNoCase("N64WavePtrTableV2") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64PtrWavetableV2(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("PaperMario") == 0)
+			else if (gameConfig.gameType.CompareNoCase("PaperMario") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioPaperMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("DuckDodgers") == 0)
+			else if (gameConfig.gameType.CompareNoCase("B0") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioB0(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
+			}
+			else if (gameConfig.gameType.CompareNoCase("DuckDodgers") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioDuckDodgers(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("SydneyWavePtr") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SydneyWavePtr") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioSydney(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("NinDec") == 0)
+			else if (gameConfig.gameType.CompareNoCase("NinDec") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioNinDec(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("TazHuffmanWavePtr") == 0)
+			else if (gameConfig.gameType.CompareNoCase("TazHuffmanWavePtr") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioTazN64PtrWavetableV2(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("RNCN64Wave") == 0)
+			else if (gameConfig.gameType.CompareNoCase("RNCN64Wave") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioRNCN64Ptr(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("RNCN64OffsetWave") == 0)
+			else if (gameConfig.gameType.CompareNoCase("AVL_0Wave") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioAVL_0Ptr(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
+			}
+			else if (gameConfig.gameType.CompareNoCase("RNCN64OffsetWave") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioRNCN64PtrOffset(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("BnkB") == 0)
+			else if (gameConfig.gameType.CompareNoCase("BnkB") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioBnkB(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("N64WavePtrTableV1") == 0)
+			else if (gameConfig.gameType.CompareNoCase("N64WavePtrTableV1") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64PtrWavetableV1(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("H20Raw816") == 0)
+			else if (gameConfig.gameType.CompareNoCase("H20Raw816") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioH20Raw816(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("TetrisphereRaw816") == 0)
+			else if (gameConfig.gameType.CompareNoCase("TetrisphereRaw816") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioTetrisphereRaw816(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("YAY0N64WavePtrTableV2") == 0)
+			else if (gameConfig.gameType.CompareNoCase("YAY0N64WavePtrTableV2") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64PtrWavetableV2YAY0(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("Titus") == 0)
+			else if (gameConfig.gameType.CompareNoCase("Titus") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64Titus(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("MKMythologies") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MKMythologies") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64MKMythologies(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("BlitzN64WavePtrTableV2") == 0)
+			else if (gameConfig.gameType.CompareNoCase("BlitzN64WavePtrTableV2") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64PtrWavetableBlitz(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}	
-			else if (gameConfig.gameType.Find("ZLibN64WavePtrTableV2") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ZLibN64WavePtrTableV2") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64PtrWavetableV2ZLIB(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("ZLIBSN64") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ZLIBSN64") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64SN64Zlib(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("SN64") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SN64") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioN64SN64(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("SuperMario64") == 0)
+			else if (gameConfig.gameType.CompareNoCase("SuperMario64") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("MarioKart64") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MarioKart64") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, true, gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("StandardRawAllowed") == 0)
+			else if (gameConfig.gameType.CompareNoCase("StandardRawAllowed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioRawAllowed(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, 0);
 			}
-			else if (gameConfig.gameType.Find("64dd") == 0)
+			else if (gameConfig.gameType.CompareNoCase("KonamiCtl") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioKonami(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, gameConfig.soundBanks[x].extra, gameConfig.soundBanks[x].extra2);
+			}
+			else if (gameConfig.gameType.CompareNoCase("Konami8Ctl") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioKonami8(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, gameConfig.soundBanks[x].extra, gameConfig.soundBanks[x].extra2);
+			}
+			else if (gameConfig.gameType.CompareNoCase("64dd") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudio64dd(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("vox") == 0)
+			else if (gameConfig.gameType.CompareNoCase("vox") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioVox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("BanjoTooie") == 0)
+			else if (gameConfig.gameType.CompareNoCase("BanjoTooie") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioBanjoTooie(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], 0, 0xFFFFFFFF, gameConfig.soundBanks[x].numberInstruments);
 			}
-			else if (gameConfig.gameType.Find("Conker") == 0)
+			else if (gameConfig.gameType.CompareNoCase("Conker") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioConker(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, gameConfig.soundBanks[x].numberInstruments, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("LzMusyx") == 0)
+			else if (gameConfig.gameType.CompareNoCase("LzMusyx") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioLzMusyx(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("ZLib78DAMusyx") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ZLib78DAMusyx") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioZLibMusyx78DA(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("ZLibMusyx") == 0)
+			else if (gameConfig.gameType.CompareNoCase("ZLibMusyx") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioZLibMusyx(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, GAUNTLETLEGENDS);
 			}
-			else if (gameConfig.gameType.Find("MusyxSmallZlib") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MusyxSmallZlib") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioZLibMusyxSmall(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("MusyxREZLib") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MusyxREZLib") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioZLibMusyx(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, RESIDENTEVIL2);
 			}
-			else if (gameConfig.gameType.Find("Musyx") == 0)
+			else if (gameConfig.gameType.CompareNoCase("Musyx") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMusyx(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("Musyx") == 0)
+			else if (gameConfig.gameType.CompareNoCase("Musyx") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMusyx(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
 			}
-			else if (gameConfig.gameType.Find("BlastCorps") == 0)
+			else if (gameConfig.gameType.CompareNoCase("BlastCorps") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioBlastCorps(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
-			else if (gameConfig.gameType.Find("MarioParty2E") == 0)
+			else if (gameConfig.gameType.CompareNoCase("MarioParty2E") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioMarioParty2E(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], 0, 0);
 			}
@@ -665,7 +758,12 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			}
 
 			if (results[numberResults].bank != NULL)
+			{
+				results[numberResults].halfSamplingRate = gameConfig.soundBanks[x].halfSamplingRate;
+				results[numberResults].overrideSamplingRate = gameConfig.soundBanks[x].overrideSamplingRate;
+				results[numberResults].samplingRate = gameConfig.soundBanks[x].samplingRate;
 				numberResults++;
+			}
 			else
 				results.resize(numberResults);
 		}

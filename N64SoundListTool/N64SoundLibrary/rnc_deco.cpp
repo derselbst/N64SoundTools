@@ -404,8 +404,8 @@ int RncDecoder::unpackM1(const void *input, void *output, unsigned short key, in
 
 	if (version != 0x81)
 	{
-		if (crcBlock((unsigned char *)output, unpackLen) != crcUnpacked)
-			return UNPACKED_CRC;
+		//if (crcBlock((unsigned char *)output, unpackLen) != crcUnpacked)
+			//return UNPACKED_CRC;
 	}
 
 	// all is done..return the amount of unpacked bytes
@@ -517,6 +517,8 @@ bool RncDecoder::CompressRNCFile(CString mainFolder, CString inputFile, CString 
 		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
 		if (tempOutputFile == 0)
 		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
 			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
 			return false;
 		}
@@ -553,6 +555,7 @@ bool RncDecoder::CompressRNCFile(CString mainFolder, CString inputFile, CString 
 			FILE* outputFileName = fopen(outputFile, "wb");
 			if (outputFileName == NULL)
 			{
+				delete [] tempBufferNew;
 				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
 				return false;
 			}

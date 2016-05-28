@@ -6,7 +6,8 @@
 #include "N64MidiToolDlg.h"
 #include "FolderDialog.h"
 #include <sys/stat.h>
-#include "SharedFunctions.h"
+#include "..\N64MidiLibrary\SharedFunctions.h"
+#include "..\N64MidiToolReader\N64MidiToolReader.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -33,6 +34,14 @@ void CN64MidiToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDITNUMINSTRUMENTS, m_numberInstruments);
 	DDX_Control(pDX, IDC_EDITLOOPPOINT, mLoopPoint);
 	DDX_Control(pDX, IDC_CHECKLOOP2, mNoRepeaters);
+	DDX_Control(pDX, IDC_CHECKSEPARATEBYISNTRUMENT, mSeparateByInstrument);
+	DDX_Control(pDX, IDC_CHECKDEBUGTEXTFILE, mDebugTextFile);
+	DDX_Control(pDX, IDC_CHECKSHOWBFX, mShowEffectsGames);
+	DDX_Control(pDX, IDC_MASTERTRACKEFFECTLABEL, mMasterTrackEffectLabel);
+	DDX_Control(pDX, IDC_COMBOMASTERTRACKEFFECT, mMasterTrackEffect);
+	DDX_Control(pDX, IDC_CHECKOUTPUTLOOP, mOutputLoop);
+	DDX_Control(pDX, IDC_EDITOUTPUTLOOPCOUNT, mOutputLoopCount);
+	DDX_Control(pDX, IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK, mExtendSmallerTracksToEnd);
 }
 
 BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
@@ -49,10 +58,13 @@ BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTONEXPORTALLTORAWBIN, &CN64MidiToolDlg::OnBnClickedButtonexportalltorawbin)
 	ON_BN_CLICKED(IDC_BUTTONWriteROM, &CN64MidiToolDlg::OnBnClickedButtonwriterom)
 	ON_BN_CLICKED(IDC_BUTTONPLAYMIDI, &CN64MidiToolDlg::OnBnClickedButtonplaymidi)
-	ON_BN_CLICKED(IDC_BUTTONIMPORTINSTRUMENTS, &CN64MidiToolDlg::OnBnClickedButtonimportinstruments)
 	ON_BN_CLICKED(IDC_BUTTONSCANDIRFORMIDIS, &CN64MidiToolDlg::OnBnClickedButtonscandirformidis)
 	ON_BN_CLICKED(IDC_BUTTONRIPROMS, &CN64MidiToolDlg::OnBnClickedButtonriproms)
 	ON_BN_CLICKED(IDC_BUTTON4, &CN64MidiToolDlg::OnBnClickedButton4)
+	ON_BN_CLICKED(IDC_BUTTONGENMIDIS, &CN64MidiToolDlg::OnBnClickedButtongenmidis)
+	ON_BN_CLICKED(IDC_CHECKSHOWBFX, &CN64MidiToolDlg::OnBnClickedCheckshowbfx)
+	ON_BN_CLICKED(IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK, &CN64MidiToolDlg::OnBnClickedCheckextendloopstohighesttrack)
+	ON_BN_CLICKED(IDC_CHECKOUTPUTLOOP, &CN64MidiToolDlg::OnBnClickedCheckoutputloop)
 END_MESSAGE_MAP()
 
 
@@ -62,11 +74,106 @@ BOOL CN64MidiToolDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
+	mSeparateByInstrument.SetCheck(false);
+	mOutputLoop.SetCheck(false);
+	mOutputLoopCount.SetWindowText("1");
+
+	mExtendSmallerTracksToEnd.SetCheck(false);
+
 	mLoopPoint.SetWindowText("0");
 	int iniOption;
 	char tempFolder[8000];
 	::GetCurrentDirectory(8000, tempFolder);
 	mainFolder.Format("%s\\", tempFolder);
+
+
+	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\WCW-nWo Revenge (U) [!].z64", "rb");
+	unsigned char* tempChar = new unsigned char[0x1000000];
+	fread(tempChar, 1, 0x1000000, inTemp);
+	fclose(inTemp);
+
+	unsigned long data[0x1DEA];
+	int increment = 0;
+
+
+CASMICDecoder decoder;
+for (int x = 0; x < increment - 1; x++)
+{
+		unsigned char* outputDecompressed = new unsigned char[0x1000000];
+		unsigned long address = data[x];
+		
+		int fileSize = decoder.dec(&tempChar[address], (data[x+1] - data[x]), outputDecompressed);
+
+		if (fileSize > 0)
+		{
+			CString tempStr;
+			tempStr.Format("%08X.bin", address);
+			FILE* outFile = fopen("C:\\temp\\wcwnwor\\" + tempStr, "wb");
+			for (int x = 0; x < fileSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);	
+		}
+
+		delete [] outputDecompressed;
+}
+		delete [] tempChar;*/
+	
+
+	/*GECompression compress;
+	compress.SetGame(NOHEADER);
+	compress.SetPath(mainFolder);
+
+	FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\Starshot - Space Circus Fever (E) (M3) [!].z64", "rb");
+	unsigned char* tempChar = new unsigned char[0xC00000];
+	fread(tempChar, 1, 0xC00000, inTemp);
+	fclose(inTemp);
+
+	for (int x = 0x000B55A0; x < 0x000B55A0 + 0x28B18; x+=0x18)
+	{
+		unsigned long offset = CharArrayToLong(&tempChar[x + 0xC]) + 0xB5590;
+		unsigned long uncompressedSize = CharArrayToLong(&tempChar[x + 0x0]);
+		unsigned long compressedSize = CharArrayToLong(&tempChar[x + 0x4]);
+		unsigned long offsetName = CharArrayToLong(&tempChar[x + 0x8]) + 0xB5590 + 2;
+
+		CString tempStr;
+		tempStr.Format("%08X_%s", offset, &tempChar[offsetName]);
+
+		if (tempChar[x + 0x10] == 0x04)
+		{
+			compress.SetCompressedBuffer(&tempChar[offset], compressedSize);
+
+			
+			int fileSize = -1;
+			int fileSizeCompressed = -1;
+			unsigned char* outputDecompressed = compress.OutputDecompressedBuffer(fileSize, fileSizeCompressed);
+
+			if (fileSize > 0)
+			{
+				FILE* outFile = fopen("C:\\temp\\starshot\\" + tempStr, "wb");
+				for (int x = 0; x < fileSize; x++)
+				{
+					fwrite(&outputDecompressed[x], 1, 1, outFile);
+				}
+				fclose(outFile);	
+
+				delete [] outputDecompressed;
+			}
+		}
+		else
+		{
+			FILE* outFile = fopen("C:\\temp\\starshot\\" + tempStr, "wb");
+			for (int x = 0; x < uncompressedSize; x++)
+			{
+				fwrite(&tempChar[offset + x], 1, 1, outFile);
+			}
+			fclose(outFile);	
+		}
+	}
+
+	delete [] tempChar;*/
+
 
 	buffer = NULL;
 	compressed = false;
@@ -93,235 +200,11 @@ void CN64MidiToolDlg::InitializeSpecificGames()
 {
 	char folder[8000];
 	strcpy(folder, mainFolder);
-	strcat(folder, "gameconfig.ini");
+	strcat(folder, "gameconfigmidi.ini");
 
-	FILE* inIni = fopen(folder, "r");
-	if (inIni == NULL)
-	{
-		MessageBox("Error reading gameconfig.ini, file must exist", "Error");
-		OnCancel();
-		return;
-	}
+	CN64MidiToolReader::InitializeSpecificGames(folder, countGames, gameConfig);
 
-	CString lastGame = "";
-
-	countGames = 0;
-
-	while (!feof(inIni))
-	{
-		char currentLine[1000];
-		fgets(currentLine, 1000, inIni);
-
-		CString lastGameNew = lastGame;
-
-		if (currentLine[0] == '[')
-		{
-			int spot = 0;
-			while (spot < 1000)
-			{
-				if (currentLine[spot] == ']')
-				{
-					currentLine[spot] = 0x0;
-					break;
-				}
-				spot++;
-			}
-
-			lastGameNew.Format("%s", &currentLine[1]);
-		}
-
-		if (lastGameNew != lastGame)
-		{
-			countGames++;
-			lastGame = lastGameNew;
-		}
-	}
-
-	if (lastGame != "")
-	{
-		countGames++;
-	}
-
-	rewind(inIni);
-
-	gameConfig = new GameConfig[countGames];
-	countGames = 0;
-	lastGame = "";
-	
-	int midiCount = 0;
-
-
-	CString gameType = "Uncompressed";
-	while (!feof(inIni))
-	{
-		
-		char currentLine[1000];
-		fgets(currentLine, 1000, inIni);
-
-		CString lastGameNew = lastGame;
-		
-		CString curLineStr;
-		curLineStr.Format("%s", currentLine);
-
-		if (currentLine[0] == '/')
-			continue;
-		else if (currentLine[0] == '[')
-		{
-			int spot = 0;
-			while (spot < 1000)
-			{
-				if (currentLine[spot] == ']')
-				{
-					currentLine[spot] = 0x0;
-					break;
-				}
-				spot++;
-			}
-
-			lastGameNew.Format("%s", curLineStr.Mid(1, (spot - 1)));
-
-			gameType = "Uncompressed";
-			if (curLineStr.Find(":type=") != -1)
-			{
-				gameType = curLineStr.Mid((curLineStr.Find(":type=") + 6), (curLineStr.GetLength() - curLineStr.Find(":type=") - 6));
-			}
-		}
-		else
-		{
-			midiCount++;
-		}
-
-		if (lastGameNew != lastGame)
-		{
-			if (lastGame != "")
-			{
-				m_game.AddString(gameConfig[countGames].gameName);
-				gameConfig[countGames].midiBanks = new MidiConfig[midiCount];
-				countGames++;
-			}
-			else
-			{
-				gameConfig[countGames].gameName = lastGameNew;
-				gameConfig[countGames].gameName.Replace("\r", "");
-				gameConfig[countGames].gameName.Replace("\n", "");
-				m_game.AddString(gameConfig[countGames].gameName);
-			}
-
-
-			midiCount = 0;
-			lastGame = lastGameNew;
-			gameConfig[countGames].gameName = lastGameNew;
-			gameConfig[countGames].gameName.Replace("\r", "");
-			gameConfig[countGames].gameName.Replace("\n", "");
-			gameConfig[countGames].gameType = gameType;
-		}
-	}
-
-	if (lastGame != "")
-	{
-		gameConfig[countGames].midiBanks = new MidiConfig[midiCount];
-		gameConfig[countGames].gameType = gameType;
-		countGames++;
-	}
-
-	rewind(inIni);
-
-	countGames = 0;
-	lastGame = "";
-
-	while (!feof(inIni))
-	{
-		char currentLine[1000];
-		fgets(currentLine, 1000, inIni);
-
-		CString lastGameNew = lastGame;
-
-		if (currentLine[0] == '/')
-			continue;
-		else if (currentLine[0] == '[')
-		{
-			int spot = 0;
-			while (spot < 1000)
-			{
-				if (currentLine[spot] == ']')
-				{
-					currentLine[spot] = 0x0;
-					break;
-				}
-				spot++;
-			}
-
-			lastGameNew.Format("%s", &currentLine[1]);
-		}
-		else
-		{
-			CString line;
-			line.Format("%s", currentLine);
-			if (line.Find(",") != -1)
-			{
-				int commaSpot = line.Find(",");
-				CString first = line.Mid(0,commaSpot);
-				CString second = line.Mid((commaSpot + 1), (line.GetLength() - commaSpot - 1));
-				CString third = "";
-				CString fourth = "";
-
-				int commaSpot2 = second.Find(",");
-				if (commaSpot2 != -1)
-				{
-					third = second.Mid((commaSpot2 + 1), (second.GetLength() - commaSpot2 - 1));
-					second = second.Mid(0,commaSpot2);
-
-
-					int commaSpot3 = third.Find(",");
-					if (commaSpot3 != -1)
-					{
-						fourth = third.Mid((commaSpot3 + 1), (third.GetLength() - commaSpot3 - 1));
-						third = third.Mid(0,commaSpot3);
-					}
-				}
-
-				second.Replace("\r", "");
-				second.Replace("\n", "");
-				third.Replace("\r", "");
-				third.Replace("\n", "");
-				fourth.Replace("\r", "");
-				fourth.Replace("\n", "");
-
-				gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].start = CSharedFunctions::StringHexToLong(first);
-				gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].end = CSharedFunctions::StringHexToLong(second);
-				/*if (third.GetLength() > 0)
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = CSharedFunctions::StringHexToLong(third);
-				else
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = -1;
-				if (fourth.GetLength() > 0)
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = CSharedFunctions::StringHexToLong(fourth);
-				else
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = -1;*/
-				gameConfig[countGames].numberMidis++;
-				midiCount++;
-			}
-		}
-
-		if (lastGameNew != lastGame)
-		{
-			if (lastGame != "")
-			{
-				countGames++;
-			}
-
-			lastGame = lastGameNew;
-
-			midiCount = 0;
-			gameConfig[countGames].numberMidis = 0;
-		}
-	}
-
-	if (lastGame != "")
-	{
-		countGames++;
-	}
-
-	fclose(inIni);
+	OnBnClickedCheckshowbfx();
 }
 
 // If you add a minimize button to your dialog, you will need the code below
@@ -381,20 +264,6 @@ unsigned short CN64MidiToolDlg::Flip16Bit(unsigned short ShortValue)
 	return ((ShortValue >> 8) | ((ShortValue << 8)));
 }
 
-unsigned long CN64MidiToolDlg::ReadAddiuAddress(unsigned char* GEROM, unsigned long upperLocation, unsigned long lowerLocation)
-{
-	unsigned short upper = CharArrayToShort(&GEROM[upperLocation+2]);
-	unsigned short lower = CharArrayToShort(&GEROM[lowerLocation+2]);
-	if (lower > 0x7FFF)
-	{
-		return ((upper - 1) << 16) | lower;
-	}
-	else
-	{
-		return ((upper) << 16) | lower;
-	}
-}
-
 int CN64MidiToolDlg::GetSizeFile(CString filename)
 {
 	FILE* inFile = fopen(filename, "rb");
@@ -412,18 +281,27 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 {
 	CString tempStr;
 	m_game.GetWindowText(tempStr);
-	CFileDialog m_ldFile(TRUE, NULL, tempStr + " [!].z64", OFN_HIDEREADONLY, "GE ROM(*.v64;*.z64;*.rom;*.n64)|*.v64;*.z64;*.rom;*.n64|", this);
+	tempStr.Replace(" (Binary FX)", "");
+	tempStr.Replace(" RNC", "");
+	tempStr.Replace(" AVL_0", "");
 
+	CFileDialog m_ldFile(TRUE, NULL, tempStr + " [!].z64", OFN_HIDEREADONLY, "N64 ROM(*.v64;*.z64;*.rom;*.n64)|*.v64;*.z64;*.rom;*.n64|", this);
+	
 	int statusFileOpen = (int) m_ldFile.DoModal();
 
-	if ((statusFileOpen == IDCANCEL) || (m_ldFile.GetPathName() == ""))
+	CString romName = m_ldFile.GetPathName();
+
+	//int statusFileOpen = IDOK;
+	//romName = "C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\GoldenEye 007 (U) [!].z64";
+
+	if ((statusFileOpen == IDCANCEL) || (romName == ""))
 		return;
 
 	if (statusFileOpen == FALSE)
 		return;	
 
 
-	romSize = GetSizeFile(m_ldFile.GetPathName());
+	romSize = GetSizeFile(romName);
 
 	if ((statusFileOpen == IDOK) && (romSize > 0))
 	{
@@ -432,7 +310,7 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		m_game.GetWindowText(gameName);
 
 
-		FILE* inROM = fopen(m_ldFile.GetPathName(), "rb");
+		FILE* inROM = fopen(romName, "rb");
 
 		if (inROM == NULL)
 		{
@@ -445,7 +323,7 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			buffer = NULL;
 		}
 
-		lastRomName = m_ldFile.GetPathName();
+		lastRomName = romName;
 
 		buffer = new unsigned char[romSize];
 		fread(buffer, 1, romSize, inROM);
@@ -478,17 +356,17 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		int gameNumber = 0;
 		for (int x = 0; x < countGames; x++)
 		{
-			if (gameConfig[x].gameName.Find(gameName) == 0)
+			if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 			{
 				gameNumber = x;
 				break;
 			}
 		}
 
-		CString addMidiStrings[1000];
+		std::vector<CString> addMidiStrings;
 		int numberMidiStrings = 0;
 		int numberInstruments = 0;
-		ProcessMidis(gameConfig, gameNumber, buffer, addMidiStrings, numberMidiStrings, numberInstruments);
+		CN64MidiToolReader::ProcessMidis(gameConfig, gameNumber, addMidiStrings, numberMidiStrings, numberInstruments, compressed, buffer, romSize, startSpot, endSpot, true, mSeparateByInstrument.GetCheck(), mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 
 		for (int x = 0; x < numberMidiStrings; x++)
 			m_spot.AddString(addMidiStrings[x]);
@@ -497,6 +375,92 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		tempInstrStr.Format("%02X", numberInstruments);
 		m_numberInstruments.SetWindowText(tempInstrStr);
 
+		if ((gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RNCSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ASMICSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("SnowSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ARISng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ArmySargeSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ArmySarge2Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("TazSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("FLA2Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RNCSngOffset") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("LZSS_0BSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("AVL_0Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("VigilanteSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RugratsSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MultiPartTigSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZLibSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MarioTennisSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("Yay0Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0)
+			)
+		{
+			mMasterTrackEffect.SetCurSel(0);
+			mMasterTrackEffectLabel.ShowWindow(SW_SHOW);
+			mMasterTrackEffect.ShowWindow(SW_SHOW);
+			mSeparateByInstrument.ShowWindow(SW_SHOW);
+		}
+		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0))
+		{
+			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mSeparateByInstrument.ShowWindow(SW_SHOW);
+		}
+		else
+		{
+			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mSeparateByInstrument.ShowWindow(SW_HIDE);
+		}
+
+		if (gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0)
+		{
+			OnBnClickedCheckextendloopstohighesttrack();
+			OnBnClickedCheckoutputloop();
+
+			mOutputLoop.ShowWindow(SW_SHOW);
+			mOutputLoopCount.ShowWindow(SW_SHOW);
+
+			mExtendSmallerTracksToEnd.ShowWindow(SW_SHOW);
+		}
+		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RNCSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ASMICSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("SnowSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ARISng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ArmySargeSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ArmySarge2Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("TazSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("FLA2Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RNCSngOffset") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("LZSS_0BSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("AVL_0Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("VigilanteSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("RugratsSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MultiPartTigSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZLibSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MarioTennisSng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("Yay0Sng") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0)
+			)
+		{
+			mOutputLoop.ShowWindow(SW_HIDE);
+			mOutputLoopCount.ShowWindow(SW_HIDE);
+
+			mExtendSmallerTracksToEnd.ShowWindow(SW_HIDE);
+		}
+		else
+		{
+			mOutputLoop.ShowWindow(SW_HIDE);
+			mOutputLoopCount.ShowWindow(SW_HIDE);
+
+			mExtendSmallerTracksToEnd.ShowWindow(SW_SHOW);
+		}
 		
 		
 
@@ -508,418 +472,17 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 	}
 }
 
-void CN64MidiToolDlg::ProcessMidis(GameConfig* gameConfig, int gameNumber, byte* gameBuffer, CString addMidiStrings[1000], int& numberMidiStrings, int& numberInstruments)
-{
-	if (gameConfig[gameNumber].gameType.Find("GoldenEye") == 0)
-	{
-		// TODO
-		//midiParse.ImportMidiConfig("gemidiconfig.txt");
-		compress.SetGame(GOLDENEYE);
-		compressed = true;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			unsigned long start = ReadAddiuAddress(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end) + 4;
-
-			int numberMusicData = CharArrayToShort(&gameBuffer[start-4]);
-			
-			unsigned long currentSpot = start;
-			
-			int currentBinaryNumber = 0;
-			while (currentBinaryNumber < numberMusicData)
-			{
-				unsigned long musicOffset = (CharArrayToLong(&gameBuffer[currentSpot]) + (start - 4));
-				unsigned long compressedSize = CharArrayToShort(&gameBuffer[currentSpot+6]);
-
-				CString tempSpotStr;
-				tempSpotStr.Format("%08X:%08X", musicOffset, compressedSize);
-				addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-				int numberInstTemp = 0;
-				ExportToMidi(gameBuffer, musicOffset, compressedSize, "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-				if (numberInstTemp > numberInstruments)
-					numberInstruments = numberInstTemp;
-				::DeleteFile("asdasdaw43.mid");
-
-				currentBinaryNumber++;
-				currentSpot += 8;
-			}		
-		}
-
-		
-	}
-	else if (gameConfig[gameNumber].gameType.Find("Glover") == 0)
-	{
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			unsigned long start = gameConfig[gameNumber].midiBanks[x].start;
-			unsigned long end = gameConfig[gameNumber].midiBanks[x].end;
-			
-			unsigned long countMidi = CharArrayToLong(&gameBuffer[start]);
-			unsigned long endMidi = CharArrayToLong(&gameBuffer[start + 0x14]);
-			for (int y = 0; y < countMidi; y++)
-			{
-				unsigned long midiLocation = CharArrayToLong(&gameBuffer[start + 0x18 + (y * 8)]);
-				unsigned long midiDivison = CharArrayToLong(&gameBuffer[start + 0x18 + (y * 8) + 4]);
-				unsigned long midiEnd;
-				if (y == (countMidi - 1))
-					midiEnd = endMidi;
-				else
-					midiEnd = CharArrayToLong(&gameBuffer[start + 0x18 + (y * 8) + 8]);
-
-				CString tempSpotStr;
-				tempSpotStr.Format("%08X:%08X", midiLocation, (midiEnd - midiLocation));
-				addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-				int numberInstTemp = 0;
-				ExportToMidi(gameBuffer, (start + midiLocation), (midiEnd - midiLocation), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, midiDivison);
-				if (numberInstTemp > numberInstruments)
-					numberInstruments = numberInstTemp;
-				::DeleteFile("asdasdaw43.mid");
-			}
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("PerfectDark") == 0)
-	{
-		compress.SetGame(PD);
-		compressed = true;
-
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			unsigned long start = gameConfig[gameNumber].midiBanks[x].start;
-			unsigned long currentSpot = start;
-			
-			startSpot = (CharArrayToLong(&gameBuffer[currentSpot]) + (start - 4));
-			
-			int currentBinaryNumber = 0;
-			while (currentBinaryNumber <  0x3F)
-			{
-				unsigned long musicOffset = (CharArrayToLong(&gameBuffer[currentSpot]) + gameConfig[gameNumber].midiBanks[0].end);
-				unsigned long compressedSize = CharArrayToShort(&gameBuffer[currentSpot+6]);
-
-				CString tempSpotStr;
-				tempSpotStr.Format("%08X:%08X", musicOffset, compressedSize);
-				addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-				int numberInstTemp = 0;
-				ExportToMidi(gameBuffer, musicOffset, compressedSize, "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-				if (numberInstTemp > numberInstruments)
-					numberInstruments = numberInstTemp;
-				::DeleteFile("asdasdaw43.mid");
-
-				endSpot = musicOffset + compressedSize;
-
-				currentBinaryNumber++;
-				currentSpot += 8;
-			}
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("BanjoKazooie") == 0)
-	{
-		compress.SetGame(BANJOKAZOOIE);
-		compressed = true;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-			int numberInstTemp = 0;
-			ExportToMidi(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-			if (numberInstTemp > numberInstruments)
-				numberInstruments = numberInstTemp;
-			::DeleteFile("asdasdaw43.mid");
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("MIDx") == 0)
-	{
-		compressed = false;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-			int numberInstTemp = 0;
-			ExportToMidi(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-			if (numberInstTemp > numberInstruments)
-				numberInstruments = numberInstTemp;
-			::DeleteFile("asdasdaw43.mid");
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("MML") == 0)
-	{
-		compressed = false;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-			int numberInstTemp = 0;
-			ExportToMidi(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-			if (numberInstTemp > numberInstruments)
-				numberInstruments = numberInstTemp;
-			::DeleteFile("asdasdaw43.mid");
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("BanjoTooie") == 0)
-	{
-		compress.SetGame(BANJOTOOIE);
-		compressed = true;
-
-		// TODO
-		//BT 13393bc
-		//BT 138f044
-
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-			int numberInstTemp = 0;
-			ExportToMidi(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-			if (numberInstTemp > numberInstruments)
-				numberInstruments = numberInstTemp;
-			::DeleteFile("asdasdaw43.mid");
-		}
-
-		
-	}
-	else if (gameConfig[gameNumber].gameType.Find("DonkeyKong") == 0)
-	{
-		compress.SetGame(DONKEYKONG64);
-		compressed  = true;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			unsigned long start = gameConfig[gameNumber].midiBanks[x].start;
-			unsigned long  currentSpot = start;
-
-			bool endFlag = false;
-
-			while (!endFlag)
-			{
-				// algorithm to find each length, check latest offset, then find end from meta code
-
-				unsigned long startCurrentSpot = currentSpot;
-				unsigned long byteCheck = 0;
-
-				// 00FF2F ends
-				while ((gameBuffer[currentSpot + byteCheck] != 0x1F) || (gameBuffer[currentSpot + byteCheck + 1] != 0x8B))
-				{
-					byteCheck++;
-				}
-
-				// move ahead 1
-				currentSpot++;
-
-				while ((currentSpot <  gameConfig[gameNumber].midiBanks[x].end))
-				{
-					if ((gameBuffer[currentSpot] != 0x1F) || (gameBuffer[currentSpot + 1] != 0x8B) || (gameBuffer[currentSpot + 2] != 0x08))
-					{
-						currentSpot+=1;
-					}
-					else
-					{
-						break;
-					}
-				}
-
-				CString tempSpotStr;
-				tempSpotStr.Format("%08X:%08X", startCurrentSpot, (currentSpot - startCurrentSpot));
-				addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-				int numberInstTemp = 0;
-				ExportToMidi(gameBuffer, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0);
-				if (numberInstTemp > numberInstruments)
-					numberInstruments = numberInstTemp;
-				::DeleteFile("asdasdaw43.mid");
-				
-				if (currentSpot >= gameConfig[gameNumber].midiBanks[x].end)
-					endFlag = true;
-			}
-		}	
-	}
-	else if (gameConfig[gameNumber].gameType.Find("Midi") == 0)
-	{
-		compressed = false;
-		//midiParse.ImportMidiConfig("aerofightersassault.txt");
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
-	{
-		compressed = true;
-		//midiParse.ImportMidiConfig("aerofightersassault.txt");
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
-	{
-		compressed = true;
-		//midiParse.ImportMidiConfig("aerofightersassault.txt");
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
-	{
-		compressed = true;
-		//midiParse.ImportMidiConfig("aerofightersassault.txt");
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("TitusMidi") == 0)
-	{
-		compressed = true;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else if (gameConfig[gameNumber].gameType.Find("RNCMidi") == 0)
-	{
-		compressed = true;
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-		}
-	}
-	else
-	{
-		compressed = false;
-		//midiParse.ImportMidiConfig("aerofightersassault.txt");
-		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
-		{
-			ParseUncompressedType(gameBuffer, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, addMidiStrings, numberMidiStrings, numberInstruments);
-		}
-	}
-}
-
-void CN64MidiToolDlg::ParseUncompressedType(unsigned char* gamebuffer, unsigned long start, unsigned long endSpot, CString addMidiStrings[1000], int& numberMidiStrings, int& numberInstruments)
-{
-	unsigned long  currentSpot = start;
-
-	bool endFlag = false;
-
-	while (!endFlag)
-	{
-		// algorithm to find each length, check latest offset, then find end from meta code
-
-		unsigned long startCurrentSpot = currentSpot;
-
-		bool invalidMidi = false;
-		unsigned long highestEnd = 0x00000044;
-		for (unsigned long test = currentSpot; test < currentSpot + 0x40; test += 4)
-		{
-			unsigned long offsetToMidiStart = CharArrayToLong(&gamebuffer[test]);
-			if (((offsetToMidiStart >> 8) & 0xFFFFFFF) == 0x00FF2F)
-			{
-				// blast corps 47D014 no headers, just data
-				highestEnd = offsetToMidiStart + 4;
-				invalidMidi = true;
-				break;
-			}
-
-			unsigned long byteCheck = 0;
-
-			if (offsetToMidiStart == 0x00000000)
-				continue;
-
-			bool endedWrongly = false;
-			// FF2F ends
-			while (true)
-			{
-				if ((gamebuffer[currentSpot + offsetToMidiStart + byteCheck] == 0xFF) && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 1] == 0x2F))
-				{
-					byteCheck += 2;
-					break;
-				}
-				if ((gamebuffer[currentSpot + offsetToMidiStart + byteCheck] == 0x00) && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 1] == 0x00) && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 2] == 0x00)  && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 3] == 0x44))
-				{
-					endedWrongly = true;
-					break;
-				}
-				if ((gamebuffer[currentSpot + offsetToMidiStart + byteCheck] == 0x42) && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 1] == 0x31) && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 2] == 0x00)  && (gamebuffer[currentSpot + offsetToMidiStart + byteCheck + 3] == 0x01))
-				{
-					// Toon Panic Hack
-					endedWrongly = true;
-					break;
-				}
-				byteCheck++;
-				if (byteCheck > endSpot)
-				{
-					break;
-				}
-			}
-
-			if ((offsetToMidiStart + byteCheck) > highestEnd)
-				highestEnd = (offsetToMidiStart + byteCheck);
-		}
-
-		if ((highestEnd % 4) != 0)
-			highestEnd += (4 - (highestEnd % 4));
-
-		currentSpot += highestEnd;
-
-		while ((currentSpot < endSpot))
-		{
-			if ((gamebuffer[currentSpot] != 0x00) || (gamebuffer[currentSpot + 1] != 0x00) || (gamebuffer[currentSpot + 2] != 0x0)  || (gamebuffer[currentSpot + 3] != 0x44) || (gamebuffer[currentSpot + 4] != 0x00))
-			{
-				currentSpot+=4;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		if (!invalidMidi)
-		{
-			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", startCurrentSpot, (currentSpot - startCurrentSpot));
-			addMidiStrings[numberMidiStrings++] = tempSpotStr;
-
-			int numberInstTemp = 0;
-			ExportToMidi(gamebuffer, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", "Uncompressed", numberInstTemp, 0);
-			if (numberInstTemp > numberInstruments)
-				numberInstruments = numberInstTemp;
-			::DeleteFile("asdasdaw43.mid");
-		}
-		
-		if (currentSpot >= endSpot)
-			endFlag = true;
-	}
-	
-	compressed  = false;
-}
-
 CN64MidiToolDlg::~CN64MidiToolDlg()
 {
 	if (gameConfig != NULL)
 	{
 		for (int x = 0; x < countGames; x++)
 		{
-			delete [] gameConfig[x].midiBanks;
+			if (gameConfig[x].midiBanks != NULL)
+				delete [] gameConfig[x].midiBanks;
+
+			if (gameConfig[x].midiNames != NULL)
+				delete [] gameConfig[x].midiNames;
 		}
 
 		delete [] gameConfig;
@@ -937,50 +500,6 @@ void CN64MidiToolDlg::OnCbnSelchangeCombomidi()
 	
 }
 
-byte* CN64MidiToolDlg::Decompress(unsigned char* Buffer, unsigned long size, int& fileSize, int& compressedSize)
-{
-	compress.SetCompressedBuffer(Buffer, size);
-	
-	fileSize = 0; // is by reference, overwritten
-	byte* outputDecompressed = compress.OutputDecompressedBuffer(fileSize, compressedSize);
-
-	if (outputDecompressed == NULL)
-	{
-		MessageBox("Error Decompressing", "Error");
-		return NULL;
-	}
-
-	return outputDecompressed;
-}
-
-bool CN64MidiToolDlg::DecompressToFile(unsigned char* Buffer, unsigned long size, CString outputFile)
-{
-	int fileSize = 0; // is by reference, overwritten
-	int compressedSize = -1;
-	byte* outputDecompressed = Decompress(Buffer, size, fileSize, compressedSize);
-
-	if (outputDecompressed == NULL)
-	{
-		MessageBox("Error Decompressing", "Error");
-		return false;
-	}
-
-	FILE* outFile = fopen(outputFile, "wb");
-	if (outFile == NULL)
-	{
-		MessageBox("Cannot Write File", "Error");
-		return false;
-	}
-	for (int x = 0; x < fileSize; x++)
-	{
-		fwrite(&outputDecompressed[x], 1, 1, outFile);
-	}
-	fclose(outFile);
-	
-	delete [] outputDecompressed;
-	return false;
-}
-
 void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 {
 	if (buffer == NULL)
@@ -994,7 +513,19 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 
 	unsigned long address = 0;
 	unsigned long size = 0;
-	sscanf(spotStr, "%08X:%08X", &address, &size);
+	unsigned long extra = 0;
+	unsigned long extra2 = 0;
+	
+	int originalSize = spotStr.GetLength();
+	CString tempColonReplacedStr = spotStr;
+	int countColons = tempColonReplacedStr.Replace(":", "");
+
+	if (countColons == 3)
+		sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+	else if (countColons == 2)
+		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+	else
+		sscanf(spotStr, "%08X:%08X", &address, &size);
 
 	CString gameName;
 	m_game.GetWindowText(gameName);
@@ -1002,14 +533,14 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 	int gameNumber = 0;
 	for (int x = 0; x < countGames; x++)
 	{
-		if (gameConfig[x].gameName.Find(gameName) == 0)
+		if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 		{
 			gameNumber = x;
 			break;
 		}
 	}
 
-	if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "xm", "FastTracker2.xm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Xm File (*.xm)|*.xm|", this);
 
@@ -1032,9 +563,12 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "dcm", "song.dcm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Dcm File (*.dcm)|*.dcm|", this);
 
@@ -1057,9 +591,12 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
-	else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "dcm", "song.dcm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Dcm File (*.dcm)|*.dcm|", this);
 
@@ -1082,7 +619,96 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
+	}
+	else if ((gameConfig[gameNumber].gameType.CompareNoCase("RNCSeq") == 0) && compressed)
+	{
+		CFileDialog m_svFile(FALSE, "bin", "Midi.bin", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File (*.bin)|*.bin|", this);
+
+		int statusFileOpen = (int) m_svFile.DoModal();
+
+		if ((statusFileOpen == IDCANCEL) || (m_svFile.GetFileName() == ""))
+			return;
+
+		if (statusFileOpen == FALSE)
+			return;
+
+		CString fileName;
+		if (statusFileOpen == IDOK)
+		{
+			fileName = m_svFile.GetPathName();
+		}
+		else
+		{
+			return;
+		}
+
+		if (compressed)
+		{
+			int realSpot = size;
+
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x100000];
+			int expectedSize = decode.unpackM1(&buffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+			
+			unsigned long realStart = CharArrayToLong(&outputDecompressed[0x8]) + CharArrayToLong(&outputDecompressed[realSpot]);
+			unsigned long realSize = CharArrayToLong(&outputDecompressed[realSpot + 4]) - CharArrayToLong(&outputDecompressed[realSpot]);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox("Cannot Write File", "Error");
+				return;
+			}
+			for (int x = realStart; x < (realStart + realSize); x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+		}
+	}
+	else if ((gameConfig[gameNumber].gameType.CompareNoCase("MidiLZSSWilliams") == 0) && compressed)
+	{
+		CFileDialog m_svFile(FALSE, "bin", "Midi.bin", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File (*.bin)|*.bin|", this);
+
+		int statusFileOpen = (int) m_svFile.DoModal();
+
+		if ((statusFileOpen == IDCANCEL) || (m_svFile.GetFileName() == ""))
+			return;
+
+		if (statusFileOpen == FALSE)
+			return;
+
+		CString fileName;
+		if (statusFileOpen == IDOK)
+		{
+			fileName = m_svFile.GetPathName();
+		}
+		else
+		{
+			return;
+		}
+
+		int fileSizeCompressed = size;
+		CMidwayDecoder decode;
+		unsigned char* outputDecompressed = new unsigned char[0x50000];
+		int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed, "WILLIAMS");
+
+		FILE* outFile = fopen(fileName, "wb");
+		if (outFile == NULL)
+		{
+			MessageBox("Cannot Write File", "Error");
+			return;
+		}
+		for (int x = 0; x < expectedSize; x++)
+		{
+			fwrite(&outputDecompressed[x], 1, 1, outFile);
+		}
+		fclose(outFile);
 	}
 	else
 	{
@@ -1106,29 +732,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 			return;
 		}
 
-		ExportToBin(address, size, fileName);
-	}
-}
-
-void CN64MidiToolDlg::ExportToBin(unsigned long address, unsigned long size, CString fileName)
-{
-	if (compressed)
-	{
-		DecompressToFile(&buffer[address], size, fileName);
-	}
-	else
-	{
-		FILE* outFile = fopen(fileName, "wb");
-		if (outFile == NULL)
-		{
-			MessageBox("Cannot Write File", "Error");
-			return;
-		}
-		for (int x = 0; x < size; x++)
-		{
-			fwrite(&buffer[address+x], 1, 1, outFile);
-		}
-		fclose(outFile);
+		CN64MidiToolReader::midiParse.ExportToBin(gameConfig[gameNumber].gameType, buffer, address, size, fileName, compressed);
 	}
 }
 
@@ -1145,7 +749,19 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 
 	unsigned long address = 0;
 	unsigned long size = 0;
-	sscanf(spotStr, "%08X:%08X", &address, &size);
+	unsigned long extra = 0;
+	unsigned long extra2 = 0;
+	
+	int originalSize = spotStr.GetLength();
+	CString tempColonReplacedStr = spotStr;
+	int countColons = tempColonReplacedStr.Replace(":", "");
+
+	if (countColons == 3)
+		sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+	else if (countColons == 2)
+		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+	else
+		sscanf(spotStr, "%08X:%08X", &address, &size);
 
 	CString gameName;
 	m_game.GetWindowText(gameName);
@@ -1153,14 +769,15 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 	int gameNumber = 0;
 	for (int x = 0; x < countGames; x++)
 	{
-		if (gameConfig[x].gameName.Find(gameName) == 0)
+		if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 		{
 			gameNumber = x;
 			break;
 		}
 	}
 
-	if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+	bool generateDebugTextFile = mDebugTextFile.GetCheck();
+	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "xm", "FastTracker2.xm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Xm File (*.xm)|*.xm|", this);
 
@@ -1183,9 +800,12 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "dcm", "song.dcm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Dcm File (*.dcm)|*.dcm|", this);
 
@@ -1208,7 +828,10 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
 	else
 	{
@@ -1243,7 +866,19 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 
 		unsigned long address = 0;
 		unsigned long size = 0;
-		sscanf(spotStr, "%08X:%08X", &address, &size);
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
 
 		CString gameName;
 		m_game.GetWindowText(gameName);
@@ -1251,7 +886,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		int gameNumber = 0;
 		for (int x = 0; x < countGames; x++)
 		{
-			if (gameConfig[x].gameName.Find(gameName) == 0)
+			if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 			{
 				gameNumber = x;
 				break;
@@ -1259,7 +894,10 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		}
 
 		int numberInstruments;
-		ExportToMidi(buffer, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
 
 
@@ -1286,470 +924,6 @@ void CN64MidiToolDlg::KillWMPlayer()
 	Sleep(1000);
 }
 
-void CN64MidiToolDlg::ExportToMidi(unsigned char* gamebuffer, unsigned long address, unsigned long size, CString fileName, CString gameType, int& numberInstruments, unsigned long division)
-{
-	if (gameType.Find("BanjoTooie") == 0)
-	{
-		if (compressed)
-		{
-			int decompressedSize = 0;
-			int compressedSize = -1;
-			byte* outputBuffer = Decompress(&gamebuffer[address], size, decompressedSize, compressedSize);
-			midiParse.BTMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments);
-			delete [] outputBuffer;
-		}
-		else
-		{
-			midiParse.BTMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments);
-		}
-	}
-	else if (gameType.Find("Glover") == 0)
-	{
-		midiParse.GloverMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, division);
-	}
-	else if (gameType.Find("MIDx") == 0)
-	{
-		if (compressed)
-		{
-			
-		}
-		else
-		{
-			midiParse.MIDxMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments);
-		}
-	}
-	else if (gameType.Find("MML") == 0)
-	{
-		if (compressed)
-		{
-			
-		}
-		else
-		{
-			midiParse.MMLToMidi(&gamebuffer[address], size, fileName, numberInstruments);
-		}
-	}
-	else if (gameType.Find("Midi") == 0)
-	{
-		if (compressed)
-		{
-			
-		}
-		else
-		{
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-			for (int x = 0; x < size; x++)
-			{
-				fwrite(&buffer[address+x], 1, 1, outFile);
-			}
-			fclose(outFile);
-		}
-	}
-	else if (gameType.Find("MultipartZLibXMFastTracker2") == 0)
-	{
-		if (compressed)
-		{
-			compress.SetGame(STUNTRACER64);
-
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-
-			unsigned long compressedMainSize = CharArrayToLong(&gamebuffer[address]);
-			unsigned long uncompressedMainSize = CharArrayToLong(&gamebuffer[address+4]);
-			unsigned long step = CharArrayToLong(&gamebuffer[address+0x8]);
-
-			int readSize = 0;
-			while ((readSize < compressedMainSize) && (CharArrayToLong(&gamebuffer[address+0xC+readSize]) != 0))
-			{
-				int decompressedSize = 0;
-				int compressedSize = -1;
-				byte* outputBuffer = Decompress(&gamebuffer[address+0xC+readSize], size, decompressedSize, compressedSize);
-
-				for (int x = 0; x < decompressedSize; x++)
-				{
-					fwrite(&outputBuffer[x], 1, 1, outFile);
-				}
-
-				readSize += step;
-
-				if (((address+0xC+readSize) % 2) != 0)
-				{
-					readSize += (2-((address+0xC+readSize) % 2));
-				}
-
-				step = CharArrayToLong(&gamebuffer[address+0xC+readSize]);
-
-				readSize += 4;
-
-				delete [] outputBuffer;
-			}
-			fclose(outFile);
-
-		}
-		else
-		{
-			
-		}
-	}
-	else if (gameType.Find("DCM") == 0)
-	{
-		if (compressed)
-		{
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-
-			CH20Decoder h20dec;
-			int compressedSize = -1;
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
-			unsigned char* cleanDecompressed = new unsigned char[0x100000];
-
-			int decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, outputDecompressed);
-			decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, cleanDecompressed);
-
-			for (int x = 14; x < (14 + (outputDecompressed[5] * 0x10)); x+=0x10)
-			{
-				unsigned char tempValue1 = outputDecompressed[x];
-				unsigned char tempValue2 = outputDecompressed[x+1];
-
-				outputDecompressed[x] = outputDecompressed[x+3];
-				outputDecompressed[x+1] = outputDecompressed[x+2];
-				outputDecompressed[x+2] = tempValue2;
-				outputDecompressed[x+3] = tempValue1;
-
-				tempValue1 = outputDecompressed[x+4];
-				tempValue2 = outputDecompressed[x+5];
-
-				outputDecompressed[x+4] = outputDecompressed[x+7];
-				outputDecompressed[x+5] = outputDecompressed[x+6];
-				outputDecompressed[x+6] = tempValue2;
-				outputDecompressed[x+7] = tempValue1;
-
-				tempValue1 = outputDecompressed[x+8];
-				tempValue2 = outputDecompressed[x+9];
-
-				outputDecompressed[x+8] = outputDecompressed[x+11];
-				outputDecompressed[x+9] = outputDecompressed[x+10];
-				outputDecompressed[x+10] = tempValue2;
-				outputDecompressed[x+11] = tempValue1;
-
-				unsigned char tempValue = outputDecompressed[x+12];
-				outputDecompressed[x+12] = outputDecompressed[x+13];
-				outputDecompressed[x+13] = tempValue;
-
-				tempValue = outputDecompressed[x+14];
-				outputDecompressed[x+14] = outputDecompressed[x+15];
-				outputDecompressed[x+15] = tempValue;
-			}
-
-			int position = (14 + (outputDecompressed[5] * 0x10));
-
-			if (cleanDecompressed[position] == 0x00)
-			{
-				unsigned long length = CharArrayToLong(&cleanDecompressed[position]);
-				if (length > decSize)
-				{
-					cleanDecompressed[6] = (length & 0xFF);
-					cleanDecompressed[7] = ((length >> 8) & 0xFF);
-					cleanDecompressed[8] = ((length >> 16) & 0xFF);
-					cleanDecompressed[9] = ((length >> 24) & 0xFF);
-
-					fwrite(cleanDecompressed, 1, position, outFile);
-
-					CTetrisphereDecoder tetDec;
-					unsigned char* outputLz = new unsigned char[0x1000000];
-					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], length, outputLz, true);
-					returnSize = returnSize;
-
-					fwrite(outputLz, 1, length, outFile);
-
-					delete [] outputLz;
-				}
-				else
-				{
-					cleanDecompressed[6] = (length & 0xFF);
-					cleanDecompressed[7] = ((length >> 8) & 0xFF);
-					cleanDecompressed[8] = ((length >> 16) & 0xFF);
-					cleanDecompressed[9] = ((length >> 24) & 0xFF);
-
-					fwrite(cleanDecompressed, 1, position, outFile);
-
-					length = (decSize - (position + 4));
-					fwrite(&cleanDecompressed[position+4], 1, length, outFile);
-				}
-			}
-			else
-			{
-				fwrite(cleanDecompressed, 1, position, outFile);
-
-				int length = (decSize - (position));
-				fwrite(&cleanDecompressed[position], 1, length, outFile);
-			}
-
-			for (int x = 0; x < outputDecompressed[5]; x++)
-			{
-				unsigned short instrumentNumber = CharArrayToShort(&outputDecompressed[14+(16*(x))+14]);
-
-				unsigned long sampleSize = CharArrayToLong(&outputDecompressed[14+(16*(x))]);
-				unsigned short flags = CharArrayToShort(&outputDecompressed[14+(16*(x))+12]);
-
-				if (flags & 1)
-				{
-					sampleSize = sampleSize * 2;
-				}
-				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
-
-				unsigned char* outputDecompressedInstrument = new unsigned char[0x100000];
-
-				int decSizeInstrument = h20dec.decPolaris(&gamebuffer[location], compressedSize, outputDecompressedInstrument);
-				fwrite(outputDecompressedInstrument, 1, sampleSize, outFile);
-
-				delete [] outputDecompressedInstrument;
-			}
-
-			delete [] outputDecompressed;
-			delete [] cleanDecompressed;
-
-			fclose(outFile);
-		}
-		else
-		{
-
-		}
-	}
-	else if (gameType.Find("LZSamplesDCM") == 0)
-	{
-		if (compressed)
-		{
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-
-			unsigned long decSize = ((((((gamebuffer[address+0x9] << 8) | gamebuffer[address+0x8]) << 8) | gamebuffer[address+0x7]) << 8) | gamebuffer[address+0x6]);
-			
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
-			unsigned char* cleanDecompressed = new unsigned char[0x100000];
-			memcpy(outputDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
-			memcpy(cleanDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
-
-			for (int x = 14; x < (14 + (outputDecompressed[5] * 0x10)); x+=0x10)
-			{
-				unsigned char tempValue1 = outputDecompressed[x];
-				unsigned char tempValue2 = outputDecompressed[x+1];
-
-				outputDecompressed[x] = outputDecompressed[x+3];
-				outputDecompressed[x+1] = outputDecompressed[x+2];
-				outputDecompressed[x+2] = tempValue2;
-				outputDecompressed[x+3] = tempValue1;
-
-				tempValue1 = outputDecompressed[x+4];
-				tempValue2 = outputDecompressed[x+5];
-
-				outputDecompressed[x+4] = outputDecompressed[x+7];
-				outputDecompressed[x+5] = outputDecompressed[x+6];
-				outputDecompressed[x+6] = tempValue2;
-				outputDecompressed[x+7] = tempValue1;
-
-				tempValue1 = outputDecompressed[x+8];
-				tempValue2 = outputDecompressed[x+9];
-
-				outputDecompressed[x+8] = outputDecompressed[x+11];
-				outputDecompressed[x+9] = outputDecompressed[x+10];
-				outputDecompressed[x+10] = tempValue2;
-				outputDecompressed[x+11] = tempValue1;
-
-				unsigned char tempValue = outputDecompressed[x+12];
-				outputDecompressed[x+12] = outputDecompressed[x+13];
-				outputDecompressed[x+13] = tempValue;
-
-				tempValue = outputDecompressed[x+14];
-				outputDecompressed[x+14] = outputDecompressed[x+15];
-				outputDecompressed[x+15] = tempValue;
-			}
-
-			int position = (14 + (outputDecompressed[5] * 0x10));
-
-			if (cleanDecompressed[position] == 0x00)
-			{
-				unsigned long length = CharArrayToLong(&cleanDecompressed[position]);
-				if (length > decSize)
-				{
-					cleanDecompressed[6] = (length & 0xFF);
-					cleanDecompressed[7] = ((length >> 8) & 0xFF);
-					cleanDecompressed[8] = ((length >> 16) & 0xFF);
-					cleanDecompressed[9] = ((length >> 24) & 0xFF);
-
-					fwrite(cleanDecompressed, 1, position, outFile);
-
-					CTetrisphereDecoder tetDec;
-					unsigned char* outputLz = new unsigned char[0x1000000];
-					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], (decSize - 4), outputLz, true);
-					returnSize = returnSize;
-
-					fwrite(outputLz, 1, length, outFile);
-
-					delete [] outputLz;
-
-					position += returnSize;
-				}
-				else
-				{
-					cleanDecompressed[6] = (length & 0xFF);
-					cleanDecompressed[7] = ((length >> 8) & 0xFF);
-					cleanDecompressed[8] = ((length >> 16) & 0xFF);
-					cleanDecompressed[9] = ((length >> 24) & 0xFF);
-
-					fwrite(cleanDecompressed, 1, position, outFile);
-
-					length = (decSize - (position + 4));
-					fwrite(&cleanDecompressed[position+4], 1, length, outFile);
-
-					position += length;
-				}
-			}
-			else
-			{
-				fwrite(cleanDecompressed, 1, position, outFile);
-
-				int length = decSize;
-				fwrite(&cleanDecompressed[position], 1, length, outFile);
-
-				position += length;
-			}
-
-			for (int x = 0; x < outputDecompressed[5]; x++)
-			{
-				unsigned short instrumentNumber = CharArrayToShort(&outputDecompressed[14+(16*(x))+14]);
-
-				unsigned long sampleSize = CharArrayToLong(&outputDecompressed[14+(16*(x))]);
-				unsigned short flags = CharArrayToShort(&outputDecompressed[14+(16*(x))+12]);
-
-				if (flags & 1)
-				{
-					sampleSize = sampleSize * 2;
-				}
-				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
-
-				unsigned char* outputDecompressedInstrument = new unsigned char[0x100000];
-
-				CTetrisphereDecoder tetDec;
-				tetDec.sphereDecompress(&gamebuffer[location], outputDecompressedInstrument);
-				fwrite(outputDecompressedInstrument, 1, sampleSize, outFile);
-
-				position += sampleSize;
-
-				delete [] outputDecompressedInstrument;
-			}
-
-			delete [] outputDecompressed;
-			delete [] cleanDecompressed;
-
-			fclose(outFile);
-		}
-		else
-		{
-
-		}
-	}
-	else if (gameType.Find("TitusMidi") == 0)
-	{
-		if (compressed)
-		{
-			int fileSizeCompressed = -1;
-			SupermanDecoder decode;
-			int expectedSize = decode.header(&gamebuffer[address], fileSizeCompressed);
-			unsigned char* outputDecompressed = new unsigned char[expectedSize];
-			
-			decode.dec(&gamebuffer[address+0x11], fileSizeCompressed, expectedSize, outputDecompressed);
-			
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-			for (int x = 0; x < expectedSize; x++)
-			{
-				fwrite(&outputDecompressed[x], 1, 1, outFile);
-			}
-			fclose(outFile);
-
-			delete [] outputDecompressed;
-		}
-		else
-		{
-			
-		}
-	}
-	else if (gameType.Find("RNCMidi") == 0)
-	{
-		if (compressed)
-		{
-			int fileSizeCompressed = -1;
-			RncDecoder decode;
-			unsigned char* outputDecompressed = new unsigned char[0x100000];
-			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
-			
-			FILE* outFile = fopen(fileName, "wb");
-			if (outFile == NULL)
-			{
-				MessageBox("Cannot Write File", "Error");
-				return;
-			}
-			for (int x = 0; x < expectedSize; x++)
-			{
-				fwrite(&outputDecompressed[x], 1, 1, outFile);
-			}
-			fclose(outFile);
-
-			midiParse.GEMidiToMidi(outputDecompressed, expectedSize, fileName, numberInstruments);
-
-			delete [] outputDecompressed;
-		}
-		else
-		{
-			
-		}
-	}
-	else
-	{
-		if (compressed)
-		{
-			int decompressedSize = 0;
-			int compressedSize = -1;
-			byte* outputBuffer = Decompress(&gamebuffer[address], (size + 20000), decompressedSize, compressedSize);
-			if (outputBuffer != NULL)
-			{
-				if ((outputBuffer[0] == 0x0) && (outputBuffer[1] == 0x0)
-					&& (outputBuffer[2] == 0x0) && (outputBuffer[3] == 0x44))
-				{
-					midiParse.GEMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments);
-				}
-				delete [] outputBuffer;
-			}
-		}
-		else
-		{
-			midiParse.GEMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments);
-		}
-	}
-}
-
 void CN64MidiToolDlg::ConvertIntoSpot(CString inputFile)
 {
 	if (buffer == NULL)
@@ -1763,7 +937,19 @@ void CN64MidiToolDlg::ConvertIntoSpot(CString inputFile)
 
 	unsigned long address = 0;
 	unsigned long size = 0;
-	sscanf(spotStr, "%08X:%08X", &address, &size);
+	unsigned long extra = 0;
+	unsigned long extra2 = 0;
+	
+	int originalSize = spotStr.GetLength();
+	CString tempColonReplacedStr = spotStr;
+	int countColons = tempColonReplacedStr.Replace(":", "");
+
+	if (countColons == 3)
+		sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+	else if (countColons == 2)
+		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+	else
+		sscanf(spotStr, "%08X:%08X", &address, &size);
 
 	int fileSize = GetSizeFile(inputFile);
 
@@ -1773,7 +959,7 @@ void CN64MidiToolDlg::ConvertIntoSpot(CString inputFile)
 	int gameNumber = 0;
 	for (int x = 0; x < countGames; x++)
 	{
-		if (gameConfig[x].gameName.Find(gameName) == 0)
+		if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 		{
 			gameNumber = x;
 			break;
@@ -1849,7 +1035,19 @@ void CN64MidiToolDlg::OnBnClickedButtonimportbin()
 
 	unsigned long address = 0;
 	unsigned long size = 0;
-	sscanf(spotStr, "%08X:%08X", &address, &size);
+	unsigned long extra = 0;
+	unsigned long extra2 = 0;
+	
+	int originalSize = spotStr.GetLength();
+	CString tempColonReplacedStr = spotStr;
+	int countColons = tempColonReplacedStr.Replace(":", "");
+
+	if (countColons == 3)
+		sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+	else if (countColons == 2)
+		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+	else
+		sscanf(spotStr, "%08X:%08X", &address, &size);
 
 
 	ConvertIntoSpot(m_ldFile.GetPathName());
@@ -1945,6 +1143,8 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
 		if (tempOutputFile == 0)
 		{
+			delete [] tempBuffer;
+			fclose(tempInputFile);
 			MessageBox("Cannot Write Temporary File", "Error");
 			return false;
 		}
@@ -1990,18 +1190,19 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 			FILE* outputFileName = fopen(outputFile, "wb");
 			if (outputFileName == NULL)
 			{
+				delete [] tempBufferNew;
 				MessageBox("Error opening temp output file", "Error");
 				return false;
 			}
 
 			unsigned long start = 0x16;
-			if ((gameType.Find("GoldenEye") == 0) || (gameType.Find("Killer Instinct") == 0))
+			if ((gameType.CompareNoCase("GoldenEye") == 0) || (gameType.CompareNoCase("Killer Instinct") == 0))
 			{
 				start = start - 2;
 				tempBufferNew[start] = 0x11;
 				tempBufferNew[start+1] = 0x72;
 			}
-			else if (gameType.Find("PerfectDark") == 0)
+			else if (gameType.CompareNoCase("PerfectDark") == 0)
 			{
 				start = start - 5;
 				tempBufferNew[start] = 0x11;
@@ -2010,7 +1211,7 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 				tempBufferNew[start+3] = ((size >> 8) & 0xFF);
 				tempBufferNew[start+4] = ((size) & 0xFF);
 			}
-			else if (gameType.Find("BanjoKazooie") == 0)
+			else if (gameType.CompareNoCase("BanjoKazooie") == 0)
 			{
 				start = start - 6;
 				tempBufferNew[start] = 0x11;
@@ -2020,7 +1221,7 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 				tempBufferNew[start+4] = ((size >> 8) & 0xFF);
 				tempBufferNew[start+5] = ((size) & 0xFF);
 			}
-			else if (gameType.Find("DonkeyKong") == 0)
+			else if (gameType.CompareNoCase("DonkeyKong") == 0)
 			{
 				start = start - 0xA;
 				tempBufferNew[start] = 0x1F;
@@ -2034,11 +1235,11 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 				tempBufferNew[start+8] = 0x02;
 				tempBufferNew[start+9] = 0x03;
 			}
-			else if (gameType.Find("BlastCorps") == 0)
+			else if (gameType.CompareNoCase("BlastCorps") == 0)
 			{
 				start = start;
 			}
-			else if (gameType.Find("Donkey Kong Demo") == 0)
+			else if (gameType.CompareNoCase("Donkey Kong Demo") == 0)
 			{
 				start = start - 0x12;
 				tempBufferNew[start] = 0x1F;
@@ -2060,7 +1261,7 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 				tempBufferNew[start+0x10] = 0x6E;
 				tempBufferNew[start+0x11] = 0x00;
 			}
-			else if (gameType.Find("BanjoTooie") == 0)
+			else if (gameType.CompareNoCase("BanjoTooie") == 0)
 			{
 
 				start = start - 2;
@@ -2068,7 +1269,7 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 				tempBufferNew[start] = 0x0;
 				tempBufferNew[start+1] = 0x15;
 			}
-			else if (gameType.Find("Conker") == 0)
+			else if (gameType.CompareNoCase("Conker") == 0)
 			{
 				start = start - 4;
 				tempBufferNew[start] = ((size >> 24) & 0xFF);
@@ -2130,6 +1331,8 @@ bool CN64MidiToolDlg::CompressGZipFile(CString inputFile, CString outputFile, bo
 			return false;
 		}
 	}
+
+	return false;
 }
 void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 {
@@ -2152,7 +1355,7 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	int gameNumber = 0;
 	for (int x = 0; x < countGames; x++)
 	{
-		if (gameConfig[x].gameName.Find(gameName) == 0)
+		if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 		{
 			gameNumber = x;
 			break;
@@ -2160,64 +1363,288 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	}
 
 	CString outputFilename = (mainFolder + "ASDxs34sMIDI.bin");
-	if (gameConfig[gameNumber].gameType.Find("BanjoTooie") == 0)
+	if (gameConfig[gameNumber].gameType.CompareNoCase("BanjoTooie") == 0)
 	{
-		if (!midiParse.MidiToBTFormat(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), 0, mNoRepeaters.GetCheck()))
+		if (!CN64MidiToolReader::midiParse.MidiToBTFormat(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), 0, mNoRepeaters.GetCheck()))
 			return;
 	}
-	else if (gameConfig[gameNumber].gameType.Find("MIDx") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("MIDx") == 0)
 	{
 		MessageBox("Unsupported MIDx import");
 		return;
 	}
-	else if (gameConfig[gameNumber].gameType.Find("MML") == 0)
-	{
-		MessageBox("Unsupported MML import");
-		return;
-	}
-	else if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
 		MessageBox("Unsupported Fast Tracker import");
 		return;
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 	{
 		MessageBox("Unsupported DCM import");
 		return;
 	}
-	else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
 	{
 		MessageBox("Unsupported LZSamplesDCM import");
 		return;
 	}
-	else if (gameConfig[gameNumber].gameType.Find("Midi") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("MidiLZSSWilliams") == 0)
+	{
+		MessageBox("Unsupported Midi LZSS Williams Compressed import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSS_0BSng") == 0)
+	{
+		MessageBox("Unsupported LZSS_0BSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("AVL_0Sng") == 0)
+	{
+		MessageBox("Unsupported AVL_0Sng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("VigilanteSng") == 0)
+	{
+		MessageBox("Unsupported VigilanteSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("RugratsSng") == 0)
+	{
+		MessageBox("Unsupported RugratsSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("RNCSng") == 0)
+	{
+		MessageBox("Unsupported RNCSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ASMICSng") == 0)
+	{
+		MessageBox("Unsupported ASMICSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("SnowSng") == 0)
+	{
+		MessageBox("Unsupported SnowSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ARISng") == 0)
+	{
+		MessageBox("Unsupported ARISng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ArmySargeSng") == 0)
+	{
+		MessageBox("Unsupported ArmySargeSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ArmySarge2Sng") == 0)
+	{
+		MessageBox("Unsupported ArmySarge2Sng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("TazSng") == 0)
+	{
+		MessageBox("Unsupported TazSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("FLA2Sng") == 0)
+	{
+		MessageBox("Unsupported FLA2Sng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("RNCSngOffset") == 0)
+	{
+		MessageBox("Unsupported RNCSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Yay0Sng") == 0)
+	{
+		MessageBox("Unsupported Yay0Sng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
+	{
+		MessageBox("Unsupported BlitzSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("MarioTennisSng") == 0)
+	{
+		MessageBox("Unsupported MarioTennisSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ZLibSng") == 0)
+	{
+		MessageBox("Unsupported ZLibSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0)
+	{
+		MessageBox("Unsupported ZLibIndexedSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("MultiPartTigSng") == 0)
+	{
+		MessageBox("Unsupported MultiPartTigSng import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Midi") == 0)
 	{
 		outputFilename = m_ldFile.GetPathName();
 	}
-	else if (gameConfig[gameNumber].gameType.Find("TitusMidi") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0)
+	{
+		MessageBox("Unsupported Compressed import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0)
+	{
+		MessageBox("Unsupported Compressed import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("TitusMidi") == 0)
 	{
 		MessageBox("Unsupported Titus Midi Compressed import");
 		return;
 	}
 
-	else if (gameConfig[gameNumber].gameType.Find("RNCMidi") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("RNCMidi") == 0)
 	{
-		MessageBox("Unsupported Titus Midi Compressed import");
+		MessageBox("Unsupported RNCMidi Compressed import");
 		return;
-	}else
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("RNCSeq") == 0)
+	{
+		MessageBox("Unsupported RNCSeq Compressed import");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0)
+	{
+		MessageBox("Unsupported Konami Compressed import");
+		return;
+
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		int loop = atoi(tempStr);
+
+		if (!CN64MidiToolReader::midiParse.MidiToKonami(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop))
+			return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
+	{
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CMidiParse::SngStyle sngStyle;
+		// Second check to avoid false positive of bfx, if count is 0x215, Mario Golf E
+		if (buffer[address+0x0] == 0x80) // Ptr
+		{
+			sngStyle = CMidiParse::SngStyle::PtrBfx;
+
+			MessageBox("Cannot import Binary Effects");
+			return;
+		}
+		else if ((CharArrayToLong(&buffer[address+0x0]) == 0x00000215) && (CharArrayToLong(&buffer[address+0x4]) != 0x00000215)) // Binary Sng style
+		{
+			sngStyle = CMidiParse::SngStyle::Normal;
+		}
+		else if (CharArrayToLong(&buffer[address]) == 0x00000000) // Pokemon Stadium Old Bfx
+		{
+			sngStyle = CMidiParse::SngStyle::OldBfx;
+
+			MessageBox("Cannot import Binary Effects");
+			return;
+		}
+		else if (CharArrayToLong(&buffer[address + 0xC]) == 0x00000000) // Bfx
+		{
+			sngStyle = CMidiParse::SngStyle::Bfx;
+
+			MessageBox("Cannot import Binary Effects");
+			return;
+		}
+		else if (CharArrayToLong(&buffer[address + 0x8]) == 0x00000020) // Bfx
+		{
+			sngStyle = CMidiParse::SngStyle::OldDD;
+
+			MessageBox("Cannot import DD Style");
+			return;
+		}
+		else
+		{
+			sngStyle = CMidiParse::SngStyle::Old;
+		}
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		int loop = atoi(tempStr);
+
+		if (!CN64MidiToolReader::midiParse.MidiToSng(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop, sngStyle, mMasterTrackEffect.GetCurSel()))
+			return;
+
+		//if (mDebugTextFile.GetCheck())
+			//CN64MidiToolReader::midiParse.SngToDebugTextFile(gameConfig[gameNumber].gameName, 0, outputFilename, m_ldFile.GetPathName() + " TrackParseDebug.txt");
+	}
+	else
 	{
 		CString tempStr;
 		mLoopPoint.GetWindowText(tempStr);
 		int loop = atoi(tempStr);
 
-		if (!midiParse.MidiToGEFormat(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop, mNoRepeaters.GetCheck()))
+		if (!CN64MidiToolReader::midiParse.MidiToGEFormat(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop, mNoRepeaters.GetCheck()))
 			return;
 	}
 	
 
 	
 	ConvertIntoSpot(outputFilename);
-	::DeleteFile((mainFolder+"ASDxs34sMIDI.bin"));
+	//::DeleteFile((mainFolder+"ASDxs34sMIDI.bin"));
 }
 
 void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
@@ -2243,7 +1670,19 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 
 		unsigned long address = 0;
 		unsigned long size = 0;
-		sscanf(spotStr, "%08X:%08X", &address, &size);
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
 
 		CString gameName;
 		m_game.GetWindowText(gameName);
@@ -2251,25 +1690,25 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 		int gameNumber = 0;
 		for (int x = 0; x < countGames; x++)
 		{
-			if (gameConfig[x].gameName.Find(gameName) == 0)
+			if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 			{
 				gameNumber = x;
 				break;
 			}
 		}
 
-		if (size > 0)
+		if ((size > 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0))
 		{
 			CString outputName;
-			if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+			if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 			{
 				outputName.Format("%s%s %08X %08X.xm", tempPath, gameName, x, address);
 			}
-			else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+			else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 			{
 				outputName.Format("%s%s %08X %08X.dcm", tempPath, gameName, x, address);
 			}
-			else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+			else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
 			{
 				outputName.Format("%s%s %08X %08X.dcm", tempPath, gameName, x, address);
 			}
@@ -2285,7 +1724,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 				int gameNumber = 0;
 				for (int x = 0; x < countGames; x++)
 				{
-					if (gameConfig[x].gameName.Find(gameName) == 0)
+					if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 					{
 						gameNumber = x;
 						break;
@@ -2293,7 +1732,11 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 				}
 
 				int numberInstruments;
-				ExportToMidi(buffer, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+				
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 			}
 			catch (...)
 			{
@@ -2331,7 +1774,19 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltorawbin()
 
 		unsigned long address = 0;
 		unsigned long size = 0;
-		sscanf(spotStr, "%08X:%08X", &address, &size);
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
 
 		CString gameName;
 		m_game.GetWindowText(gameName);
@@ -2339,36 +1794,69 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltorawbin()
 		int gameNumber = 0;
 		for (int x = 0; x < countGames; x++)
 		{
-			if (gameConfig[x].gameName.Find(gameName) == 0)
+			if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 			{
 				gameNumber = x;
 				break;
 			}
 		}
 
+		bool hasLoopPoint = false;
+		int loopStart = 0;
+		int loopEnd = 0;
+
 		CString outputName;
-		if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+		if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 		{
 			outputName.Format("%s%s %08X %08X.xm", tempPath, gameName, x, address);
 			int numberInstruments;
-			ExportToMidi(buffer, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+			CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		}
-		else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+		else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 		{
 			outputName.Format("%s%s %08X %08X.dcm", tempPath, gameName, x, address);
 			int numberInstruments;
-			ExportToMidi(buffer, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+			CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		}
-		else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+		else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
 		{
 			outputName.Format("%s%s %08X %08X.dcm", tempPath, gameName, x, address);
 			int numberInstruments;
-			ExportToMidi(buffer, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0);
+			CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
+		}
+		else if ((gameConfig[gameNumber].gameType.CompareNoCase("RNCSeq") == 0) && compressed)
+		{
+			if (compressed)
+			{
+				int realSpot = size;
+
+				int fileSizeCompressed = -1;
+				RncDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x100000];
+				int expectedSize = decode.unpackM1(&buffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+				
+				unsigned long realStart = CharArrayToLong(&outputDecompressed[0x8]) + CharArrayToLong(&outputDecompressed[realSpot]);
+				unsigned long realSize = CharArrayToLong(&outputDecompressed[realSpot + 4]) - CharArrayToLong(&outputDecompressed[realSpot]);
+
+				outputName.Format("%s%s %08X %08X.bin", tempPath, gameName, x, address);
+
+				FILE* outFile = fopen(outputName, "wb");
+				if (outFile == NULL)
+				{
+					MessageBox("Cannot Write File", "Error");
+					return;
+				}
+				for (int x = realStart; x < (realStart + realSize); x++)
+				{
+					fwrite(&outputDecompressed[x], 1, 1, outFile);
+				}
+				fclose(outFile);
+			}
 		}
 		else
 		{
 			outputName.Format("%s%s %08X %08X.bin", tempPath, gameName, x, address);
-			ExportToBin(address, size, outputName);
+			CN64MidiToolReader::midiParse.ExportToBin(gameConfig[gameNumber].gameType, buffer, address, size, outputName, compressed);
 		}
 	}
 }
@@ -2408,7 +1896,19 @@ void CN64MidiToolDlg::OnBnClickedButtonplaymidi()
 
 	unsigned long address = 0;
 	unsigned long size = 0;
-	sscanf(spotStr, "%08X:%08X", &address, &size);
+	unsigned long extra = 0;
+	unsigned long extra2 = 0;
+	
+	int originalSize = spotStr.GetLength();
+	CString tempColonReplacedStr = spotStr;
+	int countColons = tempColonReplacedStr.Replace(":", "");
+
+	if (countColons == 3)
+		sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+	else if (countColons == 2)
+		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+	else
+		sscanf(spotStr, "%08X:%08X", &address, &size);
 
 	CString gameName;
 	m_game.GetWindowText(gameName);
@@ -2416,7 +1916,7 @@ void CN64MidiToolDlg::OnBnClickedButtonplaymidi()
 	int gameNumber = 0;
 	for (int x = 0; x < countGames; x++)
 	{
-		if (gameConfig[x].gameName.Find(gameName) == 0)
+		if (gameConfig[x].gameName.CompareNoCase(gameName) == 0)
 		{
 			gameNumber = x;
 			break;
@@ -2424,49 +1924,38 @@ void CN64MidiToolDlg::OnBnClickedButtonplaymidi()
 	}
 	int numberInstruments;
 
-	if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+	bool hasLoopPoint = false;
+	int loopStart = 0;
+	int loopEnd = 0;
+
+	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
-		ExportToMidi(buffer, address, size, mainFolder + "tempAS123123as.xm", gameConfig[gameNumber].gameType, numberInstruments, 0);
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, mainFolder + "tempAS123123as.xm", gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), false, extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		CString sParameter;
 		ShellExecute( GetSafeHwnd(), "open", "explorer.exe", (mainFolder + "tempAS123123as.xm"), mainFolder, SW_SHOWNORMAL );
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
 	{
-		ExportToMidi(buffer, address, size, mainFolder + "tempAS123123as.dcm", gameConfig[gameNumber].gameType, numberInstruments, 0);
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, mainFolder + "tempAS123123as.dcm", gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), false, extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		CString sParameter;
 		normalExec((mainFolder + "MikIT.exe " + (mainFolder + "tempAS123123as.dcm ") + (mainFolder + "tempAS123123as.wav ") + "300").GetBuffer(), mainFolder);
 		ShellExecute( GetSafeHwnd(), "open", "explorer.exe", (mainFolder + "tempAS123123as.wav"), mainFolder, SW_SHOWNORMAL );
 	}
-	else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
 	{
-		ExportToMidi(buffer, address, size, mainFolder + "tempAS123123as.dcm", gameConfig[gameNumber].gameType, numberInstruments, 0);
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, mainFolder + "tempAS123123as.dcm", gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), false, extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		CString sParameter;
 		normalExec((mainFolder + "MikIT.exe " + (mainFolder + "tempAS123123as.dcm ") + (mainFolder + "tempAS123123as.wav ") + "300").GetBuffer(), mainFolder);
 		ShellExecute( GetSafeHwnd(), "open", "explorer.exe", (mainFolder + "tempAS123123as.wav"), mainFolder, SW_SHOWNORMAL );
 	}
 	else
 	{
-		ExportToMidi(buffer, address, size, mainFolder + "tempAS123123as.mid", gameConfig[gameNumber].gameType, numberInstruments, 0);
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, mainFolder + "tempAS123123as.mid", gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), false, extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 		CString sParameter;
 		ShellExecute( GetSafeHwnd(), "open", "explorer.exe", (mainFolder + "tempAS123123as.mid"), mainFolder, SW_SHOWNORMAL );
 	}
 
 
-}
-
-void CN64MidiToolDlg::OnBnClickedButtonimportinstruments()
-{
-	CFileDialog m_ldFile(TRUE, NULL, "midilookup.txt", OFN_HIDEREADONLY, "Instrument Lookup Txt (*.txt)|*.txt|", this);
-
-	int statusFileOpen = (int) m_ldFile.DoModal();
-
-	if ((statusFileOpen == IDCANCEL) || (m_ldFile.GetPathName() == ""))
-		return;
-
-	if (statusFileOpen == FALSE)
-		return;	
-
-	midiParse.ImportMidiConfig(m_ldFile.GetPathName());
 }
 
 int CN64MidiToolDlg::WorkOnFilesIntoADirectory(char* pszFiles, CString fileNames[0x1000])
@@ -2497,6 +1986,58 @@ int CN64MidiToolDlg::WorkOnFilesIntoADirectory(char* pszFiles, CString fileNames
 
 void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 {
+	/*FILE* readFile = fopen("C:\\Temp\\Midwaydec\\filelists\\Taz Express-NTXE.txt", "r");
+
+	std::vector<CString> lines;
+	while (!feof(readFile))
+	{
+		char currentLine[1000];
+		fgets(currentLine, 1000, readFile);
+		lines.push_back(currentLine);
+	}
+	fclose(readFile);
+
+	FILE* outMusic = fopen("C:\\temp\\mus.txt", "wb");
+	for (int x = 0; x < lines.size(); x++)
+	{
+		if (lines[x].Find("bfx.mus") != -1)
+		{
+			CString name = lines[x].Mid(lines[x].Find("\t") + 1);
+			name = name.Mid(name.Find("\t") + 1);
+			lines[x] = lines[x].Mid(0, lines[x].Find("\t"));
+
+			lines[x].Replace("\r\n", "");
+			lines[x].Replace("\r", "");
+			lines[x].Replace("\n", "");
+			lines[x].Replace("0x", "");
+
+			name.Replace("\r\n", "");
+			name.Replace("\r", "");
+			name.Replace("\n", "");
+
+			if (x < (lines.size() - 1))
+			{
+				CString nextLine = lines[x+1];
+				if (nextLine.Find("\t") != -1)
+				{
+					nextLine = nextLine.Mid(0, nextLine.Find("\t"));
+
+					nextLine.Replace("\r\n", "");
+					nextLine.Replace("\r", "");
+					nextLine.Replace("\n", "");
+					nextLine.Replace("0x", "");
+
+					fprintf(outMusic, "%s,%s\n", lines[x], nextLine);
+					fprintf(outMusic, "|%s\n", name);
+				}
+			}
+		}
+	}
+	fclose(outMusic);
+
+
+	return;*/
+
 	CFolderDialog tempDlg;
 	int dialogbox = tempDlg.DoModal();
 	if ((dialogbox == IDCANCEL) || (tempDlg.GetPathName()==""))
@@ -2570,7 +2111,7 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 					//if (CharArrayToLong(&binary[x]) == 0xFFF330C0) // mp3
 					//if (CharArrayToLong(&binary[x]) == 0x534E3634) // SN64
 					//if (((CharArrayToLong(&binary[x]) & 0xFFFFFF00) == 0x42310000) && (binary[x+4] == 0) && (binary[x+3] > 0x01)) // Ctl multiple banks
-					//if (CharArrayToLong(&binary[x]) == 0x4D546864) // MIDx
+					//if (CharArrayToLong(&binary[x]) == 0x4D546864) // Mthd
 					//if (CharArrayToLong(&binary[x]) == 0x424F4653) // BOFS
 					//if (CharArrayToLong(&binary[x]) == 0x464C4132) //FLA2
 					/*if (
@@ -2605,22 +2146,123 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 						(CharArrayToLong(&binary[x]) == 0x2D6C6835))
 						&& (binary[x+4] == 0x2D)) // lz/lh*/
 					//if (CharArrayToLong(&binary[x]) == 0x4D4F5254) //MORT
+					//if ((CharArrayToLong(&binary[x]) == 0x53444632) && ((x % 0x10) == 0))
+					//if ((CharArrayToShort(&binary[x]) == 0x5331) && ((CharArrayToShort(&binary[x+2]) < 0x500)) && (CharArrayToShort(&binary[x+4]) == 0x0000) && (CharArrayToShort(&binary[x+6]) != 0x0000) && (CharArrayToShort(&binary[x+8]) == 0x0000) && (CharArrayToShort(&binary[x+0xA]) != 0x0000) && ((x % 0x10) == 0))
+						//if ((CharArrayToLong(&binary[x]) == 0x00000215) && (CharArrayToShort(&binary[x+4]) == 0x0000) && (CharArrayToShort(&binary[x+6]) > 0x0000) && (CharArrayToShort(&binary[x+6]) <= 0x0040 && (CharArrayToLong(&binary[x + 0x28]) == 0x00000000) && (CharArrayToLong(&binary[x + 0x2C]) == 0x00000000)))
+					/*if ((CharArrayToLong(&binary[x]) <= 0x00000040) && (CharArrayToLong(&binary[x]) >= 0x00000008)
+						 && (CharArrayToLong(&binary[x+4]) >= 0x00000008)
+						  && (CharArrayToLong(&binary[x+8]) >= 0x00000008)
+						   && (CharArrayToLong(&binary[x+0xC]) >= 0x00000008)
+						    && (CharArrayToLong(&binary[x+0x10]) >= 0x00000008)
 
-					if (
-						(CharArrayToLong(&binary[x]) == 0x46617374)
-						&& (CharArrayToLong(&binary[x+4]) == 0x54726163)
-						&& (CharArrayToLong(&binary[x+8]) == 0x6B657220)
-						) // FastTracker
-					
+							&& (CharArrayToLong(&binary[x+4]) <= 0x00001000)
+						  && (CharArrayToLong(&binary[x+8]) <= 0x00001000)
+						   && (CharArrayToLong(&binary[x+0xC]) <= 0x00001000)
+						    && (CharArrayToLong(&binary[x+0x10]) <= 0x00001000)
+
+							 && (CharArrayToLong(&binary[x-8]) != 0x00000215)
+							 && (CharArrayToLong(&binary[x-4]) != 0x00000215)
+							 && (CharArrayToLong(&binary[x+4]) == 0x00000018)
+							&&
+
+						(CharArrayToLong(&binary[x+8]) - (CharArrayToLong(&binary[x+4])) == ((CharArrayToLong(&binary[x+0xC]) - (CharArrayToLong(&binary[x+8])))))
+						&& ((CharArrayToLong(&binary[x+8]) - (CharArrayToLong(&binary[x+4]))) == (4 * CharArrayToLong(&binary[x+0])))
+						&& ((CharArrayToLong(&binary[x+8]) - (CharArrayToLong(&binary[x+4]))) > 0x20)
+
+						)*/
+						
+
+					/*if (
+						(CharArrayToLong(&binary[x]) == 0x4E363420)
+
+						&& (
+						(CharArrayToLong(&binary[x+4]) == 0x90A20000)
+						|| (CharArrayToLong(&binary[x+8]) == 0x24AE0001)
+						)
+						
+
+						&&
+						(CharArrayToLong(&binary[x+0xC]) == 0x03E00008)
+
+						)*/
+
+					/*if (
+						(CharArrayToLong(&binary[x]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+4]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+8]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0xC]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x10]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x14]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x18]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x1C]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x20]) == 0x00000064)
+						&& (CharArrayToLong(&binary[x+0x24]) == 0x00000064)
+						)*/
+					if ((CharArrayToLong(&binary[x]) == 0x53545500) &&
+						   (CharArrayToLong(&binary[x+4]) == 0x595A5B00)
+						   )
 					{
-						if (!wroteNameHeader)
+						/*bool findLoopHead = false;
+						bool findLoopEnd = false;
+						for (int r = 0; r < 0x1000; r++)
 						{
-							wroteNameHeader = true;
-							fprintf(outFile, "[%s]\n", fileNames[y]);
+							if (binary[x+r] == 0x96)
+								findLoopHead = true;
+
+							if ((binary[x+r] == 0x95) && (binary[x+r+1] == 0xFF))
+								findLoopEnd = true;
 						}
-						fprintf(outFile, "%08X,\n", x);
+
+						if (findLoopHead && findLoopEnd)*/
+
+
+						/*unsigned long trueStart = 0;
+						for (int r = x; ((r >= 4) && (r >= (x - 0x1800))); r-=4)
+						{
+							if (
+								(CharArrayToLong(&binary[r]) == 0x00000000))
+							{
+								trueStart = r - 0x14;
+								break;
+							}
+						}
+
+						unsigned long instrumentOffset = CharArrayToLong(&binary[trueStart + 0x14]);
+						if ((instrumentOffset != 0) && (instrumentOffset < 0x50000) && (instrumentOffset > 0x50))
+						{
+							unsigned long end = trueStart + instrumentOffset;
+
+							while (
+								(((CharArrayToShort(&binary[end]) != 0x0000)
+								|| (CharArrayToShort(&binary[end+2]) != 0x0000)))
+								&&
+								(CharArrayToShort(&binary[end]) <  0x0400)
+								)
+							{
+								end += 2;
+							}*/
+
+							if (!wroteNameHeader)
+							{
+								wroteNameHeader = true;
+								fprintf(outFile, "[%s]:type=Sng\n", fileNames[y]);
+							}
+							fprintf(outFile, "%08X",x);
+							//fprintf(outFile, "%08X,%08X",trueStart,end);
+							//for (int r = 0; r < 0x8; r++)
+								//fprintf(outFile, " %08X", CharArrayToLong(&binary[x + (4 * r)]));
+							fprintf(outFile, "\n");
+
+							/*x += instrumentOffset;
+						}*/
 					}
-					/*if ((CharArrayToLong(&binary[x]) == 0x4E363420) && (CharArrayToLong(&binary[x+4]) == 0x57617665)) // n64 wave
+
+					/*if (!wroteNameHeader)
+					{
+						wroteNameHeader = true;
+						fprintf(outFile, "[%s]\n", fileNames[y]);
+					}
+					if ((CharArrayToLong(&binary[x]) == 0x4E363420) && (CharArrayToLong(&binary[x+4]) == 0x57617665)) // n64 wave
 					{
 						//fprintf(outFile, "%08X\n", x);
 						//continue;
@@ -2670,6 +2312,54 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 		}
 
 		fclose(outFile);
+
+		/*FILE* rereadFile = fopen(m_svFile.GetPathName(), "r");
+
+		std::vector<CString> lines;
+		while (!feof(rereadFile))
+		{
+			char currentLine[1000];
+			fgets(currentLine, 1000, rereadFile);
+			lines.push_back(currentLine);
+		}
+		fclose(rereadFile);
+
+		FILE* outRe = fopen(m_svFile.GetPathName(), "wb");
+		for (int x = 0; x < lines.size(); x++)
+		{
+			lines[x].Replace("\r\n", "");
+			lines[x].Replace("\r", "");
+			lines[x].Replace("\n", "");
+
+			if (lines[x].Find(",") != -1)
+			{
+				if (x < (lines.size() - 1))
+				{
+					CString nextLine = lines[x+1];
+					nextLine.Replace("\r\n", "");
+					nextLine.Replace("\r", "");
+					nextLine.Replace("\n", "");
+					if (nextLine.Find(",") != -1)
+					{
+						nextLine.Replace(",", "");
+						fprintf(outRe, "%s%s\n", lines[x], nextLine);
+					}
+					else
+					{
+						fprintf(outRe, "%s\n", lines[x]);
+					}
+				}
+				else
+				{
+					fprintf(outRe, "%s\n", lines[x]);
+				}
+			}
+			else
+			{
+				fprintf(outRe, "%s:type=Sng\n", lines[x]);
+			}
+		}
+		fclose(outRe);*/
 	}
 }
 
@@ -2688,7 +2378,19 @@ void CN64MidiToolDlg::OnBnClickedButtonriproms()
 	for (int y = 0x0; y < countGames; y++)
 	{
 		CString gameName = (tempPath + gameConfig[y].gameName + " [!].z64");
-		int gameROMSize = GetSizeFile(gameName);
+
+		if (gameConfig[y].gameType.Find("Konami") == -1)
+			continue;
+
+		//if (gameConfig[y].gameType.Find("Sng") == -1)
+			//continue;
+
+		CString romName = gameName;
+		romName.Replace(" (Binary FX)", "");
+		romName.Replace(" RNC", "");
+		romName.Replace(" AVL_0", "");
+		
+		int gameROMSize = GetSizeFile(romName);
 
 		if (gameROMSize <= 0)
 			continue;
@@ -2700,7 +2402,7 @@ void CN64MidiToolDlg::OnBnClickedButtonriproms()
 		try
 		{
 			
-			FILE* inROM = fopen(gameName, "rb");
+			FILE* inROM = fopen(romName, "rb");
 
 			if (inROM == NULL)
 			{
@@ -2732,21 +2434,36 @@ void CN64MidiToolDlg::OnBnClickedButtonriproms()
 				}
 			}
 
-			CString addMidiStrings[1000];
+			std::vector<CString> addMidiStrings;
 			int numberMidiStrings = 0;
 			int numberInstruments = 0;
-			ProcessMidis(gameConfig, y, gamebuffer, addMidiStrings, numberMidiStrings, numberInstruments);
+			CN64MidiToolReader::ProcessMidis(gameConfig, y, addMidiStrings, numberMidiStrings, numberInstruments, compressed, gamebuffer, gameROMSize, startSpot, endSpot, true, mSeparateByInstrument.GetCheck(), mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[y].extraGameMidiInfo);
 
 			for (int x = 0; x < numberMidiStrings; x++)
 			{
-				unsigned long address;
-				int size;
-				sscanf(addMidiStrings[x], "%08X:%08X", &address, &size);
+				unsigned long address = 0;
+				unsigned long size = 0;
+				unsigned long extra = 0;
+				unsigned long extra2 = 0;
+
+				int originalSize = addMidiStrings[x].GetLength();
+				CString tempColonReplacedStr = addMidiStrings[x];
+				int countColons = tempColonReplacedStr.Replace(":", "");
+
+				if (countColons == 3)
+					sscanf(addMidiStrings[x], "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+				else if (countColons == 2)
+					sscanf(addMidiStrings[x], "%08X:%08X:%08X", &address, &size, &extra);
+				else
+					sscanf(addMidiStrings[x], "%08X:%08X", &address, &size);
 
 				CString tempOutFileNameStr;
 				tempOutFileNameStr.Format("%s%02X_%08X_%08X.mid",outputFolder,x,address,size);
 				int numberInstruments;
-				ExportToMidi(gamebuffer, address, size, tempOutFileNameStr, gameConfig[y].gameType, numberInstruments, 0);
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[y].gameName, gamebuffer, gameROMSize, address, size, tempOutFileNameStr, gameConfig[y].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[y].extraGameMidiInfo);
 			}
 			
 
@@ -2805,7 +2522,56 @@ void CN64MidiToolDlg::OnBnClickedButton4()
 	fread(inputMID, 1, results.st_size, inFile1);
 	fclose(inFile1);
 
-	midiParse.AddLoopGEFormat(inputMID, fileName, results.st_size, true, 0, true);
+	CN64MidiToolReader::midiParse.AddLoopGEFormat(inputMID, fileName, results.st_size, true, 0, true);
 
 	delete [] inputMID;
+}
+
+void CN64MidiToolDlg::OnBnClickedButtongenmidis()
+{
+	CN64MidiToolReader::midiParse.GenerateTestPattern(0, "\\\\mitchellnas\\Goldeneye\\TempShare\\a.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(1, "\\\\mitchellnas\\Goldeneye\\TempShare\\b.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(2, "\\\\mitchellnas\\Goldeneye\\TempShare\\c.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(3, "\\\\mitchellnas\\Goldeneye\\TempShare\\d.mid");
+}
+
+void CN64MidiToolDlg::OnBnClickedCheckshowbfx()
+{
+	m_game.ResetContent();
+	bool showEffects = mShowEffectsGames.GetCheck();
+	for (int x = 0; x < countGames; x++)
+	{
+		if (gameConfig[x].gameName.Find(" (Binary FX)") != -1)
+		{
+			if (!showEffects)
+				continue;
+		}
+
+		m_game.AddString(gameConfig[x].gameName);
+	}
+
+	m_game.SetCurSel(0);
+}
+
+int CN64MidiToolDlg::CEditControlToDecimalValue(CEdit* editControl)
+{
+	CString tempStr;
+	editControl->GetWindowText(tempStr);
+
+	return atoi(tempStr);
+}
+void CN64MidiToolDlg::OnBnClickedCheckextendloopstohighesttrack()
+{
+	if (mExtendSmallerTracksToEnd.GetCheck())
+		mOutputLoop.EnableWindow(false);
+	else
+		mOutputLoop.EnableWindow(true);
+}
+
+void CN64MidiToolDlg::OnBnClickedCheckoutputloop()
+{
+	if (mOutputLoop.GetCheck())
+		mExtendSmallerTracksToEnd.EnableWindow(false);
+	else
+		mExtendSmallerTracksToEnd.EnableWindow(true);
 }

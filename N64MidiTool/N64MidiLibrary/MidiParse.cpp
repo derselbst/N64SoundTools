@@ -1,7 +1,29 @@
 #include "StdAfx.h"
+#include "SharedFunctions.h"
 #include "MidiParse.h"
 #include <sys/stat.h>
+#include "SupermanDecoder.h"
+#include "rnc_deco.h"
+#include "H20Decoder.h"
+#include "TetrisphereDecoder.h"
+#include "GECompression.h"
+#include "MidwayDecoder.h"
+#include "BlitzDecoder.h"
+#include "TigDecoder.h"
+#include "MarioTennisDecoder.h"
+#include "yay0.h"
+#include "VigilanteDecoder.h"
+#include "FLA2Decoder.h"
+#include "RugratsDecoder.h"
+#include "flzh_rn.h"
+#include "n643docompression.h"
+#include "LZARIDecoder.h"
+#include "SnowDecoder.h"
+#include "ASMICDecoder.h"
+#include "NaganoDecoder.h"
 
+#include <algorithm>
+#include <map>
 
 unsigned long CMidiParse::GetVLBytes(byte* vlByteArray, int& offset, unsigned long& original, byte*& altPattern, byte& altOffset, byte& altLength, bool includeFERepeats)
 {
@@ -222,499 +244,45 @@ byte CMidiParse::ReadMidiByte(byte* vlByteArray, int& offset, byte*& altPattern,
 
 CMidiParse::CMidiParse(void)
 {
+	char tempFolder[8000];
+	::GetCurrentDirectory(8000, tempFolder);
+	mainFolder.Format("%s\\", tempFolder);
 
-	for (int i = 0; i < 16; i++)
+	compress = new GECompression();
+
+	for (int i = 0; i < 0x20; i++)
 		trackEventCount[i] = 0;
 	trackEvents = new TrackEvent *[0x20];
-	for (unsigned int x = 0; x < 0x20; x++ )
-		trackEvents[x] = new TrackEvent[0x10000];
-
-	for (int x = 0; x < 0xFF; x++)
+	for (unsigned int x = 0; x < 0x20; x++)
 	{
-		instrumentMidiToGEMapping[x] = x;
-		drumMidiToGEMapping[x] = x;
+		trackEvents[x] = new TrackEvent[0x30000];
+		for (int y = 0; y < 0x30000; y++)
+			trackEvents[x][y].contentSize = NULL;
 	}
-	/* GE Mapping
-	instrumentMidiToGEMapping[0x00] = 0x12;// 0x00
-		instrumentMidiToGEMapping[0x01] = 0x12;// 0x01
-		instrumentMidiToGEMapping[0x02] = 0x12;// 0x02
-		instrumentMidiToGEMapping[0x03] = 0x12;// 0x03
-		instrumentMidiToGEMapping[0x04] = 0x12;// 0x04
-		instrumentMidiToGEMapping[0x05] = 0x12;// 0x05
-		instrumentMidiToGEMapping[0x06] = 0x12;// 0x06
-		instrumentMidiToGEMapping[0x07] = 0x12;// 0x07
-		instrumentMidiToGEMapping[0x08] = 0x12;// 0x08
-		instrumentMidiToGEMapping[0x09] = 0x0C;// 0x09
-		instrumentMidiToGEMapping[0x0A] = 0x20;// 0x0A
-		instrumentMidiToGEMapping[0x0B] = 0x20;// 0x0B
-		instrumentMidiToGEMapping[0x0C] = 0x20;// 0x0C
-		instrumentMidiToGEMapping[0x0D] = 0x16;// 0x0D
-		instrumentMidiToGEMapping[0x0E] = 0x10;// 0x0E
-		instrumentMidiToGEMapping[0x0F] = 0x20;// 0x0F
-		instrumentMidiToGEMapping[0x10] = 0x12;// 0x10
-		instrumentMidiToGEMapping[0x11] = 0x12;// 0x11
-		instrumentMidiToGEMapping[0x12] = 0x12;// 0x12
-		instrumentMidiToGEMapping[0x13] = 0x12;// 0x13
-		instrumentMidiToGEMapping[0x14] = 0x12;// 0x14
-		instrumentMidiToGEMapping[0x15] = 0x12;// 0x15
-		instrumentMidiToGEMapping[0x16] = 0x12;// 0x16
-		instrumentMidiToGEMapping[0x17] = 0x12;// 0x17
-		instrumentMidiToGEMapping[0x18] = 0x12;// 0x18
-		instrumentMidiToGEMapping[0x19] = 0x0B;// 0x19
-		instrumentMidiToGEMapping[0x1A] = 0x0B;// 0x1A
-		instrumentMidiToGEMapping[0x1B] = 0x0B;// 0x1B
-		instrumentMidiToGEMapping[0x1C] = 0x18;// 0x1C
-		instrumentMidiToGEMapping[0x1D] = 0x0B;// 0x1D
-		instrumentMidiToGEMapping[0x1E] = 0x0B;// 0x1E
-		instrumentMidiToGEMapping[0x1F] = 0x0B;// 0x1F
-		instrumentMidiToGEMapping[0x20] = 0x0B;// 0x20
-		instrumentMidiToGEMapping[0x21] = 0x04;// 0x21
-		instrumentMidiToGEMapping[0x22] = 0x04;// 0x22
-		instrumentMidiToGEMapping[0x23] = 0x04;// 0x23
-		instrumentMidiToGEMapping[0x24] = 0x00;// 0x24
-		instrumentMidiToGEMapping[0x25] = 0x04;// 0x25
-		instrumentMidiToGEMapping[0x26] = 0x04;// 0x26
-		instrumentMidiToGEMapping[0x27] = 0x04;// 0x27
-		instrumentMidiToGEMapping[0x28] = 0x04;// 0x28
-		instrumentMidiToGEMapping[0x29] = 0x04;// 0x29
-		instrumentMidiToGEMapping[0x2A] = 0x04;// 0x2A
-		instrumentMidiToGEMapping[0x2B] = 0x04;// 0x2B
-		instrumentMidiToGEMapping[0x2C] = 0x12;// 0x2C
-		instrumentMidiToGEMapping[0x2D] = 0x04;// 0x2D
-		instrumentMidiToGEMapping[0x2E] = 0x03;// 0x2E
-		instrumentMidiToGEMapping[0x2F] = 0x07;// 0x2F
-		instrumentMidiToGEMapping[0x30] = 0x07;// 0x30
-		instrumentMidiToGEMapping[0x31] = 0x09;// 0x31
-		instrumentMidiToGEMapping[0x32] = 0x09;// 0x32
-		instrumentMidiToGEMapping[0x33] = 0x09;// 0x33
-		instrumentMidiToGEMapping[0x34] = 0x09;// 0x34
-		instrumentMidiToGEMapping[0x35] = 0x09;// 0x35
-		instrumentMidiToGEMapping[0x36] = 0x25;// 0x36
-		instrumentMidiToGEMapping[0x37] = 0x25;// 0x37
-		instrumentMidiToGEMapping[0x38] = 0x07;// 0x38
-		instrumentMidiToGEMapping[0x39] = 0x07;// 0x39
-		instrumentMidiToGEMapping[0x3A] = 0x06;// 0x3A
-		instrumentMidiToGEMapping[0x3B] = 0x05;// 0x3B
-		instrumentMidiToGEMapping[0x3C] = 0x05;// 0x3C
-		instrumentMidiToGEMapping[0x3D] = 0x11;// 0x3D
-		instrumentMidiToGEMapping[0x3E] = 0x07;// 0x3E
-		instrumentMidiToGEMapping[0x3F] = 0x05;// 0x3F
-		instrumentMidiToGEMapping[0x40] = 0x05;// 0x40
-		instrumentMidiToGEMapping[0x41] = 0x1E;// 0x41
-		instrumentMidiToGEMapping[0x42] = 0x1E;// 0x42
-		instrumentMidiToGEMapping[0x43] = 0x1E;// 0x43
-		instrumentMidiToGEMapping[0x44] = 0x1E;// 0x44
-		instrumentMidiToGEMapping[0x45] = 0x28;// 0x45
-		instrumentMidiToGEMapping[0x46] = 0x14;// 0x46
-		instrumentMidiToGEMapping[0x47] = 0x1E;// 0x47
-		instrumentMidiToGEMapping[0x48] = 0x1E;// 0x48
-		instrumentMidiToGEMapping[0x49] = 0x24;// 0x49
-		instrumentMidiToGEMapping[0x4A] = 0x24;// 0x4A
-		instrumentMidiToGEMapping[0x4B] = 0x24;// 0x4B
-		instrumentMidiToGEMapping[0x4C] = 0x24;// 0x4C
-		instrumentMidiToGEMapping[0x4D] = 0x0A;// 0x4D
-		instrumentMidiToGEMapping[0x4E] = 0x24;// 0x4E
-		instrumentMidiToGEMapping[0x4F] = 0x24;// 0x4F
-		instrumentMidiToGEMapping[0x50] = 0x24;// 0x50
-		instrumentMidiToGEMapping[0x51] = 0x29;// 0x51
-		instrumentMidiToGEMapping[0x52] = 0x29;// 0x52
-		instrumentMidiToGEMapping[0x53] = 0x29;// 0x53
-		instrumentMidiToGEMapping[0x54] = 0x29;// 0x54
-		instrumentMidiToGEMapping[0x55] = 0x29;// 0x55
-		instrumentMidiToGEMapping[0x56] = 0x29;// 0x56
-		instrumentMidiToGEMapping[0x57] = 0x29;// 0x57
-		instrumentMidiToGEMapping[0x58] = 0x29;// 0x58
-		instrumentMidiToGEMapping[0x59] = 0x08;// 0x59
-		instrumentMidiToGEMapping[0x5A] = 0x08;// 0x5A
-		instrumentMidiToGEMapping[0x5B] = 0x08;// 0x5B
-		instrumentMidiToGEMapping[0x5C] = 0x1F;// 0x5C
-		instrumentMidiToGEMapping[0x5D] = 0x1F;// 0x5D
-		instrumentMidiToGEMapping[0x5E] = 0x1F;// 0x5E
-		instrumentMidiToGEMapping[0x5F] = 0x19;// 0x5F
-		instrumentMidiToGEMapping[0x60] = 0x0D;// 0x60
-		instrumentMidiToGEMapping[0x61] = 0x0D;// 0x61
-		instrumentMidiToGEMapping[0x62] = 0x0D;// 0x62
-		instrumentMidiToGEMapping[0x63] = 0x0D;// 0x63
-		instrumentMidiToGEMapping[0x64] = 0x17;// 0x64
-		instrumentMidiToGEMapping[0x65] = 0x17;// 0x65
-		instrumentMidiToGEMapping[0x66] = 0x17;// 0x66
-		instrumentMidiToGEMapping[0x67] = 0x17;// 0x67
-		instrumentMidiToGEMapping[0x68] = 0x23;// 0x68
-		instrumentMidiToGEMapping[0x69] = 0x23;// 0x69
-		instrumentMidiToGEMapping[0x6A] = 0x23;// 0x6A
-		instrumentMidiToGEMapping[0x6B] = 0x23;// 0x6B
-		instrumentMidiToGEMapping[0x6C] = 0x23;// 0x6C
-		instrumentMidiToGEMapping[0x6D] = 0x0F;// 0x6D
-		instrumentMidiToGEMapping[0x6E] = 0x1E;// 0x6E
-		instrumentMidiToGEMapping[0x6F] = 0x1E;// 0x6F
-		instrumentMidiToGEMapping[0x70] = 0x1E;// 0x70
-		instrumentMidiToGEMapping[0x71] = 0x2B;// 0x71
-		instrumentMidiToGEMapping[0x72] = 0x1A;// 0x72
-		instrumentMidiToGEMapping[0x73] = 0x1A;// 0x73
-		instrumentMidiToGEMapping[0x74] = 0x1B;// 0x74
-		instrumentMidiToGEMapping[0x75] = 0x15;// 0x75
-		instrumentMidiToGEMapping[0x76] = 0x1C;// 0x76
-		instrumentMidiToGEMapping[0x77] = 0x13;// 0x77
-		instrumentMidiToGEMapping[0x78] = 0x24;// 0x78
-		instrumentMidiToGEMapping[0x79] = 0x24;// 0x79
-		instrumentMidiToGEMapping[0x7A] = 0x24;// 0x7A
-		instrumentMidiToGEMapping[0x7B] = 0x24;// 0x7B
-		instrumentMidiToGEMapping[0x7C] = 0x24;// 0x7C
-		instrumentMidiToGEMapping[0x7D] = 0x24;// 0x7D
-		instrumentMidiToGEMapping[0x7E] = 0x24;// 0x7E
-		instrumentMidiToGEMapping[0x7F] = 0x1;// 0x7F
-		*/
 }
 
 CMidiParse::~CMidiParse(void)
 {
-	for (unsigned int x = 0; x < 0x20; x++ )
-		delete [] trackEvents[x];
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x30000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		delete[] trackEvents[x];
+	}
 	delete [] trackEvents;
+
+	delete compress;
 }
 
 
-void CMidiParse::GloverMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, unsigned long division)
-{
-	// UNFINISHED possibly wrong
-	numberInstruments = 0;
-	try
-	{
-		FILE* outFile = fopen(outFileName, "wb");
-		if (outFile == NULL)
-		{
-			MessageBox(NULL, "Error outputting file", "Error", NULL);
-			return;
-		}
 
-		unsigned long trackSize = 1;
-		
-
-		unsigned long tempLong = Flip32Bit(0x4D546864);
-		fwrite(&tempLong, 1 ,4 , outFile);
-		tempLong = Flip32Bit(0x00000006);
-		fwrite(&tempLong, 1 ,4 , outFile);
-		tempLong = Flip32Bit(0x00010000 | trackSize);
-		fwrite(&tempLong, 1 ,4 , outFile);
-
-		unsigned short tempShort = division;
-		tempShort = Flip16Bit(tempShort);
-		fwrite(&tempShort, 1 ,2 , outFile);
-
-		int counterTrack = 0;
-
-
-
-		unsigned long absoluteTime = 0;
-
-		int trackEventCount = 0;
-		TrackEvent* trackEvents = new TrackEvent[0x100000];
-
-		for (int j = 0; j < 0x100000; j++)
-		{
-			trackEvents[j].contents = NULL;
-			trackEvents[j].obsoleteEvent = false;
-			trackEvents[j].deltaTime = 0;
-			trackEvents[j].absoluteTime = 0;
-
-		}
-
-		int position = 0;	
-
-		tempLong = Flip32Bit(0x4D54726B);
-		fwrite(&tempLong, 1 ,4 , outFile);
-
-		int previousEventValue = 0;
-
-		byte* repeatPattern = NULL;
-		byte altOffset = 0;
-		byte altLength = 0;
-
-		bool endFlag = false;
-		while ((position < inputSize) && !endFlag)
-		{
-			if (trackEventCount > 0x90000)
-				return;
-
-			int timePosition = position;
-
-			byte eventVal = 0x90;
-			byte statusBit = false;
-
-			unsigned long original;
-			// trackEvents[trackEventCount].deltaTime is for loops
-			unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
-
-			trackEvents[trackEventCount].deltaTime += timeTag;
-
-			absoluteTime += timeTag;
-			trackEvents[trackEventCount].absoluteTime = absoluteTime;
-
-			byte curEventVal = 0x90;
-
-			byte noteNumber;
-			if (statusBit)
-			{
-				trackEvents[trackEventCount].type = previousEventValue;
-				noteNumber = eventVal;
-				curEventVal = previousEventValue;
-			}
-			else
-			{
-				trackEvents[trackEventCount].type = eventVal;
-				noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-				curEventVal = eventVal;
-			}
-			byte velocity = 0x7F; // TODO
-
-			unsigned long timeDuration = 0x10; // TODO
-
-			
-
-			trackEvents[trackEventCount].durationTime = timeDuration; // to be filled in
-			trackEvents[trackEventCount].contentSize = 2;
-			trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-			trackEvents[trackEventCount].contents[0] = noteNumber;
-			trackEvents[trackEventCount].contents[1] = velocity;
-
-			trackEventCount++;
-
-			if (!statusBit)
-				previousEventValue = eventVal;
-		}
-
-		for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
-		{
-			if (trackEventCount > 0x90000)
-				return;
-
-			TrackEvent trackEvent = trackEvents[eventCount];
-			if ((trackEvent.type >= 0x90) && (trackEvent.type < 0xA0))
-			{
-				// need to split out
-				if (trackEvent.durationTime > 0)
-				{
-
-					unsigned long shutoffTime = (trackEvent.absoluteTime + trackEvent.durationTime);
-
-					if (eventCount != (trackEventCount - 1))
-					{
-
-						for (int i = (eventCount+1); i < trackEventCount; i++)
-						{
-							if ((trackEvents[i].absoluteTime > shutoffTime) && (i != (trackEventCount - 1)))
-							{
-								for (int j = (trackEventCount - 1); j >= i; j--)
-								{
-									trackEvents[j+1].absoluteTime = trackEvents[j].absoluteTime;
-									trackEvents[j+1].contentSize = trackEvents[j].contentSize;
-									if (trackEvents[j+1].contents != NULL)
-									{
-										delete [] trackEvents[j+1].contents;
-										trackEvents[j+1].contents = NULL;
-									}
-									trackEvents[j+1].contents = new byte[trackEvents[j].contentSize];
-									for (int r = 0; r < trackEvents[j].contentSize; r++)
-									{
-										trackEvents[j+1].contents[r] = trackEvents[j].contents[r];
-									}
-									trackEvents[j+1].deltaTime = trackEvents[j].deltaTime;
-									trackEvents[j+1].durationTime = trackEvents[j].durationTime;
-									trackEvents[j+1].obsoleteEvent = trackEvents[j].obsoleteEvent;
-									trackEvents[j+1].type = trackEvents[j].type;
-								}
-
-								trackEvents[i].type = trackEvents[eventCount].type;
-								trackEvents[i].absoluteTime = shutoffTime;
-								trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i-1].absoluteTime);
-								trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[i].durationTime = 0;
-								trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-								trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[i].contents[1] = 0;
-
-								trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
-
-								if (trackEvents[i].deltaTime > 0xFF000000)
-								{
-									int a =1;
-								}
-
-								trackEventCount++;
-								break;
-							}
-							else if (i == (trackEventCount - 1))
-							{
-								trackEvents[i+1].absoluteTime = shutoffTime; // move end to end
-								trackEvents[i+1].contentSize = trackEvents[i].contentSize;
-								if (trackEvents[i+1].contents != NULL)
-								{
-									delete [] trackEvents[i+1].contents;
-									trackEvents[i+1].contents = NULL;
-								}
-								trackEvents[i+1].contents = new byte[trackEvents[i].contentSize];
-								for (int r = 0; r < trackEvents[i].contentSize; r++)
-								{
-									trackEvents[i+1].contents[r] = trackEvents[i].contents[r];
-								}
-								trackEvents[i+1].deltaTime = trackEvents[i].deltaTime;
-								trackEvents[i+1].durationTime = trackEvents[i].durationTime;
-								trackEvents[i+1].obsoleteEvent = trackEvents[i].obsoleteEvent;
-								trackEvents[i+1].type = trackEvents[i].type;
-
-
-								trackEvents[i].type = trackEvents[eventCount].type;
-								trackEvents[i].absoluteTime = shutoffTime;
-								trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i - 1].absoluteTime);
-								trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[i].durationTime = 0;
-								trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-								trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[i].contents[1] = 0;
-
-								trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
-
-								trackEventCount++;
-								break;
-							}
-						}
-					}
-					else
-					{
-						trackEvents[eventCount+1].absoluteTime = shutoffTime; // move end to end
-						trackEvents[eventCount+1].contentSize = trackEvents[eventCount].contentSize;
-						if (trackEvents[eventCount+1].contents != NULL)
-						{
-							delete [] trackEvents[eventCount+1].contents;
-							trackEvents[eventCount+1].contents = NULL;
-						}
-						trackEvents[eventCount+1].contents = new byte[trackEvents[eventCount].contentSize];
-						for (int r = 0; r < trackEvents[eventCount].contentSize; r++)
-						{
-							trackEvents[eventCount+1].contents[r] = trackEvents[eventCount].contents[r];
-						}
-						trackEvents[eventCount+1].deltaTime = trackEvents[eventCount].deltaTime;
-						trackEvents[eventCount+1].durationTime = trackEvents[eventCount].durationTime;
-						trackEvents[eventCount+1].obsoleteEvent = trackEvents[eventCount].obsoleteEvent;
-						trackEvents[eventCount+1].type = trackEvents[eventCount].type;
-
-
-						trackEvents[eventCount].type = trackEvents[eventCount].type;
-						trackEvents[eventCount].absoluteTime = shutoffTime;
-						if ((trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime) > 0xFF000000)
-						{
-							int a =1;
-						}
-						trackEvents[eventCount].deltaTime = (trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime);
-						trackEvents[eventCount].contentSize = trackEvents[eventCount].contentSize;
-						trackEvents[eventCount].durationTime = 0;
-						trackEvents[eventCount].contents = new byte[trackEvents[eventCount].contentSize];
-						trackEvents[eventCount].contents[0] = trackEvents[eventCount].contents[0];
-						trackEvents[eventCount].contents[1] = 0;
-
-						trackEvents[eventCount+1].deltaTime = (trackEvents[eventCount+1].absoluteTime - trackEvents[eventCount].absoluteTime);
-						if (trackEvents[eventCount].deltaTime > 0xFF000000)
-						{
-							int a =1;
-						}
-						trackEventCount++;
-					}
-				}
-			}
-		}
-
-		
-		unsigned long timeOffset = 0;
-
-		unsigned long sizeData = 0;
-		byte previousTrackEvent = 0x0;
-
-		
-		for (int j = 0; j < trackEventCount; j++)
-		{
-			TrackEvent trackEvent =  trackEvents[j];
-			if (trackEvent.obsoleteEvent)
-			{
-				timeOffset += trackEvent.deltaTime;
-			}
-			else
-			{
-				unsigned long lengthTimeDelta = 0;
-				unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
-				timeOffset = 0;
-
-				sizeData += lengthTimeDelta;
-
-
-				if ((trackEvent.type != previousTrackEvent) || (trackEvent.type == 0xFF))
-				{
-					sizeData += 1;
-				}
-
-				sizeData += trackEvent.contentSize;
-
-				previousTrackEvent = trackEvent.type;
-			}
-		}
-
-		tempLong = Flip32Bit(sizeData);
-		fwrite(&tempLong,1, 4, outFile);
-
-		timeOffset = 0;
-		previousTrackEvent = 0x0;
-		for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
-		{
-			TrackEvent trackEvent = trackEvents[eventCount];
-
-			if (trackEvent.obsoleteEvent)
-			{
-				timeOffset += trackEvent.deltaTime;
-			}
-			else
-			{
-				unsigned long lengthTimeDelta = 0;
-				unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
-				timeOffset = 0;
-				WriteVLBytes(outFile, timeDelta, lengthTimeDelta, true);
-
-				if ((trackEvent.type != previousTrackEvent) || (trackEvent.type == 0xFF))
-				{
-					fwrite(&trackEvent.type, 1, 1, outFile);
-				}
-
-				fwrite(trackEvent.contents, 1, trackEvent.contentSize, outFile);
-
-				previousTrackEvent = trackEvent.type;
-			}
-		}
-
-		for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
-		{
-			if (trackEvents[eventCount].contents != NULL)
-			{
-				delete [] trackEvents[eventCount].contents;
-				trackEvents[eventCount].contents = NULL;
-			}
-		}
-
-		counterTrack++;
-
-		delete [] trackEvents;
-
-
-	
-
-		fflush(outFile);	
-		fclose(outFile);
-	}
-	catch (...)
-	{
-		MessageBox(NULL, "Error exporting", "Error", NULL);
-	}
-}
-
-
-void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments)
+void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest)
 {
 	numberInstruments = 0;
 	try
@@ -753,21 +321,11 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 		int counterTrack = 0;
 
+		int highestTrackLength = 0;
+
 		for (int iii = 0; iii < (lengthHeader - 4); iii+=4) // ignore last 00000180
 		{
 			unsigned long absoluteTime = 0;
-
-			int trackEventCount = 0;
-			TrackEvent* trackEvents = new TrackEvent[0x100000];
-
-			for (int j = 0; j < 0x100000; j++)
-			{
-				trackEvents[j].contents = NULL;
-				trackEvents[j].obsoleteEvent = false;
-				trackEvents[j].deltaTime = 0;
-				trackEvents[j].absoluteTime = 0;
-
-			}
 
 			unsigned long offset = CharArrayToLong(&inputMID[iii]);
 			
@@ -775,31 +333,28 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 			if (position != 0)
 			{
-				tempLong = Flip32Bit(0x4D54726B);
-				fwrite(&tempLong, 1 ,4 , outFile);
-	
 				int previousEventValue = 0;
+
+				std::map<int, int> loopEndsWithCount;
 
 				byte* repeatPattern = NULL;
 				byte altOffset = 0;
 				byte altLength = 0;
 
 				bool endFlag = false;
+
 				while ((position < inputSize) && !endFlag)
 				{
-					if (trackEventCount > 0x90000)
-						return;
-
 					int timePosition = position;
 
 					unsigned long original;
-					// trackEvents[trackEventCount].deltaTime is for loops
 					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
 
-					trackEvents[trackEventCount].deltaTime += timeTag;
-
 					absoluteTime += timeTag;
-					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					if (absoluteTime > highestTrackLength)
+						highestTrackLength = absoluteTime;
+
 
 					int vlLength = 0;
 					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
@@ -828,17 +383,325 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						{
 							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
 
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 5;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+						}
+						else if (subType == 0x2D) // end loop
+						{
+							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 							
-							trackEvents[trackEventCount].contents[0] = 0x51;
-							trackEvents[trackEventCount].contents[1] = 0x3;
-							trackEvents[trackEventCount].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
-							trackEvents[trackEventCount].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
-							trackEvents[trackEventCount].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+							if ((loopCount == 0xFF) || (loopCount == 0x00))
+							{
+								break;
+							}
+							else
+							{
+								std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+								if (it != loopEndsWithCount.end())
+								{
+									int countLeft = it->second;
 
-							trackEventCount++;
+									if (countLeft == 0)
+									{
+										loopEndsWithCount.erase(it);
+									}
+									else
+									{
+										loopEndsWithCount[position] = (countLeft - 1);
+
+										if (repeatPattern == NULL)
+										{
+											position = position - offsetToBeginningLoop;
+										}
+										else
+										{
+											loopEndsWithCount.erase(it);
+										}
+									}
+								}
+								else
+								{
+									loopEndsWithCount[position] = loopCount - 1;
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
+						}
+						else if (subType == 0x2E) // start loop
+						{
+							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true); // Always FF
+						}
+						else if (subType == 0x2F)
+						{
+							endFlag = true;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90) && (previousEventValue < 0xA0)))
+					{
+						byte curEventVal;
+
+						byte noteNumber;
+						if (statusBit)
+						{
+							noteNumber = eventVal;
+							curEventVal = previousEventValue;
+						}
+						else
+						{
+							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							curEventVal = eventVal;
+						}
+						byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						unsigned long timeDuration = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xB0) && (eventVal < 0xC0)) || (statusBit && (previousEventValue >= 0xB0) && (previousEventValue < 0xC0))) // controller change
+					{
+						CString controllerTypeText = "";
+						byte controllerType;
+						
+						if (statusBit)
+						{
+							controllerType = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0) && (previousEventValue < 0xD0))) // change instrument
+					{
+						byte instrument;
+						if (statusBit)
+						{
+							instrument = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xD0) && (eventVal < 0xE0)) || (statusBit && (previousEventValue >= 0xD0) && (previousEventValue < 0xE0))) // channel aftertouch
+					{
+						byte amount;
+						if (statusBit)
+						{
+							amount = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xE0) && (eventVal < 0xF0)) || (statusBit && (previousEventValue >= 0xE0) && (previousEventValue < 0xF0))) // pitch bend
+					{
+						byte valueLSB;
+						if (statusBit)
+						{
+							valueLSB = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+						
+						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (eventVal == 0xFE) // repeat operation
+					{
+						// should not be here...
+
+						// no prev event set
+					}
+					else
+					{
+						
+					}
+				}
+			}
+		}
+
+		for (int iii = 0; iii < (lengthHeader - 4); iii+=4) // ignore last 00000180
+		{
+			unsigned long absoluteTime = 0;
+
+			int trackEventCountSub = 0;
+			TrackEvent* trackEventsSub = new TrackEvent[0x30000];
+
+			for (int j = 0; j < 0x30000; j++)
+			{
+				trackEventsSub[j].contents = NULL;
+				trackEventsSub[j].obsoleteEvent = false;
+				trackEventsSub[j].deltaTime = 0;
+				trackEventsSub[j].absoluteTime = 0;
+
+			}
+
+			unsigned long offset = CharArrayToLong(&inputMID[iii]);
+			
+			int position = offset;	
+
+			if (position != 0)
+			{
+				tempLong = Flip32Bit(0x4D54726B);
+				fwrite(&tempLong, 1 ,4 , outFile);
+	
+				int previousEventValue = 0;
+
+				std::map<int, int> loopEndsWithCount;
+
+				byte* repeatPattern = NULL;
+				byte altOffset = 0;
+				byte altLength = 0;
+
+				bool endFlag = false;
+
+				while ((position < inputSize) && !endFlag)
+				{
+					if (extendTracksToHighest)
+					{
+						if (absoluteTime >= highestTrackLength)
+						{
+							trackEventsSub[trackEventCountSub].absoluteTime = highestTrackLength;
+							trackEventsSub[trackEventCountSub].deltaTime = (highestTrackLength - absoluteTime);
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
+
+							trackEventCountSub++;
+
+							endFlag = true;
+
+							break;
+						}
+					}
+
+
+					if (trackEventCountSub >= 0x30000)
+					{
+						for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
+						{
+							if (trackEventsSub[eventCount].contents != NULL)
+							{
+								delete [] trackEventsSub[eventCount].contents;
+								trackEventsSub[eventCount].contents = NULL;
+							}
+						}
+
+						delete [] trackEventsSub;
+						return;
+					}
+
+					int timePosition = position;
+
+					unsigned long original;
+					// trackEventsSub[trackEventCountSub].deltaTime is for loops
+					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+					if (extendTracksToHighest)
+					{
+						if ((absoluteTime + timeTag) > highestTrackLength)
+						{
+							trackEventsSub[trackEventCountSub].absoluteTime = highestTrackLength;
+							trackEventsSub[trackEventCountSub].deltaTime = (highestTrackLength - absoluteTime);
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
+
+							trackEventCountSub++;
+
+							endFlag = true;
+
+							break;
+						}
+					}
+
+					trackEventsSub[trackEventCountSub].deltaTime += timeTag;
+
+					absoluteTime += timeTag;
+					trackEventsSub[trackEventCountSub].absoluteTime = absoluteTime;
+
+					int vlLength = 0;
+					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					bool statusBit = false;
+
+					if (eventVal < 0x80)
+					{
+						// continuation
+						statusBit = true;
+					}
+					else
+					{
+						statusBit = false;
+					}
+
+					if ((eventVal == 0xFF) || (statusBit && (previousEventValue == 0xFF))) // meta event
+					{
+						byte subType;
+						if (statusBit)
+							subType = eventVal;
+						else
+							subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (subType == 0x51) // tempo
+						{
+							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 5;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x51;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x3;
+							trackEventsSub[trackEventCountSub].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+
+							trackEventCountSub++;
 
 							
 							int MICROSECONDS_PER_MINUTE = 60000000;
@@ -850,26 +713,76 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 							
+							if ((loopCount == 0xFF) || (loopCount == 0x00))
+							{
+								hasLoopPoint = true;
+								loopEnd = absoluteTime;
+
+								if (extendTracksToHighest)
+								{
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+								}
+							}
+							else
+							{
+								std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+								if (it != loopEndsWithCount.end())
+								{
+									int countLeft = it->second;
+
+									if (countLeft == 0)
+									{
+										loopEndsWithCount.erase(it);
+									}
+									else
+									{
+										loopEndsWithCount[position] = (countLeft - 1);
+
+										if (repeatPattern == NULL)
+										{
+											position = position - offsetToBeginningLoop;
+										}
+										else
+										{
+											loopEndsWithCount.erase(it);
+										}
+									}
+								}
+								else
+								{
+									loopEndsWithCount[position] = loopCount - 1;
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
 						}
 						else if (subType == 0x2E) // start loop
 						{
 							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							if (endLoop != 0xFF)
-							{
-								// is this used?
-							}
+							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true); // Always FF
+							hasLoopPoint = true;
+							loopStart = absoluteTime;
 						}
 						else if (subType == 0x2F)
 						{
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 2;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x2F;
-							trackEvents[trackEventCount].contents[1] = 0x0;
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							endFlag = true;
 						}
@@ -884,13 +797,13 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						byte noteNumber;
 						if (statusBit)
 						{
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 							noteNumber = eventVal;
 							curEventVal = previousEventValue;
 						}
 						else
 						{
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							curEventVal = eventVal;
 						}
@@ -900,13 +813,13 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 						
 
-						trackEvents[trackEventCount].durationTime = timeDuration; // to be filled in
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = noteNumber;
-						trackEvents[trackEventCount].contents[1] = velocity;
+						trackEventsSub[trackEventCountSub].durationTime = timeDuration; // to be filled in
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = noteNumber;
+						trackEventsSub[trackEventCountSub].contents[1] = velocity;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -919,21 +832,21 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							controllerType = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = controllerType;
-						trackEvents[trackEventCount].contents[1] = controllerValue;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = controllerType;
+						trackEventsSub[trackEventCountSub].contents[1] = controllerValue;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -944,21 +857,21 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							instrument = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = instrument;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = instrument;
 						if (instrument >= numberInstruments)
 							numberInstruments = (instrument + 1);
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -969,19 +882,19 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							amount = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = amount;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = amount;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -992,22 +905,22 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							valueLSB = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						
 						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = valueLSB;
-						trackEvents[trackEventCount].contents[1] = valueMSB;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = valueLSB;
+						trackEventsSub[trackEventCountSub].contents[1] = valueMSB;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1025,12 +938,26 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					if (trackEventCount > 0x90000)
-						return;
+					if (trackEventCountSub >= 0x30000)
+					{
+						fclose(outFile);
 
-					TrackEvent trackEvent = trackEvents[eventCount];
+						for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
+						{
+							if (trackEventsSub[eventCount].contents != NULL)
+							{
+								delete [] trackEventsSub[eventCount].contents;
+								trackEventsSub[eventCount].contents = NULL;
+							}
+						}
+
+						delete [] trackEventsSub;
+						return;
+					}
+
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 					if ((trackEvent.type >= 0x90) && (trackEvent.type < 0xA0))
 					{
 						// need to split out
@@ -1039,127 +966,140 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 							unsigned long shutoffTime = (trackEvent.absoluteTime + trackEvent.durationTime);
 
-							if (eventCount != (trackEventCount - 1))
+							if (eventCount != (trackEventCountSub - 1))
 							{
 
-								for (int i = (eventCount+1); i < trackEventCount; i++)
+								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEvents[i].absoluteTime > shutoffTime) && (i != (trackEventCount - 1)))
+									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
-										for (int j = (trackEventCount - 1); j >= i; j--)
+										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
-											trackEvents[j+1].absoluteTime = trackEvents[j].absoluteTime;
-											trackEvents[j+1].contentSize = trackEvents[j].contentSize;
-											if (trackEvents[j+1].contents != NULL)
+											trackEventsSub[j+1].absoluteTime = trackEventsSub[j].absoluteTime;
+											trackEventsSub[j+1].contentSize = trackEventsSub[j].contentSize;
+											if (trackEventsSub[j+1].contents != NULL)
 											{
-												delete [] trackEvents[j+1].contents;
-												trackEvents[j+1].contents = NULL;
+												delete [] trackEventsSub[j+1].contents;
+												trackEventsSub[j+1].contents = NULL;
 											}
-											trackEvents[j+1].contents = new byte[trackEvents[j].contentSize];
-											for (int r = 0; r < trackEvents[j].contentSize; r++)
+											trackEventsSub[j+1].contents = new byte[trackEventsSub[j].contentSize];
+											for (int r = 0; r < trackEventsSub[j].contentSize; r++)
 											{
-												trackEvents[j+1].contents[r] = trackEvents[j].contents[r];
+												trackEventsSub[j+1].contents[r] = trackEventsSub[j].contents[r];
 											}
-											trackEvents[j+1].deltaTime = trackEvents[j].deltaTime;
-											trackEvents[j+1].durationTime = trackEvents[j].durationTime;
-											trackEvents[j+1].obsoleteEvent = trackEvents[j].obsoleteEvent;
-											trackEvents[j+1].type = trackEvents[j].type;
+											trackEventsSub[j+1].deltaTime = trackEventsSub[j].deltaTime;
+											trackEventsSub[j+1].durationTime = trackEventsSub[j].durationTime;
+											trackEventsSub[j+1].obsoleteEvent = trackEventsSub[j].obsoleteEvent;
+											trackEventsSub[j+1].type = trackEventsSub[j].type;
 										}
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i-1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i-1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
 
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										if (trackEventsSub[i].contents != NULL)
+										{
+											delete [] trackEventsSub[i].contents;
+										}
+
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
+
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
+
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
 
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
-									else if (i == (trackEventCount - 1))
+									else if (i == (trackEventCountSub - 1))
 									{
-										trackEvents[i+1].absoluteTime = shutoffTime; // move end to end
-										trackEvents[i+1].contentSize = trackEvents[i].contentSize;
-										if (trackEvents[i+1].contents != NULL)
+										trackEventsSub[i+1].absoluteTime = shutoffTime; // move end to end
+										trackEventsSub[i+1].contentSize = trackEventsSub[i].contentSize;
+										if (trackEventsSub[i+1].contents != NULL)
 										{
-											delete [] trackEvents[i+1].contents;
-											trackEvents[i+1].contents = NULL;
+											delete [] trackEventsSub[i+1].contents;
+											trackEventsSub[i+1].contents = NULL;
 										}
-										trackEvents[i+1].contents = new byte[trackEvents[i].contentSize];
-										for (int r = 0; r < trackEvents[i].contentSize; r++)
+										trackEventsSub[i+1].contents = new byte[trackEventsSub[i].contentSize];
+										for (int r = 0; r < trackEventsSub[i].contentSize; r++)
 										{
-											trackEvents[i+1].contents[r] = trackEvents[i].contents[r];
+											trackEventsSub[i+1].contents[r] = trackEventsSub[i].contents[r];
 										}
-										trackEvents[i+1].deltaTime = trackEvents[i].deltaTime;
-										trackEvents[i+1].durationTime = trackEvents[i].durationTime;
-										trackEvents[i+1].obsoleteEvent = trackEvents[i].obsoleteEvent;
-										trackEvents[i+1].type = trackEvents[i].type;
+										trackEventsSub[i+1].deltaTime = trackEventsSub[i].deltaTime;
+										trackEventsSub[i+1].durationTime = trackEventsSub[i].durationTime;
+										trackEventsSub[i+1].obsoleteEvent = trackEventsSub[i].obsoleteEvent;
+										trackEventsSub[i+1].type = trackEventsSub[i].type;
 
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i - 1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i - 1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
+										if (trackEventsSub[i].contents != NULL)
+										{
+											delete [] trackEventsSub[i].contents;
+										}
 
-										trackEventCount++;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
+
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
+
+										trackEventCountSub++;
 										break;
 									}
 								}
 							}
 							else
 							{
-								trackEvents[eventCount+1].absoluteTime = shutoffTime; // move end to end
-								trackEvents[eventCount+1].contentSize = trackEvents[eventCount].contentSize;
-								if (trackEvents[eventCount+1].contents != NULL)
+								trackEventsSub[eventCount+1].absoluteTime = shutoffTime; // move end to end
+								trackEventsSub[eventCount+1].contentSize = trackEventsSub[eventCount].contentSize;
+								if (trackEventsSub[eventCount+1].contents != NULL)
 								{
-									delete [] trackEvents[eventCount+1].contents;
-									trackEvents[eventCount+1].contents = NULL;
+									delete [] trackEventsSub[eventCount+1].contents;
+									trackEventsSub[eventCount+1].contents = NULL;
 								}
-								trackEvents[eventCount+1].contents = new byte[trackEvents[eventCount].contentSize];
-								for (int r = 0; r < trackEvents[eventCount].contentSize; r++)
+								trackEventsSub[eventCount+1].contents = new byte[trackEventsSub[eventCount].contentSize];
+								for (int r = 0; r < trackEventsSub[eventCount].contentSize; r++)
 								{
-									trackEvents[eventCount+1].contents[r] = trackEvents[eventCount].contents[r];
+									trackEventsSub[eventCount+1].contents[r] = trackEventsSub[eventCount].contents[r];
 								}
-								trackEvents[eventCount+1].deltaTime = trackEvents[eventCount].deltaTime;
-								trackEvents[eventCount+1].durationTime = trackEvents[eventCount].durationTime;
-								trackEvents[eventCount+1].obsoleteEvent = trackEvents[eventCount].obsoleteEvent;
-								trackEvents[eventCount+1].type = trackEvents[eventCount].type;
+								trackEventsSub[eventCount+1].deltaTime = trackEventsSub[eventCount].deltaTime;
+								trackEventsSub[eventCount+1].durationTime = trackEventsSub[eventCount].durationTime;
+								trackEventsSub[eventCount+1].obsoleteEvent = trackEventsSub[eventCount].obsoleteEvent;
+								trackEventsSub[eventCount+1].type = trackEventsSub[eventCount].type;
 
 
-								trackEvents[eventCount].type = trackEvents[eventCount].type;
-								trackEvents[eventCount].absoluteTime = shutoffTime;
-								if ((trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime) > 0xFF000000)
+								trackEventsSub[eventCount].type = trackEventsSub[eventCount].type;
+								trackEventsSub[eventCount].absoluteTime = shutoffTime;
+								if ((trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime) > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEvents[eventCount].deltaTime = (trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime);
-								trackEvents[eventCount].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[eventCount].durationTime = 0;
-								trackEvents[eventCount].contents = new byte[trackEvents[eventCount].contentSize];
-								trackEvents[eventCount].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[eventCount].contents[1] = 0;
+								trackEventsSub[eventCount].deltaTime = (trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime);
+								trackEventsSub[eventCount].contentSize = trackEventsSub[eventCount].contentSize;
+								trackEventsSub[eventCount].durationTime = 0;
+								trackEventsSub[eventCount].contents = new byte[trackEventsSub[eventCount].contentSize];
+								trackEventsSub[eventCount].contents[0] = trackEventsSub[eventCount].contents[0];
+								trackEventsSub[eventCount].contents[1] = 0;
 
-								trackEvents[eventCount+1].deltaTime = (trackEvents[eventCount+1].absoluteTime - trackEvents[eventCount].absoluteTime);
-								if (trackEvents[eventCount].deltaTime > 0xFF000000)
+								trackEventsSub[eventCount+1].deltaTime = (trackEventsSub[eventCount+1].absoluteTime - trackEventsSub[eventCount].absoluteTime);
+								if (trackEventsSub[eventCount].deltaTime > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEventCount++;
+								trackEventCountSub++;
 							}
 						}
 					}
@@ -1172,9 +1112,9 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte previousTrackEvent = 0x0;
 
 				
-				for (int j = 0; j < trackEventCount; j++)
+				for (int j = 0; j < trackEventCountSub; j++)
 				{
-					TrackEvent trackEvent =  trackEvents[j];
+					TrackEvent trackEvent =  trackEventsSub[j];
 					if (trackEvent.obsoleteEvent)
 					{
 						timeOffset += trackEvent.deltaTime;
@@ -1204,9 +1144,9 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				timeOffset = 0;
 				previousTrackEvent = 0x0;
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 
 					if (trackEvent.obsoleteEvent)
 					{
@@ -1229,24 +1169,24 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						previousTrackEvent = trackEvent.type;
 					}
 				}
-
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
-				{
-					if (trackEvents[eventCount].contents != NULL)
-					{
-						delete [] trackEvents[eventCount].contents;
-						trackEvents[eventCount].contents = NULL;
-					}
-				}
 			}
 			else
 			{
 				
 			}
 
+			for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
+			{
+				if (trackEventsSub[eventCount].contents != NULL)
+				{
+					delete [] trackEventsSub[eventCount].contents;
+					trackEventsSub[eventCount].contents = NULL;
+				}
+			}
+
 			counterTrack++;
 
-			delete [] trackEvents;
+			delete [] trackEventsSub;
 		}
 
 
@@ -1260,110 +1200,6 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 	{
 		MessageBox(NULL, "Error exporting", "Error", NULL);
 	}
-}
-
-void CMidiParse::MMLToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments)
-{
-	/*numberInstruments = 1;
-	try
-	{
-		FILE* outFile = fopen(outFileName, "wb");
-		if (outFile == NULL)
-		{
-			MessageBox(NULL, "Error outputting file", "Error", NULL);
-			return;
-		}
-
-		int currentSpot = 0;
-
-		int trackSize = 1;  // add 1 for main one
-		// count tracks first
-		while (currentSpot < inputSize)
-		{
-			if ((command >= 0x90) && (command < 0xA0)) // load track
-			{
-				trackSize++;
-			}
-			else if (command == 0xFF)
-			{
-				break;
-			}
-		}
-
-		currentSpot = 0;
-
-		unsigned long tempLong = Flip32Bit(0x4D546864);
-		fwrite(&tempLong, 1 ,4 , outFile);
-		tempLong = Flip32Bit(0x00000006);
-		fwrite(&tempLong, 1 ,4 , outFile);
-		tempLong = Flip32Bit(0x00010000 | trackSize);
-		fwrite(&tempLong, 1 ,4 , outFile);
-
-		unsigned short tempShort = 0x400; // 1024 delta per quarter note
-		tempShort = Flip16Bit(tempShort);
-		fwrite(&tempShort, 1 ,2 , outFile);
-
-
-		while (currentSpot < inputSize)
-		{
-			unsigned char command = inputMID[currentSpot];
-			if (command == 0xD3) // Header/type
-			{
-				unsigned char headerBit = inputMID[currentSpot+1];
-				currentSpot += 2;
-			}
-			else if ((command >= 0x90) && (command < 0xA0)) // load track
-			{
-				unsigned short offset = (inputMID[currentSpot+1] << 8) | inputMID[currentSpot+2];
-				currentSpot += 3;
-			}
-			else if (command == 0xD6) // Disable channels
-			{
-				unsigned short channelsBitflags = (inputMID[currentSpot+1] << 8) | inputMID[currentSpot+2];
-				currentSpot += 3;
-			}
-			else if (command == 0xDB) // Master Volume
-			{
-				unsigned short volume = (inputMID[currentSpot+1]);
-				currentSpot += 2;
-			}
-			else if (command == 0xDD) // Tempo BPM
-			{
-				unsigned short bpm = (inputMID[currentSpot+1]);
-				currentSpot += 2;
-			}
-			else if (command == 0xD5) // Unknown
-			{
-				currentSpot += 3;
-			}
-			else if (command == 0xD7) // Enable channels
-			{
-				unsigned short channelsBitflags = (inputMID[currentSpot+1] << 8) | inputMID[currentSpot+2];
-				currentSpot += 3;
-			}
-			else if (command == 0xFD) // Timestamp
-			{
-				
-			}
-			else if (command == 0xFB) // Loop
-			{
-				
-			}
-			else if (command == 0xFF) // End
-			{
-				break;
-			}
-		}
-
-		while ((
-
-		fflush(outFile);	
-		fclose(outFile);
-	}
-	catch (...)
-	{
-		MessageBox(NULL, "Error exporting", "Error", NULL);
-	}*/
 }
 
 void CMidiParse::MIDxMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments)
@@ -1398,9 +1234,9 @@ void CMidiParse::MIDxMidiToMidi(byte* inputMID, int inputSize, CString outFileNa
 		unsigned long absoluteTime = 0;
 
 		int trackEventCount = 0;
-		TrackEvent* trackEvents = new TrackEvent[0x90000];
+		TrackEvent* trackEvents = new TrackEvent[0x30000];
 
-		for (int j = 0; j < 0x90000; j++)
+		for (int j = 0; j < 0x30000; j++)
 			trackEvents[j].contents = NULL;
 
 		int position = 4;	
@@ -1693,7 +1529,6437 @@ void CMidiParse::MIDxMidiToMidi(byte* inputMID, int inputSize, CString outFileNa
 	}
 }
 
-void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments)
+int CMidiParse::GetSngVariableLength(unsigned char* buffer, unsigned long offset)
+{
+	if (buffer[offset] & 0x80)
+	{
+		int value = (((buffer[offset] & 0x7F) << 8) | buffer[offset + 1]);
+		return value;
+	}
+	else
+	{
+		return buffer[offset];
+	}
+}
+
+int CMidiParse::WriteSngVariableLength(unsigned char* buffer, int& offset, int value)
+{
+	int writeValue = value;
+
+	while (writeValue > 0x7FFE)
+	{
+		writeValue -= 0x7FFE;
+	}
+
+	if (writeValue < 0x80)
+		buffer[offset++] = writeValue;
+	else
+	{
+		unsigned short dataValue = 0x8000 | writeValue;
+		buffer[offset++] = ((dataValue >> 8) & 0xFF);
+		buffer[offset++] = ((dataValue) & 0xFF);
+	}
+
+	return (value - writeValue);
+}
+
+void CMidiParse::ParseSngTrack(int trackNumber, int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes, unsigned char* buffer, unsigned long offset, unsigned long end, unsigned short* instrumentLookup, unsigned long adsrPointer, unsigned long drumPointer, std::vector<SngTimeValue> volumeByAbsoluteTime, std::vector<SngTimeValue> pitchBendByAbsoluteTime, SngStyle sngStyle, int& noteUniqueId, int totalInstruments)
+{
+	std::vector<SngNoteInfo> trackOutputNotes;
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	bool useDefinedLength = false;
+	int definedLength = 0;
+
+	bool useDefinedVelocity = false;
+	int definedVelocity = 0x7F;
+
+	bool useDefinedReleaseTime = false;
+	int definedReleaseTime = 0x01;
+
+	if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::PtrBfx))
+	{
+		useDefinedVelocity = true;
+		definedVelocity = 0x7F;
+	}
+
+
+	unsigned long absoluteTime = 0;
+
+	unsigned char currentPan = 0x80;
+	unsigned short currentInstrument = 0x00;
+	unsigned char currentVolume = 0x7F;
+	signed char currentPitchBend = 0x40;
+	int currentDrumOffset = -1;
+
+	int currentTranspose = 0;
+	int currentEffect = 0;
+
+	bool isWobbling = false;
+	unsigned char wobbleOffset = 0x00;
+	unsigned char wobbleTransposeCounter = 0x00;
+	unsigned char wobbleNormalCounter = 0x00;
+
+	unsigned long currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+	while ((command != 0x80) && (spot < end))
+	{
+		// Not Master Track
+		if (trackNumber >= 0)
+		{
+			currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+			// Mini not using tempo?
+			if (sngStyle == SngStyle::Normal || ((sngStyle == SngStyle::Old) && (trackNumber > 0)) || ((sngStyle == SngStyle::OldDD) && (trackNumber > 0)))
+			{
+				for (int y = 0; y < tempoPositions.size(); y++)
+				{
+					if (tempoPositions[y].absoluteTime <= absoluteTime)
+					{
+						currentTempo = tempoPositions[y].value;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		command = buffer[spot];
+		
+		//fprintf(outFile, "%08X Time: %08X Command: %02X ", spot, absoluteTime, command);
+		spot++;
+
+		if (command < 0x80) // Note or Rest
+		{
+			unsigned char note = command;
+
+			if (note == 0x60)
+			{
+				//fprintf(outFile, " Rest");
+			}
+			else if (note < 0x60)
+			{
+				//fprintf(outFile, " Note %02X", note);
+			}
+			else
+			{
+				//fprintf(outFile, " UNKNOWN Note %02X", note);
+			}
+
+			int velocity;
+			if (useDefinedVelocity)
+			{
+				velocity = definedVelocity;
+				//fprintf(outFile, " [Velocity %02X (%d)]", definedVelocity, definedVelocity);
+			}
+			else
+			{
+				//fprintf(outFile, " Velocity %02X (%d)", buffer[spot] & 0x7F, buffer[spot] & 0x7F);
+
+				if (buffer[spot] & 0x80)
+				{
+					useDefinedVelocity = true;
+					definedVelocity = buffer[spot] & 0x7F;
+					//fprintf(outFile, " and Repeat");
+				}
+
+				velocity = (buffer[spot] & 0x7F);
+
+				spot++;
+			}
+
+			int noteLength;
+
+			if (useDefinedLength)
+			{
+				noteLength = definedLength;
+
+				//fprintf(outFile, " [Length %02X (%d)]", definedLength, definedLength);
+			}
+			else
+			{
+				noteLength = GetSngVariableLength(buffer, spot);
+				
+				if (noteLength < 0x80)
+				{
+					//fprintf(outFile, " Length %02X (%d)", buffer[spot], length);
+					spot++;
+				}
+				else
+				{
+					//fprintf(outFile, " Length %02X%02X (%d)", buffer[spot], buffer[spot+1], length);
+					spot += 2;
+				}
+			}
+
+			// Add note to batch
+			
+			if (note < 0x60)
+			{
+				if (currentDrumOffset != -1)
+				{
+					SngNoteInfo songNoteInfo;
+					songNoteInfo.originalTrack = trackNumber;
+					songNoteInfo.startAbsoluteTime = absoluteTime;
+					songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+
+					unsigned long drumNoteOffset = drumPointer + (currentDrumOffset * 0x6) + (note * 0x6);
+
+					unsigned char instrumentIndex = buffer[drumNoteOffset + 1];
+					unsigned char adsrIndex = buffer[drumNoteOffset + 3];
+					unsigned char pan = buffer[drumNoteOffset + 4];
+					unsigned char note = buffer[drumNoteOffset + 5];
+
+					int instrument;
+					if ((sngStyle == SngStyle::Old) || (sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::PtrBfx))
+					{
+						instrument = instrumentIndex;
+						if (instrument > numberInstruments)
+							numberInstruments = instrument + 1;
+					}
+					else
+						instrument = instrumentLookup[instrumentIndex];
+
+					songNoteInfo.effect = currentEffect;
+
+					songNoteInfo.noteNumber = note + 0xC + currentTranspose;
+					songNoteInfo.velocity = velocity;
+
+					// From Master Track
+					songNoteInfo.tempo = currentTempo;
+
+					// TODO multiple banks
+					songNoteInfo.instrument = instrument;
+					
+					songNoteInfo.pan = ((pan >> 1) & 0xFF);
+
+					songNoteInfo.pitchBend = currentPitchBend;
+					songNoteInfo.volume = currentVolume;
+
+					if (useDefinedReleaseTime)
+					{
+						songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + definedReleaseTime;
+					}
+					else
+					{
+						songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+					}
+
+					trackOutputNotes.push_back(songNoteInfo);
+				}
+				else
+				{
+					if (isWobbling)
+					{
+						int totalLengthTime;
+						if (useDefinedReleaseTime)
+						{
+							totalLengthTime = definedReleaseTime;
+						}
+						else
+						{
+							totalLengthTime = noteLength;
+						}
+
+						int wobbleCounter = 0;
+						while (wobbleCounter < totalLengthTime)
+						{
+							int left = totalLengthTime - (int)wobbleCounter;
+							if (left <= 0)
+								break;
+
+							if (left > wobbleTransposeCounter)
+								left = wobbleTransposeCounter;
+
+							SngNoteInfo songNoteInfoWobble;
+							songNoteInfoWobble.originalTrack = trackNumber;
+							songNoteInfoWobble.originalNoteUniqueId = noteUniqueId++;
+							songNoteInfoWobble.startAbsoluteTime = absoluteTime + wobbleCounter;
+							songNoteInfoWobble.endAbsoluteTime = songNoteInfoWobble.startAbsoluteTime + left;
+							songNoteInfoWobble.noteNumber = note + 0xC + currentTranspose + wobbleOffset;
+							songNoteInfoWobble.velocity = velocity;
+
+							songNoteInfoWobble.effect = currentEffect;
+
+							// From Master Track
+							songNoteInfoWobble.tempo = currentTempo;
+
+							songNoteInfoWobble.instrument = currentInstrument;
+							
+							songNoteInfoWobble.pan = ((currentPan >> 1) & 0xFF);;
+
+							songNoteInfoWobble.pitchBend = currentPitchBend;
+							songNoteInfoWobble.volume = currentVolume;
+
+							trackOutputNotes.push_back(songNoteInfoWobble);
+
+							wobbleCounter += left;
+
+
+
+							left = totalLengthTime - (int)wobbleCounter;
+							if (left <= 0)
+								break;
+
+							if (left > wobbleNormalCounter)
+								left = wobbleNormalCounter;
+
+
+
+							SngNoteInfo songNoteInfoNormal;
+							songNoteInfoNormal.originalTrack = trackNumber;
+							songNoteInfoNormal.originalNoteUniqueId = noteUniqueId++;
+							songNoteInfoNormal.startAbsoluteTime = absoluteTime + wobbleCounter;
+							songNoteInfoNormal.endAbsoluteTime = songNoteInfoNormal.startAbsoluteTime + left;
+							songNoteInfoNormal.noteNumber = note + 0xC + currentTranspose;
+							songNoteInfoNormal.velocity = velocity;
+
+							songNoteInfoNormal.effect = currentEffect;
+
+							// From Master Track
+							songNoteInfoNormal.tempo = currentTempo;
+
+							songNoteInfoNormal.instrument = currentInstrument;
+							
+							songNoteInfoNormal.pan = ((currentPan >> 1) & 0xFF);;
+
+							songNoteInfoNormal.pitchBend = currentPitchBend;
+							songNoteInfoNormal.volume = currentVolume;
+
+							trackOutputNotes.push_back(songNoteInfoNormal);
+
+							wobbleCounter += left;
+						}
+					}
+					else
+					{
+						SngNoteInfo songNoteInfo;
+						songNoteInfo.originalTrack = trackNumber;
+						songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+						songNoteInfo.startAbsoluteTime = absoluteTime;
+						songNoteInfo.noteNumber = note + 0xC + currentTranspose;
+						songNoteInfo.velocity = velocity;
+
+						songNoteInfo.effect = currentEffect;
+
+						// From Master Track
+						songNoteInfo.tempo = currentTempo;
+
+						songNoteInfo.instrument = currentInstrument;
+						
+						songNoteInfo.pan = ((currentPan >> 1) & 0xFF);;
+
+						songNoteInfo.pitchBend = currentPitchBend;
+						songNoteInfo.volume = currentVolume;
+
+						if (useDefinedReleaseTime)
+						{
+							songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + definedReleaseTime;
+						}
+						else
+						{
+							songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+						}
+
+						trackOutputNotes.push_back(songNoteInfo);
+					}
+				}
+			}
+
+			absoluteTime += noteLength;
+		}
+		else
+		{
+			if (command == 0x80)
+			{
+				//End?
+				//fprintf(outFile, " End");
+				break;
+			}
+			else if (command == 0x81)
+			{
+				//XX, Instrument # In List
+				//fprintf(outFile, " Instrument");
+				//fprintf(outFile, " %02X (Looked up %02X)", buffer[spot], instrumentLookup[buffer[spot]]);
+
+				if ((sngStyle == SngStyle::Old) || (sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::PtrBfx))
+				{
+					currentInstrument = GetSngVariableLength(buffer, spot);
+					if (currentInstrument > numberInstruments)
+						numberInstruments = currentInstrument + 1;
+
+					if (currentInstrument < 0x80)
+					{
+						spot++;
+					}
+					else
+					{
+						spot += 2;
+					}
+				}
+				else if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::OldDD))
+				{
+					int instrumentLookupValue = GetSngVariableLength(buffer, spot);
+
+					if (instrumentLookupValue < 0x80)
+					{
+						spot++;
+					}
+					else
+					{
+						spot += 2;
+					}
+
+					if (instrumentLookupValue >= totalInstruments)
+					{
+						currentInstrument = instrumentLookupValue;
+					}
+					else
+					{
+						currentInstrument = instrumentLookup[instrumentLookupValue];
+					}
+				}
+			}
+			else if (command == 0x82)
+			{
+				if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::PtrBfx))
+				{
+					//??
+					//fprintf(outFile, " ?");
+				}
+				else
+				{
+					//Set Slide
+					//fprintf(outFile, " Set Slide");
+					//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+					spot++;
+				}
+			}
+			else if (command == 0x83)
+			{
+				// ?
+			}
+			else if (command == 0x84)
+			{
+				// ADSR Set
+				spot += 7;
+			}
+			else if (command == 0x85)
+			{
+				//XX Master Track Tempo, 0x28 = 40, 0x78 = 120
+				//fprintf(outFile, " Master Track Tempo");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				unsigned char tempo = buffer[spot];
+
+				currentTempo = (unsigned long)(60000000.0 / (float)tempo);
+
+				if (((sngStyle == SngStyle::Normal) && (trackNumber == -1)) || ((sngStyle == SngStyle::Old) && (trackNumber == 0))|| ((sngStyle == SngStyle::OldDD) && (trackNumber == 0)))// Master Track
+				{
+					tempoPositions.push_back(TimeAndValue(absoluteTime, currentTempo));
+				}
+
+				spot++;
+			}
+			else if (command == 0x86)
+			{
+				//XXXX Set Release Time for upcoming notes
+				//fprintf(outFile, " Set Release Time");
+				//fprintf(outFile, " %04X (%d)", CharArrayToShort(&buffer[spot]), CharArrayToShort(&buffer[spot]));
+
+				useDefinedReleaseTime = true;
+				definedReleaseTime = CharArrayToShort(&buffer[spot]);
+
+				spot+=2;
+			}
+			else if (command == 0x87)
+			{
+				//XX 01 Set Release Time back to full note (01)
+				//fprintf(outFile, " Set Release Time Back to Full");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				useDefinedReleaseTime = false;
+
+				spot++;
+			}
+			else if (command == 0x88)
+			{
+				//XX YY ZZ Vibrato Up - Delay, Amount, Speed
+				//fprintf(outFile, " Vibrato Up");
+				//fprintf(outFile, " Delay %02X (%d) Amount %02X (%d) Speed %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot+=3;
+			}
+			else if (command == 0x89)
+			{
+				//XX YY ZZ Vibrato Down - Delay, Amount, Speed
+				//fprintf(outFile, " Vibrato Down");
+				//fprintf(outFile, " Delay %02X (%d) Amount %02X (%d) Speed %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot+=3;
+			}
+			else if (command == 0x89)
+			{
+				//?
+			}
+			else if (command == 0x8A)
+			{
+				//Solo
+				//fprintf(outFile, " Solo");
+			}
+			else if (command == 0x8B)
+			{
+				//LL Set Length notes following and disable in list (variable time)
+				//fprintf(outFile, " Set Length Notes and Disable in Note Format");
+				
+				definedLength = GetSngVariableLength(buffer, spot);
+
+				// Probably just old style, uses 0x00 to turn off?
+				if (definedLength == 0x00)
+				{
+					useDefinedLength = false;
+					spot++;
+				}
+				else if (definedLength < 0x80)
+				{
+					useDefinedLength = true;
+					//fprintf(outFile, " Length %02X (%d)", buffer[spot], definedLength);
+					spot++;
+				}
+				else
+				{
+					useDefinedLength = true;
+					//fprintf(outFile, " Length %02X%02X (%d)", buffer[spot], buffer[spot+1], definedLength);
+					spot += 2;
+				}
+			}
+			else if (command == 0x8D)
+			{
+				//XX Transpose, 00 default, 01, etc
+				//fprintf(outFile, " Transpose");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], (signed char)buffer[spot]);
+
+				currentTranspose = (signed char)buffer[spot];
+
+				spot++;
+			}
+			else if (command == 0x8F)
+			{
+				//XX Detune (signed)
+				//fprintf(outFile, " Detune");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0x90)
+			{
+				//XX ADSR SubIndex
+				//fprintf(outFile, " ADSR Index");
+				//fprintf(outFile, " %02X", buffer[spot]);
+				//fprintf(outFile, " Rate %02X (%d)", buffer[adsrPointer + buffer[spot] * 7], buffer[adsrPointer + buffer[spot] * 7]);
+				//fprintf(outFile, " Start Level %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 1], buffer[adsrPointer + buffer[spot] * 7 + 1]);
+				//fprintf(outFile, " Attack Rate %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 2], buffer[adsrPointer + buffer[spot] * 7 + 2]);
+				//fprintf(outFile, " Peak Level %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 3], buffer[adsrPointer + buffer[spot] * 7 + 3]);
+				//fprintf(outFile, " Decay Rate %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 4], buffer[adsrPointer + buffer[spot] * 7 + 4]);
+				//fprintf(outFile, " Sustain Level %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 5], buffer[adsrPointer + buffer[spot] * 7 + 5]);
+				//fprintf(outFile, " Release Rate %02X (%d)", buffer[adsrPointer + buffer[spot] * 7 + 6], buffer[adsrPointer + buffer[spot] * 7 + 6]);
+				spot++;
+			}
+			else if (command == 0x91)
+			{
+				//Envelope Trigger Off
+				//fprintf(outFile, " Envelope Trigger Off");
+			}
+			else if (command == 0x92)
+			{
+				//Envelope Trigger On
+				//fprintf(outFile, " Envelope Trigger On");
+			}
+			else if (command == 0x93)
+			{
+				//Sample Trigger Off
+				//fprintf(outFile, " Sample Trigger Off");
+			}
+			else if (command == 0x94)
+			{
+				//Sample Trigger On
+				//fprintf(outFile, " Sample Trigger On");
+			}
+			else if (command == 0x95)
+			{
+				//XX Loop Start FF Count?
+				//fprintf(outFile, " Loop Start");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0x96)
+			{
+				//Loop
+				//fprintf(outFile, " Loop Back");
+				break;
+			}
+			else if (command == 0x97)
+			{
+				//XX YY ZZ Wobble - Offset, Transpose, Normal
+				//fprintf(outFile, " Wobble");
+				//fprintf(outFile, " Offset %02X (%d) Transpose %02X (%d) Normal %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				
+				wobbleOffset = buffer[spot];
+				wobbleTransposeCounter = buffer[spot + 1];
+				wobbleNormalCounter = buffer[spot + 2];
+
+				/*if ((wobbleOffset != 0) && ((wobbleTransposeCounter != 0) || (wobbleNormalCounter != 0)))
+					isWobbling = true;
+				else
+					isWobbling = false;*/
+
+				// Disable for now
+				isWobbling = false;
+
+				spot+=3;
+			}
+			else if (command == 0x98)
+			{
+				//?
+			}
+			else if (command == 0x99)
+			{
+				useDefinedVelocity = false;
+				//Reenable velocity on notes
+				//fprintf(outFile, " Reenable Velocity on Notes Format");
+			}
+			else if (command == 0x9A) // Old Style Only
+			{
+				// Enable Velocity Defined in Notes
+				useDefinedVelocity = true;
+				//fprintf(outFile, " Enable Velocity Defined in Notes");
+			}
+			else if (command == 0x9B) // Old Style Only
+			{
+				// Set Repeat Velocity
+				//fprintf(outFile, " Set Repeat Velocity");
+				//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				definedVelocity = buffer[spot];
+				useDefinedVelocity = true;
+				spot++;
+			}
+			else if (command == 0x9C)
+			{
+				//XX Pan, 0x00
+				//fprintf(outFile, " Pan");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				currentPan = buffer[spot];
+
+				spot++;
+			}
+			else if (command == 0x9E)
+			{
+				//XX Drum map on
+				//fprintf(outFile, " Drum Map On");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				currentDrumOffset = buffer[spot];
+				spot++;
+			}
+			else if (command == 0x9F)
+			{
+				//Drum map off
+				//fprintf(outFile, " Drum Map Off");
+
+				currentDrumOffset = -1;
+			}
+			else if (command == 0xA2)
+			{
+				//XX Effect, 0x00
+				//fprintf(outFile, " Effect");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				currentEffect = buffer[spot];
+				spot++;
+			}
+			else if (command == 0xA3)
+			{
+				//XX YY Set Min/Max Transpose
+				//fprintf(outFile, " Set Min/Max Tranpose");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA4)
+			{
+				//XX YY Set Min/Max Volume
+				//fprintf(outFile, " Set Min/Max Volume");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA5)
+			{
+				//XX YY Set Min/Max Pan
+				//fprintf(outFile, " Set Min/Max Pan");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA6)
+			{
+				// Set Note Volume
+				//fprintf(outFile, " ?");
+				currentVolume = buffer[spot];
+				spot++;
+			}
+			else if (command == 0xA7)
+			{
+				//LL ?
+				//fprintf(outFile, " Load Track #");
+				//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				int length = GetSngVariableLength(buffer, spot);
+
+				if (length < 0x80)
+				{
+					//fprintf(outFile, " Length %02X (%d)\n", inputMID[spot], length);
+					spot++;
+				}
+				else
+				{
+					//fprintf(outFile, " Length %02X%02X (%d)\n", inputMID[spot], inputMID[spot+1], length);
+					spot += 2;
+				}
+			}
+			else if (command == 0xA8)
+			{
+				//XX Pitch Bend
+				//fprintf(outFile, " Pitch Bend");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				currentPitchBend = buffer[spot];
+				spot++;
+			}
+			else if (command == 0xA9)
+			{
+				//XX Stereo Sweep Speed
+				//fprintf(outFile, " Stereo Sweep Speed");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xAA)
+			{
+				//XX Master Track Effect 00 = None, 01 = Small Room, 02 = Big Room, 03 = Chorus, 04 = Flange, 05 = Echo
+				//fprintf(outFile, " Master Track Effect");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				if (buffer[spot] == 0)
+				{
+					//fprintf(outFile, "None");
+				}
+				else if (buffer[spot] == 1)
+				{
+					//fprintf(outFile, "Small Room");
+				}
+				else if (buffer[spot] == 2)
+				{
+					//fprintf(outFile, "Big Room");
+				}
+				else if (buffer[spot] == 3)
+				{
+					//fprintf(outFile, "Chorus");
+				}
+				else if (buffer[spot] == 4)
+				{
+					//fprintf(outFile, "Flange");
+				}
+				else if (buffer[spot] == 5)
+				{
+					//fprintf(outFile, "Echo");
+				}
+				spot++;
+			}
+			else if (command == 0xAB)
+			{
+				//XX Master Track Sync - 1
+				//fprintf(outFile, " Master Track Sync");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xAC)
+			{
+				// Reenable length on notes
+				useDefinedLength = false;
+				//fprintf(outFile, " Reenable length on notes");
+			}
+			else if (command == 0xB0)
+			{
+				//XX ?
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else
+			{
+				CString tempStr;
+				tempStr.Format("Unknown Command %02X at Spot %04X", command, spot);
+				MessageBox(NULL, tempStr, "Error", NULL);
+
+				//fprintf(outFile, " UNKNOWN");
+				return;
+			}
+		}
+
+		//fprintf(outFile, "\n");
+	}
+
+
+
+	// Add in Volume
+	for (int x = 0; x < trackOutputNotes.size(); x++)
+	{
+		for (int y = 0; y < volumeByAbsoluteTime.size(); y++)
+		{
+			// Volume To Left/Equal Ending in Middle
+			if (
+				(trackOutputNotes[x].startAbsoluteTime >= volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (trackOutputNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+
+					trackOutputNotes[x].startAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//Volume In Middle, Ending to Right
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime <= volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (trackOutputNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+
+					trackOutputNotes[x].endAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// Volume Completely Inside
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (trackOutputNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+					SngNoteInfo newNoteInfo2 = trackOutputNotes[x];
+
+					trackOutputNotes[x].endAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+
+					trackOutputNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// Volume Completely Outside
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime >= volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime <= volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				trackOutputNotes[x].volume = volumeByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+	
+
+
+	// Add in Pitch Bend
+	for (int x = 0; x < trackOutputNotes.size(); x++)
+	{
+		for (int y = 0; y < pitchBendByAbsoluteTime.size(); y++)
+		{
+			// PitchBend To Left/Equal Ending in Middle
+			if (
+				(trackOutputNotes[x].startAbsoluteTime >= pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (trackOutputNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+
+					trackOutputNotes[x].startAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//PitchBend In Middle, Ending to Right
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime <= pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (trackOutputNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+
+					trackOutputNotes[x].endAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// PitchBend Completely Inside
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (trackOutputNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = trackOutputNotes[x];
+					SngNoteInfo newNoteInfo2 = trackOutputNotes[x];
+
+					trackOutputNotes[x].endAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					trackOutputNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+
+					trackOutputNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// PitchBend Completely Outside
+			else if (
+				(trackOutputNotes[x].startAbsoluteTime >= pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (trackOutputNotes[x].endAbsoluteTime <= pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				trackOutputNotes[x].pitchBend = pitchBendByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+
+	// Add to end
+	for (int x = 0; x < trackOutputNotes.size(); x++)
+	{
+		outputNotes.push_back(trackOutputNotes[x]);
+	}
+
+}
+
+void CMidiParse::SngToDebugTextFile(CString gameName, unsigned long address, CString midiFile, CString textFileOut, unsigned long extra)
+{
+	CString filepath = midiFile;
+	
+	FILE* inFile = fopen(filepath, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Can't read input file " + filepath, "Error", NULL);
+		return;
+	}
+
+	fseek(inFile, 0, SEEK_END);
+	int inputSize = ftell(inFile);
+	rewind(inFile);
+
+	unsigned char* inputMID = new unsigned char[inputSize];
+
+	fread(inputMID, 1, inputSize, inFile);
+	fclose(inFile);
+
+	SngToDebugTextFile(gameName, address, inputMID, inputSize, textFileOut, extra);
+
+	delete [] inputMID;
+}
+
+void CMidiParse::SngToDebugTextFile(CString gameName, unsigned long address, byte* inputMID, int inputSize, CString textFileOut, unsigned long extra)
+{	
+	CString addressStr;
+	addressStr.Format("%08X", address);
+
+	if (inputMID[0x0] == 0x80) // Ptr Sng
+	{
+		unsigned long startDataNegative = (signed long)inputSize;
+		unsigned long initialPointer = extra;
+
+		unsigned long numberTracks = 0;
+		
+		int pointerSpot = 0;
+		while (inputMID[pointerSpot] == 0x80)
+		{
+			numberTracks++;
+			pointerSpot += 4;
+		}
+
+
+		unsigned long adsrPointer = 0x00000000;
+		unsigned long drumPointer = 0x00000000;
+
+		unsigned long instrumentPointer = 0x00000000;
+		
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, gameName + " - " + addressStr + "\n");
+		fprintf(outFile, "Ptr BFX Song Style\n\n");
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[(x * 4)]) - initialPointer;
+			
+			unsigned long trackEnd = 0x00000000;
+			if (x < (numberTracks - 1))
+			{
+				trackEnd = CharArrayToLong(&inputMID[((x + 1) * 4)]) - initialPointer;
+			}
+			else
+			{
+				trackEnd = address;
+			}
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X (%08X)\n------------------------------------------------------\n", x + 1, trackDataPointer + address + (signed long)inputSize, CharArrayToLong(&inputMID[(x * 4)]));
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID + (signed long)startDataNegative, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::PtrBfx, -1);
+		}
+
+		fclose(outFile);
+	}
+	// Second check to avoid false positive of bfx, if count is 0x215, Mario Golf E
+	else if ((CharArrayToLong(&inputMID[0x0]) == 0x00000215) && (CharArrayToLong(&inputMID[0x4]) != 0x00000215)) // Binary Sng style
+	{
+		unsigned long numberTracks = CharArrayToLong(&inputMID[0x4]);
+		unsigned long totalInstruments = CharArrayToLong(&inputMID[0x8]);
+		unsigned long trackPointer = CharArrayToLong(&inputMID[0xC]);
+		unsigned long volumePointer = CharArrayToLong(&inputMID[0x10]);
+		unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0x14]);
+		unsigned long adsrPointer = CharArrayToLong(&inputMID[0x18]);
+		unsigned long drumPointer = CharArrayToLong(&inputMID[0x1C]);
+
+		unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x20]);
+		unsigned long masterTrackPointer = CharArrayToLong(&inputMID[0x24]);
+
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, gameName + " - " + addressStr + "\n");
+		fprintf(outFile, "Binary Song Style\n\n");
+
+		fprintf(outFile, "Instruments: %08X\n", instrumentPointer);
+		for (int x = 0; x < totalInstruments; x++)
+		{
+			fprintf(outFile, "%02X: %04X\n", x, CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]));
+		}
+
+		fprintf(outFile, "\n\n---------------------------\nMaster Track: %08X\n---------------------------\n", masterTrackPointer);
+
+		unsigned long trackDataPointerFirst = CharArrayToLong(&inputMID[trackPointer]);
+		SngTrackToDebugTextFile(outFile, inputMID, masterTrackPointer, trackDataPointerFirst, instrumentPointer, adsrPointer, drumPointer, SngStyle::Normal, totalInstruments);
+
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+			unsigned long volumeEnd = 0;
+
+			if (volumeDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+			
+					if (volumeDataPointerTest != 0)
+					{
+						volumeEnd = volumeDataPointerTest;
+						break;
+					}
+				}
+
+				if (volumeEnd == 0)
+				{
+					volumeEnd = masterTrackPointer;
+				}
+			}
+
+			unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+			unsigned long pitchBendEnd = 0;
+
+			if (pitchBendDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+			
+					if (pitchBendDataPointerTest != 0)
+					{
+						pitchBendEnd = pitchBendDataPointerTest;
+						break;
+					}
+				}
+
+				if (pitchBendEnd == 0)
+				{
+					pitchBendEnd = masterTrackPointer;
+				}
+			}
+
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+			unsigned long trackEnd = inputSize;
+			if (x < (numberTracks - 1))
+				trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+			if (volumeDataPointer != 0)
+			{
+				fprintf(outFile, "\nVolume\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = volumeDataPointer;
+				while (spot < volumeEnd)
+				{
+					unsigned char volume = inputMID[spot];
+					bool singleLength = !(volume & 0x80);
+
+					volume = volume & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+
+			if (pitchBendDataPointer != 0)
+			{
+				fprintf(outFile, "\nPitch Bend\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = pitchBendDataPointer;
+				while (spot < pitchBendEnd)
+				{
+					unsigned char pitchBend = inputMID[spot];
+					bool singleLength = !(pitchBend & 0x80);
+
+					pitchBend = pitchBend & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::Normal, totalInstruments);
+		}
+
+		fclose(outFile);
+	}
+	else if (CharArrayToLong(&inputMID[0x4]) == 0x00000000) // Pokemon Stadium
+	{
+		unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+		unsigned long volumePointer = CharArrayToLong(&inputMID[0x8]);
+		unsigned long trackPointer = CharArrayToLong(&inputMID[0xC]);
+		unsigned long adsrPointer = 0x00000000;
+		unsigned long drumPointer = 0x00000000;
+
+		unsigned long instrumentPointer = 0x00000000;
+		
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, gameName + " - " + addressStr + "\n");
+		fprintf(outFile, "Mini Song Style\n\n");
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+			
+			unsigned long trackEnd = 0x00000000;
+			if (trackDataPointer != 0x00000000)
+			{
+				if (x < (numberTracks - 1))
+				{
+					trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+					if (trackEnd == 0x00000000)
+						trackEnd = inputSize;
+				}
+				else
+				{
+					trackEnd = inputSize;
+				}
+			}
+
+			unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Priority Start %08X Priority Data %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumePointer + (x * 4), volumeDataPointer);
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::OldBfx, -1);
+		}
+	}
+	else if (CharArrayToLong(&inputMID[0xC]) == 0x00000000) // BFX
+	{
+		unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+		unsigned long trackPointer = 0x18;
+
+		unsigned long adsrPointer = 0x00000000;
+		unsigned long drumPointer = 0x00000000;
+
+		unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x14]);
+		int totalInstruments = (inputSize - instrumentPointer) / 0x4;
+
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, "Instruments: %08X\n", instrumentPointer);
+		for (int x = 0; x < totalInstruments; x++)
+		{
+			fprintf(outFile, "%02X: %04X\n", x, CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]));
+		}
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 8)]);
+			
+			unsigned long trackEnd = 0x00000000;
+			if (trackDataPointer != 0x00000000)
+			{
+				if (x < (numberTracks - 1))
+				{
+					trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 8)]);
+
+					if (trackEnd == 0x00000000)
+						trackEnd = instrumentPointer;
+				}
+				else
+				{
+					trackEnd = instrumentPointer;
+				}
+			}
+
+			unsigned long volumeDataPointer = CharArrayToLong(&inputMID[trackDataPointer + (x * 8) + 4]);
+
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Priority Start %08X Priority Data %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, trackDataPointer + (x * 8) + 4, volumeDataPointer);
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::Bfx, totalInstruments);
+		}
+
+		fclose(outFile);
+	}
+	else if (CharArrayToLong(&inputMID[0x8]) == 0x00000020) // N64 DD Style
+	{
+		unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+		unsigned long totalInstruments = CharArrayToLong(&inputMID[0x4]);
+		unsigned long trackPointer = CharArrayToLong(&inputMID[0x8]);
+		unsigned long volumePointer = CharArrayToLong(&inputMID[0xC]);
+		unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0x10]);
+		unsigned long adsrPointer = CharArrayToLong(&inputMID[0x14]);
+		unsigned long drumPointer = CharArrayToLong(&inputMID[0x18]);
+		unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x1C]);
+
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, "Instruments: %08X\n", instrumentPointer);
+		for (int x = 0; x < totalInstruments; x++)
+		{
+			fprintf(outFile, "%02X: %04X\n", x, CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]));
+		}
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+
+			unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+			unsigned long volumeEnd = 0;
+
+			if (volumeDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+			
+					if (volumeDataPointerTest != 0)
+					{
+						volumeEnd = volumeDataPointerTest;
+						break;
+					}
+				}
+
+				if (volumeEnd == 0)
+				{
+					volumeEnd = CharArrayToLong(&inputMID[trackPointer]);
+				}
+			}
+
+			unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+			unsigned long pitchBendEnd = 0;
+
+			if (pitchBendDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+			
+					if (pitchBendDataPointerTest != 0)
+					{
+						pitchBendEnd = pitchBendDataPointerTest;
+						break;
+					}
+				}
+
+				if (pitchBendEnd == 0)
+				{
+					pitchBendEnd = CharArrayToLong(&inputMID[trackPointer]);;
+				}
+			}
+
+			
+			unsigned long trackEnd = 0x00000000;
+			if (trackDataPointer != 0x00000000)
+			{
+				if (x < (numberTracks - 1))
+				{
+					trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+					if (trackEnd == 0x00000000)
+						trackEnd = inputSize;
+				}
+				else
+				{
+					trackEnd = inputSize;
+				}
+			}
+
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+			if (volumeDataPointer != 0)
+			{
+				fprintf(outFile, "\nVolume\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = volumeDataPointer;
+				while (spot < volumeEnd)
+				{
+					unsigned char volume = inputMID[spot];
+					bool singleLength = !(volume & 0x80);
+
+					volume = volume & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+
+			if (pitchBendDataPointer != 0)
+			{
+				fprintf(outFile, "\nPitch Bend\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = pitchBendDataPointer;
+				while (spot < pitchBendEnd)
+				{
+					unsigned char pitchBend = inputMID[spot];
+					bool singleLength = !(pitchBend & 0x80);
+
+					pitchBend = pitchBend & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::OldDD, totalInstruments);
+		}
+
+		fclose(outFile);
+	}
+	else // Old Style
+	{
+		unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+		//unsigned long numberInstruments = CharArrayToLong(&inputMID[0x8]);
+		unsigned long trackPointer = CharArrayToLong(&inputMID[0x4]);
+		unsigned long volumePointer = CharArrayToLong(&inputMID[0x8]);
+		unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0xC]);
+		unsigned long adsrPointer = CharArrayToLong(&inputMID[0x10]);
+		unsigned long drumPointer = CharArrayToLong(&inputMID[0x14]);
+
+		//unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x20]);
+		unsigned long instrumentPointer = 0x00000000;
+		
+		FILE* outFile = fopen(textFileOut, "w");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+			return;
+		}
+
+		fprintf(outFile, gameName + " - " + addressStr + "\n");
+		fprintf(outFile, "Old Song Style\n\n");
+
+		/*fprintf(outFile, "Instruments: %08X\n", instrumentPointer);
+		for (int x = 0; x < numberInstruments; x++)
+		{
+			fprintf(outFile, "%02X: %04X\n", x, CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]));
+		}
+
+		fprintf(outFile, "\n\n---------------------------\nMaster Track: %08X\n---------------------------\n", masterTrackPointer);
+
+		unsigned long trackDataPointerFirst = CharArrayToLong(&inputMID[trackPointer]);
+		SngTrackToDebugTextFile(outFile, inputMID, masterTrackPointer, trackDataPointerFirst, instrumentPointer, adsrPointer, drumPointer);
+		*/
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+
+			unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+			unsigned long volumeEnd = 0;
+
+			unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+			unsigned long pitchBendEnd = 0;
+
+			if (volumeDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+			
+					if (volumeDataPointerTest != 0)
+					{
+						volumeEnd = volumeDataPointerTest;
+						break;
+					}
+				}
+
+				if (volumeEnd == 0)
+				{
+					if (pitchBendDataPointer != 0)
+					{
+						for (int y = 0; y < numberTracks; y++)
+						{
+							unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+
+							if (pitchBendDataPointerTest != 0)
+							{
+								volumeEnd = pitchBendDataPointerTest;
+								break;
+							}
+						}
+					}
+
+					if (volumeEnd == 0)
+					{
+						// First track
+						volumeEnd = CharArrayToLong(&inputMID[trackPointer]);;
+					}
+				}
+			}
+
+			if (pitchBendDataPointer != 0)
+			{
+				for (int y = (x + 1); y < numberTracks; y++)
+				{
+					unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+			
+					if (pitchBendDataPointerTest != 0)
+					{
+						pitchBendEnd = pitchBendDataPointerTest;
+						break;
+					}
+				}
+
+				if (pitchBendEnd == 0)
+				{
+					pitchBendEnd = CharArrayToLong(&inputMID[trackPointer]);
+				}
+			}
+
+			
+			unsigned long trackEnd = 0x00000000;
+			if (trackDataPointer != 0x00000000)
+			{
+				if (x < (numberTracks - 1))
+				{
+					trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+					if (trackEnd == 0x00000000)
+						trackEnd = inputSize;
+				}
+				else
+				{
+					trackEnd = inputSize;
+				}
+			}
+
+
+			fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+			if (volumeDataPointer != 0)
+			{
+				fprintf(outFile, "\nVolume\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = volumeDataPointer;
+				while (spot < volumeEnd)
+				{
+					unsigned char volume = inputMID[spot];
+					bool singleLength = !(volume & 0x80);
+
+					volume = volume & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+
+			if (pitchBendDataPointer != 0)
+			{
+				fprintf(outFile, "\nPitch Bend\n");
+				unsigned long absoluteTime = 0;
+				unsigned long spot = pitchBendDataPointer;
+				while (spot < pitchBendEnd)
+				{
+					unsigned char pitchBend = inputMID[spot];
+					bool singleLength = !(pitchBend & 0x80);
+
+					pitchBend = pitchBend & 0x7F;
+					spot++;
+
+					int length = 1;
+					if (!singleLength)
+					{
+						length = GetSngVariableLength(inputMID, spot) + 2;
+
+						if (length < 0x82)
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+							spot += 2;
+						}
+					}
+					else
+					{
+						fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+					}
+
+					absoluteTime += length;
+				}
+			}
+
+
+			fprintf(outFile, "\nTrack Data\n");
+
+			SngTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, instrumentPointer, adsrPointer, drumPointer, SngStyle::Old, -1);
+		}
+
+		fclose(outFile);
+	}
+}
+
+void CMidiParse::SngTrackToDebugTextFile(FILE* outFile, unsigned char* inputMID, unsigned long offset, unsigned long end, unsigned long instrumentPointer, unsigned long adsrPointer, unsigned long drumPointer, SngStyle sngStyle, int totalInstruments)
+{
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	bool useDefinedLength = false;
+	int definedLength = 0;
+
+	bool useDefinedVelocity = false;
+	int definedVelocity;
+
+	if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::PtrBfx))
+	{
+		useDefinedVelocity = true;
+		definedVelocity = 0x7F;
+	}
+
+	int drumBankOffset = -1;
+
+	unsigned long absoluteTime = 0;
+
+	while ((command != 0x80) && (spot < end))
+	{
+		command = inputMID[spot];
+		
+		fprintf(outFile, "%08X Time: %08X Command: %02X ", spot, absoluteTime, command);
+		spot++;
+
+		if (command < 0x80) // Note or Rest
+		{
+			unsigned char note = command;
+
+			if (drumBankOffset == -1)
+			{
+				if (note == 0x60)
+					fprintf(outFile, " Rest");
+				else if (note < 0x60)
+					fprintf(outFile, " Note %02X", note);
+				else
+					fprintf(outFile, " UNKNOWN Note %02X", note);
+			}
+			else
+			{
+				if (note == 0x60)
+					fprintf(outFile, " Rest");
+				else
+					fprintf(outFile, " Drum SubIndex %02X", note);
+			}
+
+			if (useDefinedVelocity)
+			{
+				fprintf(outFile, " [Velocity %02X (%d)]", definedVelocity, definedVelocity);
+			}
+			else
+			{
+				fprintf(outFile, " Velocity %02X (%d)", inputMID[spot] & 0x7F, inputMID[spot] & 0x7F);
+
+				if (inputMID[spot] & 0x80)
+				{
+					useDefinedVelocity = true;
+					definedVelocity = inputMID[spot] & 0x7F;
+					fprintf(outFile, " and Repeat");
+				}
+
+				spot++;
+			}
+
+			if (useDefinedLength)
+			{
+				fprintf(outFile, " [Length %02X (%d)]", definedLength, definedLength);
+				absoluteTime += definedLength;
+			}
+			else
+			{
+				int length = GetSngVariableLength(inputMID, spot);
+				
+				if (length < 0x80)
+				{
+					fprintf(outFile, " Length %02X (%d)", inputMID[spot], length);
+					spot++;
+				}
+				else
+				{
+					fprintf(outFile, " Length %02X%02X (%d)", inputMID[spot], inputMID[spot+1], length);
+					spot += 2;
+				}
+
+				absoluteTime += length;
+			}
+
+			if ((drumBankOffset != -1) && (note != 0x60))
+			{
+				unsigned long drumNoteOffset = drumPointer + (drumBankOffset * 6) + (note * 6);
+
+				unsigned char instrumentIndex = inputMID[drumNoteOffset + 1];
+				unsigned char adsrIndex = inputMID[drumNoteOffset + 3];
+				unsigned char pan = inputMID[drumNoteOffset + 4];
+				unsigned char note = inputMID[drumNoteOffset + 5];
+
+				if (sngStyle == SngStyle::Old)
+					fprintf(outFile, " Drum Instrument %02X Address %08X Pan %02X Note %02X", instrumentIndex, drumNoteOffset, pan, note);
+				else
+					fprintf(outFile, " Drum Instrument %02X (Looked up %02X) Address %08X Pan %02X Note %02X", instrumentIndex, CharArrayToShort(&inputMID[instrumentPointer + (instrumentIndex * 2)]), drumNoteOffset, pan, note);
+				fprintf(outFile, " ADSR Rate %02X (%d)", inputMID[adsrPointer + adsrIndex * 7], inputMID[adsrPointer + adsrIndex * 7]);
+				fprintf(outFile, " ADSR Start Level %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 1], inputMID[adsrPointer + adsrIndex * 7 + 1]);
+				fprintf(outFile, " ADSR Attack Rate %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 2], inputMID[adsrPointer + adsrIndex * 7 + 2]);
+				fprintf(outFile, " ADSR Peak Level %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 3], inputMID[adsrPointer + adsrIndex * 7 + 3]);
+				fprintf(outFile, " ADSR Decay Rate %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 4], inputMID[adsrPointer + adsrIndex * 7 + 4]);
+				fprintf(outFile, " ADSR Sustain Level %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 5], inputMID[adsrPointer + adsrIndex * 7 + 5]);
+				fprintf(outFile, " ADSR Release Rate %02X (%d)", inputMID[adsrPointer + adsrIndex * 7 + 6], inputMID[adsrPointer + adsrIndex * 7 + 6]);
+			}
+		}
+		else
+		{
+			if (command == 0x80)
+			{
+				//End?
+				fprintf(outFile, " End");
+				break;
+			}
+			else if (command == 0x81)
+			{
+				//XX, Instrument # In List
+				fprintf(outFile, " Instrument");
+				int instrument = GetSngVariableLength(inputMID, spot);
+				if ((sngStyle == SngStyle::Old) || (sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::PtrBfx))
+				{
+					if (instrument < 0x80)
+					{
+						fprintf(outFile, " Instrument %02X (%d)", inputMID[spot], instrument);
+						spot++;
+					}
+					else
+					{
+						fprintf(outFile, " Instrument %02X%02X (%d)", inputMID[spot], inputMID[spot+1], instrument);
+						spot += 2;
+					}
+				}
+				else if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::OldDD))
+				{
+					if (instrument >= totalInstruments)
+					{
+						if (instrument < 0x80)
+						{
+							fprintf(outFile, " Instrument %02X (%d) (TOO BIG Looked up)", inputMID[spot], instrument, CharArrayToShort(&inputMID[instrumentPointer + (inputMID[spot] * 2)]));
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, " Instrument %02X%02X (%d) (TOO BIG Looked up)", inputMID[spot], inputMID[spot+1], instrument, CharArrayToShort(&inputMID[instrumentPointer + (instrument * 2)]));
+							spot += 2;
+						}
+					}
+					else
+					{
+						if (instrument < 0x80)
+						{
+							fprintf(outFile, " Instrument %02X (%d) (Looked up %02X)", inputMID[spot], instrument, CharArrayToShort(&inputMID[instrumentPointer + (inputMID[spot] * 2)]));
+							spot++;
+						}
+						else
+						{
+							fprintf(outFile, " Instrument %02X%02X (%d) (Looked up %02X)", inputMID[spot], inputMID[spot+1], instrument, CharArrayToShort(&inputMID[instrumentPointer + (inputMID[spot] * 2)]));
+							spot += 2;
+						}
+					}
+				}
+			}
+			else if (command == 0x82)
+			{
+				if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::PtrBfx))
+				{
+					//??
+					fprintf(outFile, " ?");
+				}
+				else
+				{
+					//Set Slide XX
+					fprintf(outFile, " Set Slide");
+					fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+					spot++;
+				}
+			}
+			else if (command == 0x83)
+			{
+				// ?
+				fprintf(outFile, " ?");
+			}
+			else if (command == 0x84)
+			{
+				//XX ADSR SubIndex
+				fprintf(outFile, " ADSR Data");
+				fprintf(outFile, " Rate %02X (%d)", inputMID[spot], inputMID[spot]);
+				fprintf(outFile, " Start Level %02X (%d)", inputMID[spot + 1], inputMID[spot + 1]);
+				fprintf(outFile, " Attack Rate %02X (%d)", inputMID[spot + 2], inputMID[spot + 2]);
+				fprintf(outFile, " Peak Level %02X (%d)", inputMID[spot + 3], inputMID[spot + 3]);
+				fprintf(outFile, " Decay Rate %02X (%d)", inputMID[spot + 4], inputMID[spot + 4]);
+				fprintf(outFile, " Sustain Level %02X (%d)", inputMID[spot + 5], inputMID[spot + 5]);
+				fprintf(outFile, " Release Rate %02X (%d)", inputMID[spot + 6], inputMID[spot + 6]);
+				spot += 7;
+			}
+			else if (command == 0x85)
+			{
+				//XX Master Track Tempo, 0x28 = 40, 0x78 = 120
+				fprintf(outFile, " Master Track Tempo");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x86)
+			{
+				//XXXX Set Release Time for upcoming notes
+				fprintf(outFile, " Set Release Time");
+				fprintf(outFile, " %04X (%d)", CharArrayToShort(&inputMID[spot]), CharArrayToShort(&inputMID[spot]));
+				spot+=2;
+			}
+			else if (command == 0x87)
+			{
+				//XX 01 Set Release Time back to full note (01)
+				fprintf(outFile, " Set Release Time Back to Full");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x88)
+			{
+				//XX YY ZZ Vibrato Up - Delay, Amount, Speed
+				fprintf(outFile, " Vibrato Up");
+				fprintf(outFile, " Delay %02X (%d) Amount %02X (%d) Speed %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot+=3;
+			}
+			else if (command == 0x89)
+			{
+				//XX YY ZZ Vibrato Down - Delay, Amount, Speed
+				fprintf(outFile, " Vibrato Down");
+				fprintf(outFile, " Delay %02X (%d) Amount %02X (%d) Speed %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot+=3;
+			}
+			else if (command == 0x8A)
+			{
+				//Solo
+				fprintf(outFile, " Solo");
+			}
+			else if (command == 0x8B)
+			{
+				//LL Set Length notes following and disable in list (variable time)
+				if ((sngStyle == SngStyle::Old) || (sngStyle == SngStyle::OldDD))
+				{
+					fprintf(outFile, " Set Length Notes and Disable in Note Format");
+					
+					definedLength = GetSngVariableLength(inputMID, spot);
+					if (definedLength == 0x00)
+					{
+						fprintf(outFile, " Disabled %02X (%d)", inputMID[spot], definedLength);
+						useDefinedLength = false;
+						spot++;
+					}
+					else if (definedLength < 0x80)
+					{
+						useDefinedLength = true;
+
+						fprintf(outFile, " Length %02X (%d)", inputMID[spot], definedLength);
+						spot++;
+					}
+					else
+					{
+						useDefinedLength = true;
+
+						fprintf(outFile, " Length %02X%02X (%d)", inputMID[spot], inputMID[spot+1], definedLength);
+						spot += 2;
+					}
+				}
+				else
+				{
+					fprintf(outFile, " Set Length Notes and Disable in Note Format");
+					useDefinedLength = true;
+					definedLength = GetSngVariableLength(inputMID, spot);
+					if (definedLength < 0x80)
+					{
+						fprintf(outFile, " Length %02X (%d)", inputMID[spot], definedLength);
+						spot++;
+					}
+					else
+					{
+						fprintf(outFile, " Length %02X%02X (%d)", inputMID[spot], inputMID[spot+1], definedLength);
+						spot += 2;
+					}
+				}
+			}
+			else if (command == 0x8D)
+			{
+				//XX Transpose, 00 default, 01, etc
+				fprintf(outFile, " Transpose");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], (signed char)inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x8F)
+			{
+				//XX Detune (signed)
+				fprintf(outFile, " Detune");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x90)
+			{
+				//XX ADSR SubIndex
+				fprintf(outFile, " ADSR Index");
+				fprintf(outFile, " %02X", inputMID[spot]);
+				fprintf(outFile, " Rate %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7], inputMID[adsrPointer + inputMID[spot] * 7]);
+				fprintf(outFile, " Start Level %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 1], inputMID[adsrPointer + inputMID[spot] * 7 + 1]);
+				fprintf(outFile, " Attack Rate %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 2], inputMID[adsrPointer + inputMID[spot] * 7 + 2]);
+				fprintf(outFile, " Peak Level %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 3], inputMID[adsrPointer + inputMID[spot] * 7 + 3]);
+				fprintf(outFile, " Decay Rate %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 4], inputMID[adsrPointer + inputMID[spot] * 7 + 4]);
+				fprintf(outFile, " Sustain Level %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 5], inputMID[adsrPointer + inputMID[spot] * 7 + 5]);
+				fprintf(outFile, " Release Rate %02X (%d)", inputMID[adsrPointer + inputMID[spot] * 7 + 6], inputMID[adsrPointer + inputMID[spot] * 7 + 6]);
+				spot++;
+			}
+			else if (command == 0x91)
+			{
+				//Envelope Trigger Off
+				fprintf(outFile, " Envelope Trigger Off");
+			}
+			else if (command == 0x92)
+			{
+				//Envelope Trigger On
+				fprintf(outFile, " Envelope Trigger On");
+			}
+			else if (command == 0x93)
+			{
+				//Sample Trigger Off
+				fprintf(outFile, " Sample Trigger Off");
+			}
+			else if (command == 0x94)
+			{
+				//Sample Trigger On
+				fprintf(outFile, " Sample Trigger On");
+			}
+			else if (command == 0x95)
+			{
+				//XX Loop Start FF Count?
+				fprintf(outFile, " Loop Start");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x96)
+			{
+				//Loop
+				fprintf(outFile, " Loop Back");
+				break;
+			}
+			else if (command == 0x97)
+			{
+				//XX YY ZZ Wobble - Offset, Transpose, Normal
+				fprintf(outFile, " Wobble");
+				fprintf(outFile, " Offset %02X (%d) Transpose %02X (%d) Normal %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot+=3;
+			}
+			else if (command == 0x98)
+			{
+				// ?
+				fprintf(outFile, " ?");
+			}
+			else if (command == 0x99)
+			{
+				useDefinedVelocity = false;
+				//Reenable velocity on notes
+				fprintf(outFile, " Reenable Velocity on Notes Format");
+			}
+			else if (command == 0x9A) // Old Style Only
+			{
+				// ?
+				useDefinedVelocity = true;
+				fprintf(outFile, " Enable Velocity Defined in Notes");
+			}
+			else if (command == 0x9B) // Old Style Only
+			{
+				// ?
+				fprintf(outFile, " Set Repeat Velocity");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				definedVelocity = inputMID[spot];
+				useDefinedVelocity = true;
+				spot++;
+			}
+			else if (command == 0x9C)
+			{
+				//XX Pan, 0x00
+				fprintf(outFile, " Pan");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0x9E)
+			{
+				//XX Drum map on
+				fprintf(outFile, " Drum Map Start Index");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				drumBankOffset = inputMID[spot];
+				spot++;
+			}
+			else if (command == 0x9F)
+			{
+				//Drum map off
+				drumBankOffset = -1;
+				fprintf(outFile, " Drum Map Off");
+			}
+			else if (command == 0xA2)
+			{
+				//XX Effect, 0x00
+				fprintf(outFile, " Effect");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xA3)
+			{
+				//XX YY ?
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xA3)
+			{
+				//XX YY Set Min/Max Transpose
+				fprintf(outFile, " Set Min/Max Tranpose");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA4)
+			{
+				//XX YY Set Min/Max Volume
+				fprintf(outFile, " Set Min/Max Volume");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA5)
+			{
+				//XX YY Set Min/Max Pan
+				fprintf(outFile, " Set Min/Max Pan");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command == 0xA6)
+			{
+				//XX Set Note Volume (Mini Style)
+				fprintf(outFile, " Set Note Volume (Mini Style)");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xA7)
+			{
+				//LL ?
+				fprintf(outFile, " Load Track #");
+				int length = GetSngVariableLength(inputMID, spot);
+
+				if (length < 0x80)
+				{
+					fprintf(outFile, " %02X (%d)\n", inputMID[spot], length);
+					spot++;
+				}
+				else
+				{
+					fprintf(outFile, " %02X%02X (%d)\n", inputMID[spot], inputMID[spot+1], length);
+					spot += 2;
+				}
+			}
+			else if (command == 0xA8)
+			{
+				//XX Pitch Bend
+				fprintf(outFile, " Pitch Bend");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xA9)
+			{
+				//XX Stereo Sweep Speed
+				fprintf(outFile, " Stereo Sweep Speed");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xAA)
+			{
+				//XX Master Track Effect 00 = None, 01 = Small Room, 02 = Big Room, 03 = Chorus, 04 = Flange, 05 = Echo
+				fprintf(outFile, " Master Track Effect");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				if (inputMID[spot] == 0)
+					fprintf(outFile, "None");
+				else if (inputMID[spot] == 1)
+					fprintf(outFile, "Small Room");
+				else if (inputMID[spot] == 2)
+					fprintf(outFile, "Big Room");
+				else if (inputMID[spot] == 3)
+					fprintf(outFile, "Chorus");
+				else if (inputMID[spot] == 4)
+					fprintf(outFile, "Flange");
+				else if (inputMID[spot] == 5)
+					fprintf(outFile, "Echo");
+				spot++;
+			}
+			else if (command == 0xAB)
+			{
+				//XX Master Track Sync - 1
+				fprintf(outFile, " Master Track Sync");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xAC)
+			{
+				// Reenable length on notes
+				useDefinedLength = false;
+				fprintf(outFile, " Reenable length on notes");
+			}
+			else if (command == 0xB0)
+			{
+				//XX ?
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else
+			{
+				fprintf(outFile, " UNKNOWN");
+				return;
+			}
+		}
+
+		fprintf(outFile, "\n");
+	}
+}
+
+void CMidiParse::KonamiTrackToDebugTextFile(FILE* outFile, unsigned char* inputMID, unsigned long offset, unsigned long end, ExtraGameMidiInfo extraGameMidiInfo, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, int highestTrackLength)
+{
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	unsigned char lastDuration = 0x00;
+	unsigned char lastLength = 0x00;
+
+	unsigned long absoluteTime = 0;
+
+	unsigned char loopAmountsLeft = 0x00;
+	unsigned long loopSpot = 0;
+	unsigned long loopEndSpot = 0;
+
+	unsigned char loopNestedAmountsLeft = 0x00;
+	unsigned long loopNestedSpot = 0;
+	unsigned long loopNestedEndSpot = 0;
+
+	unsigned long masterLoopMarkerStartOffset;
+	unsigned long masterLoopMarkerEndOffset;
+
+	int totalLoopsToOutputLeft = 0;
+	if (writeOutLoops)
+		totalLoopsToOutputLeft = loopWriteCount;
+
+	int currentEDOffset = 0;
+	int currentEEEndOffset = 0;
+	int eeCountOverall = 0;
+
+	while ((command != 0x80) && (spot < end))
+	{
+		if (extendTracksToHighest)
+		{
+			if (absoluteTime >= highestTrackLength)
+				break;
+		}
+
+		command = inputMID[spot];
+		
+		if (command < 0xD0)
+		{
+			if (command >= 0x68)
+			{
+				fprintf(outFile, "%08X Time: %08X NOTE   : %02X*", spot, absoluteTime, (command - 0x68));
+			}
+			else
+			{
+				fprintf(outFile, "%08X Time: %08X NOTE   : %02X ", spot, absoluteTime, command);
+			}
+		}
+		else
+			fprintf(outFile, "%08X Time: %08X Command: %02X ", spot, absoluteTime, command);
+		spot++;
+
+		if (command < 0xD0)
+		{
+			if ((command == 0x67) || (command == (0x67 + 0x68)))
+			{
+				fprintf(outFile, " Drum Instrument Lookup %02X (%d)",  inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+
+			if (command >= 0x68)
+			{
+				command -= 0x68;
+
+				fprintf(outFile, " [Repeated Duration %02X (%d)]",  lastDuration, lastDuration);
+			}
+			else
+			{
+				fprintf(outFile, " Duration %02X (%d)",  inputMID[spot], inputMID[spot]);
+				lastDuration = inputMID[spot];
+				spot++;
+			}
+
+			if (inputMID[spot] < 0x80)
+			{
+				fprintf(outFile, " Length %02X (%d) Velocity %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				lastLength = inputMID[spot];
+				spot += 2;
+			}
+			else
+			{
+				fprintf(outFile, " [Repeated Length %02X (%d)] Velocity %02X* (%d)", lastLength, lastLength, inputMID[spot] & 0x7F, inputMID[spot] & 0x7F);
+				spot++;
+			}
+
+			if (command < 0x48)
+			{
+				fprintf(outFile, " Keyboard");
+			}
+			else
+			{
+				if (command == 0x67)
+				{
+					fprintf(outFile, " Drums Instrument");
+				}
+				else
+				{
+					fprintf(outFile, " Drums");
+				}
+			}
+
+			absoluteTime += lastDuration;
+		}
+		else
+		{
+			if (command == 0xD0)
+			{
+				fprintf(outFile, " ((Tempo))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xD1)
+			{
+				fprintf(outFile, " ((Tempo Change Fade))");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD2)
+			{
+				fprintf(outFile, " ((Instrument Change))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xD3)
+			{
+				fprintf(outFile, " ((Instrument/Volume Change))");
+				fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD4)
+			{
+				fprintf(outFile, " ((Instrument/Volume/Pan Initial))");
+				fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d) Pan %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xD5)
+			{
+				fprintf(outFile, " ((Volume))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xD6)
+			{
+				fprintf(outFile, " ((Volume))");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD7)
+			{
+				fprintf(outFile, " ((Fade Out))");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD8)
+			{
+				fprintf(outFile, " ((Staccato))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xD9)
+			{
+				fprintf(outFile, " ((Section Hold Note))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xDA)
+			{
+				fprintf(outFile, " ((Reverb))");
+				fprintf(outFile, " Type/Separation %02X (%d) Amount %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xDB)
+			{
+				fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDC)
+			{
+				fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDD)
+			{
+				fprintf(outFile, " ((Pan))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xDE)
+			{
+				fprintf(outFile, " Stereo Pan");
+				fprintf(outFile, " Left %02X (%d) to Right %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xDF)
+			{
+				fprintf(outFile, " ((Coarse Tune))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xE0)
+			{
+				fprintf(outFile, " ((Fine Tune))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xE1)
+			{
+				fprintf(outFile, " ((Tremolo))");
+				fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE2) //Jikkyou Powerful Pro Yakyuu 2000 (J) (V1.0)
+			{
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xE3) // Start new game and let go to hit
+			{
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot += 3;
+			}
+			// E4??
+			else if (command == 0xE4) // Something weird about this, seems like a followup to a note, trying this for now
+			{
+				fprintf(outFile, " ((Pitch Bend Previous Note))");
+				fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE5) // No. 47 music
+			{
+				fprintf(outFile, " ((Pitch Ascend Next Note))");
+				fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE6)
+			{
+				fprintf(outFile, " ((Slide Notes in Section))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xE7)
+			{
+				loopSpot = spot - 1;
+				fprintf(outFile, " ((Marker))");
+			}
+			else if (command == 0xE8)
+			{
+				fprintf(outFile, " ((Loop from Marker))");
+				fprintf(outFile, " %02X (%d) Times %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				unsigned char readAmount = inputMID[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopEndSpot != spot)
+					{
+						loopEndSpot = spot;
+						spot = loopSpot;
+
+						loopAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopAmountsLeft--;
+
+						if (loopAmountsLeft > 0)
+						{
+							spot = loopSpot;
+						}
+						else
+						{
+							// Reset
+							loopEndSpot = 0;
+						}
+					}
+				}
+				else if (readAmount == 0x00)
+				{
+					// Similar to master loop
+
+					if (extendTracksToHighest)
+					{
+						fprintf(outFile, "...Extending Tracks to Highest, Going to %08X", loopSpot);
+						spot = loopSpot;
+					}
+					else if (totalLoopsToOutputLeft > 0)
+					{
+						fprintf(outFile, "...Master Loop, Going to %08X", loopSpot);
+						spot = loopSpot;
+						totalLoopsToOutputLeft--;
+					}
+				}
+			}
+			else if (command == 0xE9)
+			{
+				fprintf(outFile, " ((Nested Loop Marker))");
+				loopNestedSpot = spot - 1;
+			}
+			else if (command == 0xEA)
+			{
+				fprintf(outFile, " ((Nested Loop from Marker))");
+				fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				unsigned char readAmount = inputMID[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopNestedEndSpot != spot)
+					{
+						loopNestedEndSpot = spot;
+						spot = loopNestedSpot;
+
+						loopNestedAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopNestedAmountsLeft--;
+
+						if (loopNestedAmountsLeft > 0)
+						{
+							spot = loopNestedSpot;
+						}
+						else
+						{
+							// Reset
+							loopNestedEndSpot = 0;
+						}
+					}
+				}
+				else if (readAmount == 0x00)
+				{
+					// Similar to master loop
+
+					if (extendTracksToHighest)
+					{
+						fprintf(outFile, "...Extending Tracks to Highest, Going to %08X", loopNestedSpot);
+						spot = loopNestedSpot;
+					}
+					else if (totalLoopsToOutputLeft > 0)
+					{
+						fprintf(outFile, "...Master Loop, Going to %08X", loopNestedSpot);
+						spot = loopNestedSpot;
+						totalLoopsToOutputLeft--;
+					}
+				}
+			}
+			else if (command == 0xEB)
+			{
+				fprintf(outFile, " ((Master Loop Start))");
+
+				masterLoopMarkerStartOffset = spot;
+			}
+			else if (command == 0xEC)
+			{
+				fprintf(outFile, " ((Master Loop End))");
+
+				masterLoopMarkerEndOffset = spot - 1;
+
+				if (extendTracksToHighest)
+				{
+					fprintf(outFile, "...Extending Tracks to Highest, Going to %08X", masterLoopMarkerStartOffset);
+					spot = masterLoopMarkerStartOffset;
+				}
+				else if (totalLoopsToOutputLeft > 0)
+				{
+					fprintf(outFile, "...Master Loop, Going to %08X", masterLoopMarkerStartOffset);
+					spot = masterLoopMarkerStartOffset;
+					totalLoopsToOutputLeft--;
+				}
+			}
+			else if (command == 0xED)
+			{
+				fprintf(outFile, " ((Loop Skip Start))");
+				currentEDOffset = spot;
+				currentEEEndOffset = 0;
+
+				eeCountOverall = 0;
+			}
+			else if (command == 0xEE)
+			{
+				fprintf(outFile, " ((Loop Skip Middle))");
+
+				if (eeCountOverall == 0)
+				{
+					if (currentEEEndOffset != 0x00000000)
+					{
+						fprintf(outFile, "...Going to %08X", currentEEEndOffset);
+						spot = currentEEEndOffset;
+					}
+					
+					eeCountOverall = 1;
+				}
+				else if (eeCountOverall == 1)
+				{
+					currentEEEndOffset = spot;
+
+					spot = currentEDOffset;
+
+					eeCountOverall = 0;
+
+					fprintf(outFile, "...Going to %08X", currentEDOffset);
+				}
+			}
+			else if (command == 0xEF)
+			{
+				fprintf(outFile, " ((Effect Delay))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xF0)
+			{
+				fprintf(outFile, " ((Bank Select))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xF1)
+			{
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xF2)
+			{
+				fprintf(outFile, " ((Delay Note))");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				absoluteTime += inputMID[spot];
+				spot++;
+			}
+			else if (command == 0xF3)
+			{
+				fprintf(outFile, " ((Previous Note Hold))");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+
+				unsigned long noteDuration = inputMID[spot];;
+				unsigned long noteLength = inputMID[spot+1];
+
+				absoluteTime += noteDuration;
+
+				spot += 2;
+			}
+			// FA/FB Goemon's Great Adventure (U) - 0053D780, not sure if legit 
+			else if (command == 0xFA)
+			{
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xFB)
+			{
+				fprintf(outFile, " ?");
+				fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command >= 0xF4)
+			{
+				fprintf(outFile, " End");
+				break;
+			}
+			else
+			{
+				fprintf(outFile, " UNKNOWN");
+				return;
+			}
+		}
+
+		fprintf(outFile, "\n");
+	}
+}
+
+void CMidiParse::KonamiToDebugTextFile(unsigned char* ROM, int romSize, CString gameName, unsigned long address, CString midiFile, CString textFileOut, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long extra)
+{
+	CString filepath = midiFile;
+	
+	FILE* inFile = fopen(filepath, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Can't read input file " + filepath, "Error", NULL);
+		return;
+	}
+
+	fseek(inFile, 0, SEEK_END);
+	int inputSize = ftell(inFile);
+	rewind(inFile);
+
+	unsigned char* inputMID = new unsigned char[inputSize];
+
+	fread(inputMID, 1, inputSize, inFile);
+	fclose(inFile);
+
+	KonamiToDebugTextFile(ROM, romSize, gameName, address, inputMID, inputSize, textFileOut, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+
+	delete [] inputMID;
+}
+
+void CMidiParse::KonamiToDebugTextFile(unsigned char* ROM, int romSize, CString gameName, unsigned long address, byte* inputMID, int inputSize, CString textFileOut, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long extra)
+{
+	CString addressStr;
+	addressStr.Format("%08X", address);
+
+	int numberTracks = 0x0;
+
+	if (numberTracks == 0x0)
+	{
+		numberTracks = CharArrayToShort(&inputMID[0]) / 2;
+	}
+
+	FILE* outFile = fopen(textFileOut, "w");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+		return;
+	}
+
+	fprintf(outFile, gameName + " - " + addressStr + "\n");
+
+	int highestTrackLength = 0;
+
+	for (int x = 0; x < numberTracks; x++)
+	{
+		unsigned long trackDataPointer = CharArrayToShort(&inputMID[(x * 2)]);
+
+		if (trackDataPointer >= inputSize)
+		{
+			numberTracks = x;
+			break;
+		}
+
+		// Fake track
+		if ((x > 0) && (inputMID[trackDataPointer-1] != 0xFF))
+		{
+			break;
+		}
+
+		unsigned long trackEnd;
+
+		/*if (x < (numberTracks - 1))
+		{
+			trackEnd = CharArrayToShort(&inputMID[((x + 1) * 2)]);
+		}
+		else*/
+		{
+			trackEnd = inputSize;
+		}
+
+		int trackLength = FindHighestKonamiLengthTrack(x, inputMID, trackDataPointer, trackEnd);
+		if (trackLength > highestTrackLength)
+			highestTrackLength = trackLength;
+	}
+
+	for (int x = 0; x < numberTracks; x++)
+	{
+		unsigned long trackDataPointer = CharArrayToShort(&inputMID[(x * 2)]);
+
+		if (trackDataPointer >= inputSize)
+		{
+			numberTracks = x;
+			break;
+		}
+
+		// Fake track
+		if ((x > 0) && (inputMID[trackDataPointer-1] != 0xFF))
+		{
+			numberTracks = x;
+			break;
+		}
+
+		unsigned long trackEnd;
+		/*if (x < (numberTracks - 1))
+			trackEnd = CharArrayToShort(&inputMID[((x + 1) * 2)]);
+		else*/
+			trackEnd = inputSize;
+
+		fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X\n------------------------------------------------------\n", x + 1, trackDataPointer);
+
+
+
+		fprintf(outFile, "\nTrack Data\n");
+
+		KonamiTrackToDebugTextFile(outFile, inputMID, trackDataPointer, trackEnd, extraGameMidiInfo, writeOutLoops, loopWriteCount, extendTracksToHighest, highestTrackLength);
+	}
+
+	fclose(outFile);
+}
+
+void CMidiParse::WriteSngToMidiTrack(FILE* outFile, FILE* outDebug, std::vector<TrackEvent> trackEvents)
+{
+	unsigned long timeOffset = 0;
+
+	unsigned long sizeData = 0;
+	byte previousTrackEvent = 0x0;
+
+	
+	for (int eventCount = 0; eventCount < trackEvents.size(); eventCount++)
+	{
+		TrackEvent trackEvent =  trackEvents[eventCount];
+		if (trackEvent.obsoleteEvent)
+		{
+			timeOffset += trackEvent.deltaTime;
+		}
+		else
+		{
+			unsigned long lengthTimeDelta = 0;
+			unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
+			timeOffset = 0;
+
+			sizeData += lengthTimeDelta;
+
+
+			if ((trackEvent.type != previousTrackEvent) || (trackEvent.type >= 0xF0))
+			{
+				sizeData += 1;
+			}
+
+			sizeData += trackEvent.contentSize;
+
+			previousTrackEvent = trackEvent.type;
+		}
+	}
+
+	unsigned long tempLong = Flip32Bit(0x4D54726B);
+	fwrite(&tempLong, 1 ,4 , outFile);
+
+	tempLong = Flip32Bit(sizeData);
+	fwrite(&tempLong,1, 4, outFile);
+
+	timeOffset = 0;
+	previousTrackEvent = 0x0;
+
+	int currentPos = 0;
+	for (int eventCount = 0; eventCount < trackEvents.size(); eventCount++)
+	{
+		TrackEvent trackEvent = trackEvents[eventCount];
+
+		if (trackEvent.obsoleteEvent)
+		{
+			timeOffset += trackEvent.deltaTime;
+		}
+		else
+		{
+			unsigned long lengthTimeDelta = 0;
+			unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
+			timeOffset = 0;
+			WriteVLBytes(outFile, timeDelta, lengthTimeDelta, false);
+
+			if (outDebug != NULL)
+				fprintf(outDebug, "Offset %08X Time Length %02X Time Value %08X Delta Time %d ", currentPos, lengthTimeDelta, timeDelta, trackEvent.deltaTime);
+
+			currentPos += lengthTimeDelta;
+
+			if ((trackEvent.type != previousTrackEvent) || (trackEvent.type >= 0xF0))
+			{
+				fwrite(&trackEvent.type, 1, 1, outFile);
+
+				if (outDebug != NULL)
+					fprintf(outDebug, " Write Type %02X", trackEvent.type);
+				currentPos++;
+			}
+
+			fwrite(trackEvent.contents, 1, trackEvent.contentSize, outFile);
+
+			if (outDebug != NULL)
+				fprintf(outDebug, " Content Size %02X ", trackEvent.contentSize);
+
+			if (outDebug != NULL)
+			{
+				for (int r = 0; r < trackEvent.contentSize; r++)
+				{
+					fprintf(outDebug, "%02X", trackEvent.contents[r]);
+				}
+			}
+
+			if (outDebug != NULL)
+				fprintf(outDebug, "\n");
+
+			currentPos += trackEvent.contentSize;
+
+			previousTrackEvent = trackEvent.type;
+		}
+	}
+}
+
+void CMidiParse::SngToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, unsigned long extra)
+{
+	numberInstruments = 1;
+	int noteUniqueId = 0;
+	std::vector<TimeAndValue> tempoPositions;
+
+	try
+	{
+		std::vector<SngNoteInfo> sngNoteList;
+		
+		if (inputMID[0x0] == 0x80) // Ptr Sng
+		{
+			unsigned long startDataNegative = (signed long)inputSize;
+			unsigned long initialPointer = extra;
+
+			unsigned long numberTracks = 0;
+			
+			int pointerSpot = 0;
+			while (inputMID[pointerSpot] == 0x80)
+			{
+				numberTracks++;
+				pointerSpot += 4;
+			}
+
+
+			unsigned long adsrPointer = 0x00000000;
+			unsigned long drumPointer = 0x00000000;
+
+			unsigned long instrumentPointer = 0x00000000;
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[(x * 4)]) - initialPointer;
+				
+				unsigned long trackEnd = 0x00000000;
+				if (x < (numberTracks - 1))
+				{
+					trackEnd = CharArrayToLong(&inputMID[((x + 1) * 4)]) - initialPointer;
+				}
+				else
+				{
+					trackEnd = inputSize;
+				}
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID + (signed long)startDataNegative, trackDataPointer, trackEnd, NULL, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::PtrBfx, noteUniqueId, -1);
+			}
+		}
+		// Second check to avoid false positive of bfx, if count is 0x215, Mario Golf E
+		else if ((CharArrayToLong(&inputMID[0x0]) == 0x00000215) && (CharArrayToLong(&inputMID[0x4]) != 0x00000215)) // Binary Sng style
+		{
+			// parse sng
+			
+
+			unsigned long numberTracks = CharArrayToLong(&inputMID[0x4]);
+			unsigned long totalInstruments = CharArrayToLong(&inputMID[0x8]);
+			unsigned long trackPointer = CharArrayToLong(&inputMID[0xC]);
+			unsigned long volumePointer = CharArrayToLong(&inputMID[0x10]);
+			unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0x14]);
+			unsigned long adsrPointer = CharArrayToLong(&inputMID[0x18]);
+			unsigned long drumPointer = CharArrayToLong(&inputMID[0x1C]);
+
+			unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x20]);
+			unsigned long masterTrackPointer = CharArrayToLong(&inputMID[0x24]);
+
+			unsigned short* instrumentLookup = new unsigned short[totalInstruments];
+			for (int x = 0; x < totalInstruments; x++)
+			{
+				instrumentLookup[x] = CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]);
+
+				if (instrumentLookup[x] > numberInstruments)
+				{
+					numberInstruments = instrumentLookup[x] + 1;
+				}
+			}
+
+			if (calculateInstrumentCountOnly)
+			{
+				delete [] instrumentLookup;
+				return;
+			}
+
+			
+			std::vector<SngTimeValue> masterVolumeByAbsoluteTime;
+			std::vector<SngTimeValue> masterPitchBendByAbsoluteTime;
+
+			unsigned long trackDataPointerFirst = CharArrayToLong(&inputMID[trackPointer]);
+			ParseSngTrack(-1, numberInstruments, tempoPositions, sngNoteList, inputMID, masterTrackPointer, trackDataPointerFirst, instrumentLookup, adsrPointer, drumPointer, masterVolumeByAbsoluteTime, masterPitchBendByAbsoluteTime, SngStyle::Normal, noteUniqueId, totalInstruments);
+
+
+
+
+
+
+
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+				unsigned long volumeEnd = 0;
+
+				if (volumeDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+				
+						if (volumeDataPointerTest != 0)
+						{
+							volumeEnd = volumeDataPointerTest;
+							break;
+						}
+					}
+
+					if (volumeEnd == 0)
+					{
+						volumeEnd = masterTrackPointer;
+					}
+				}
+
+				unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+				unsigned long pitchBendEnd = 0;
+
+				if (pitchBendDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+				
+						if (pitchBendDataPointerTest != 0)
+						{
+							pitchBendEnd = pitchBendDataPointerTest;
+							break;
+						}
+					}
+
+					if (pitchBendEnd == 0)
+					{
+						pitchBendEnd = masterTrackPointer;
+					}
+				}
+
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+				unsigned long trackEnd = inputSize;
+				if (x < (numberTracks - 1))
+					trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+
+
+				//fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				if (volumeDataPointer != 0)
+				{
+					//fprintf(outFile, "\nVolume\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = volumeDataPointer;
+					while (spot < volumeEnd)
+					{
+						unsigned char volume = inputMID[spot];
+						bool singleLength = !(volume & 0x80);
+
+						volume = volume & 0x7F;
+						spot++;
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x80)
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+						}
+
+						SngTimeValue volumePair;
+						volumePair.value = volume;
+						volumePair.startAbsoluteTime = absoluteTime;
+						volumePair.endAbsoluteTime = absoluteTime + length;
+						volumeByAbsoluteTime.push_back(volumePair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				if (pitchBendDataPointer != 0)
+				{
+					//fprintf(outFile, "\nPitch Bend\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = pitchBendDataPointer;
+					while (spot < pitchBendEnd)
+					{
+						unsigned char pitchBend = inputMID[spot];
+						bool singleLength = !(pitchBend & 0x80);
+
+						pitchBend = pitchBend & 0x7F;
+						spot++;
+
+						
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x80)
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+						}
+
+						SngTimeValue pitchBendPair;
+						pitchBendPair.value = pitchBend;
+						pitchBendPair.startAbsoluteTime = absoluteTime;
+						pitchBendPair.endAbsoluteTime = pitchBendPair.startAbsoluteTime + length;
+						pitchBendByAbsoluteTime.push_back(pitchBendPair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+				//fprintf(outFile, "\nTrack Data\n");
+
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, instrumentLookup, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::Normal, noteUniqueId, totalInstruments);
+			}
+
+			delete [] instrumentLookup;
+		}
+		else if (CharArrayToLong(&inputMID[0x4]) == 0x00000000) // Pokemon Stadium, some Sngs for some reason
+		{
+			unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+			unsigned long volumePointer = CharArrayToLong(&inputMID[0x8]);
+			unsigned long trackPointer = CharArrayToLong(&inputMID[0xC]);
+			unsigned long adsrPointer = 0x00000000;
+			unsigned long drumPointer = 0x00000000;
+
+			unsigned long instrumentPointer = 0x00000000;
+			
+			//FILE* outFile = fopen("C:\\temp\\trackparse.txt", "w");
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+				
+				unsigned long trackEnd = 0x00000000;
+				if (trackDataPointer != 0x00000000)
+				{
+					if (x < (numberTracks - 1))
+					{
+						trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+						if (trackEnd == 0x00000000)
+							trackEnd = inputSize;
+					}
+					else
+					{
+						trackEnd = inputSize;
+					}
+				}
+
+				unsigned long priorityDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+
+
+				//fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume Data %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumePointer + (x * 4), volumeDataPointer);
+
+				//fprintf(outFile, "\nTrack Data\n");
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, NULL, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::OldBfx, noteUniqueId, -1);
+			}
+		}
+		else if (CharArrayToLong(&inputMID[0xC]) == 0x00000000) // BFX
+		{
+			unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+			unsigned long trackPointer = 0x18;
+
+			unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x14]);
+			int totalInstruments = (inputSize - instrumentPointer) / 0x4;
+			unsigned long adsrPointer = 0x00000000;
+			unsigned long drumPointer = 0x00000000;
+
+			unsigned short* instrumentLookup = new unsigned short[totalInstruments];
+			for (int x = 0; x < totalInstruments; x++)
+			{
+				instrumentLookup[x] = CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]);
+
+				if (instrumentLookup[x] > numberInstruments)
+				{
+					numberInstruments = instrumentLookup[x] + 1;
+				}
+			}
+
+			if (calculateInstrumentCountOnly)
+			{
+				delete [] instrumentLookup;
+				return;
+			}
+			//FILE* outFile = fopen("C:\\temp\\trackparse.txt", "w");
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 8)]);
+				
+				unsigned long trackEnd = 0x00000000;
+				if (trackDataPointer != 0x00000000)
+				{
+					if (x < (numberTracks - 1))
+					{
+						trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 8)]);
+
+						if (trackEnd == 0x00000000)
+							trackEnd = inputSize;
+					}
+					else
+					{
+						trackEnd = inputSize;
+					}
+				}
+
+				unsigned long priorityDataPointer = CharArrayToLong(&inputMID[trackDataPointer + (x * 8) + 4]);
+
+
+				//fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume Data %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumePointer + (x * 4), volumeDataPointer);
+
+				//fprintf(outFile, "\nTrack Data\n");
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, instrumentLookup, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::Bfx, noteUniqueId, totalInstruments);
+			}
+
+			delete [] instrumentLookup;
+		}
+		else if (CharArrayToLong(&inputMID[0x8]) == 0x00000020) // N64 DD Style
+		{
+			unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+			unsigned long totalInstruments = CharArrayToLong(&inputMID[0x4]);
+			unsigned long trackPointer = CharArrayToLong(&inputMID[0x8]);
+			unsigned long volumePointer = CharArrayToLong(&inputMID[0xC]);
+			unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0x10]);
+			unsigned long adsrPointer = CharArrayToLong(&inputMID[0x14]);
+			unsigned long drumPointer = CharArrayToLong(&inputMID[0x18]);
+			unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x1C]);
+
+			unsigned short* instrumentLookup = new unsigned short[totalInstruments];
+			for (int x = 0; x < totalInstruments; x++)
+			{
+				instrumentLookup[x] = CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]);
+
+				if (instrumentLookup[x] > numberInstruments)
+				{
+					numberInstruments = instrumentLookup[x] + 1;
+				}
+			}
+
+			if (calculateInstrumentCountOnly)
+			{
+				delete [] instrumentLookup;
+				return;
+			}
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+				unsigned long volumeEnd = 0;
+
+				if (volumeDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+				
+						if (volumeDataPointerTest != 0)
+						{
+							volumeEnd = volumeDataPointerTest;
+							break;
+						}
+					}
+
+					if (volumeEnd == 0)
+					{
+						volumeEnd = CharArrayToLong(&inputMID[trackPointer]);
+					}
+				}
+
+				unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+				unsigned long pitchBendEnd = 0;
+
+				if (pitchBendDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+				
+						if (pitchBendDataPointerTest != 0)
+						{
+							pitchBendEnd = pitchBendDataPointerTest;
+							break;
+						}
+					}
+
+					if (pitchBendEnd == 0)
+					{
+						pitchBendEnd = CharArrayToLong(&inputMID[trackPointer]);
+					}
+				}
+
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+				unsigned long trackEnd = 0x00000000;
+				if (trackDataPointer != 0x00000000)
+				{
+					if (x < (numberTracks - 1))
+					{
+						trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+						if (trackEnd == 0x00000000)
+							trackEnd = inputSize;
+					}
+					else
+					{
+						trackEnd = inputSize;
+					}
+				}
+
+
+
+				//fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				if (volumeDataPointer != 0)
+				{
+					//fprintf(outFile, "\nVolume\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = volumeDataPointer;
+					while (spot < volumeEnd)
+					{
+						unsigned char volume = inputMID[spot];
+						bool singleLength = !(volume & 0x80);
+
+						volume = volume & 0x7F;
+						spot++;
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x80)
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+						}
+
+						SngTimeValue volumePair;
+						volumePair.value = volume;
+						volumePair.startAbsoluteTime = absoluteTime;
+						volumePair.endAbsoluteTime = absoluteTime + length;
+						volumeByAbsoluteTime.push_back(volumePair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				if (pitchBendDataPointer != 0)
+				{
+					//fprintf(outFile, "\nPitch Bend\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = pitchBendDataPointer;
+					while (spot < pitchBendEnd)
+					{
+						unsigned char pitchBend = inputMID[spot];
+						bool singleLength = !(pitchBend & 0x80);
+
+						pitchBend = pitchBend & 0x7F;
+						spot++;
+
+						
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x80)
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+						}
+
+						SngTimeValue pitchBendPair;
+						pitchBendPair.value = pitchBend;
+						pitchBendPair.startAbsoluteTime = absoluteTime;
+						pitchBendPair.endAbsoluteTime = pitchBendPair.startAbsoluteTime + length;
+						pitchBendByAbsoluteTime.push_back(pitchBendPair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+				//fprintf(outFile, "\nTrack Data\n");
+
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, instrumentLookup, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::Normal, noteUniqueId, totalInstruments);
+			}
+
+			delete [] instrumentLookup;
+		}
+		else // Old Style
+		{
+			unsigned long numberTracks = CharArrayToLong(&inputMID[0x0]);
+			//unsigned long numberInstruments = CharArrayToLong(&inputMID[0x8]);
+			unsigned long trackPointer = CharArrayToLong(&inputMID[0x4]);
+			unsigned long volumePointer = CharArrayToLong(&inputMID[0x8]);
+			unsigned long pitchBendPointer = CharArrayToLong(&inputMID[0xC]);
+			unsigned long drumPointer = CharArrayToLong(&inputMID[0x10]);
+			unsigned long adsrPointer = CharArrayToLong(&inputMID[0x14]);
+
+			//unsigned long instrumentPointer = CharArrayToLong(&inputMID[0x20]);
+			unsigned long instrumentPointer = 0x00000000;
+			
+			//FILE* outFile = fopen("C:\\temp\\trackparse.txt", "w");
+
+			/*//fprintf(outFile, "Instruments: %08X\n", instrumentPointer);
+			for (int x = 0; x < numberInstruments; x++)
+			{
+				//fprintf(outFile, "%02X: %04X\n", x, CharArrayToShort(&inputMID[instrumentPointer + (2 * x)]));
+			}
+
+			//fprintf(outFile, "\n\n---------------------------\nMaster Track: %08X\n---------------------------\n", masterTrackPointer);
+
+			unsigned long trackDataPointerFirst = CharArrayToLong(&inputMID[trackPointer]);
+			SngTrackToDebugTextFile(outFile, inputMID, masterTrackPointer, trackDataPointerFirst, instrumentPointer, adsrPointer, drumPointer);
+			*/
+
+			unsigned long tempo = 0;
+
+			for (int x = 0; x < numberTracks; x++)
+			{
+				unsigned long trackDataPointer = CharArrayToLong(&inputMID[trackPointer + (x * 4)]);
+
+				unsigned long volumeDataPointer = CharArrayToLong(&inputMID[volumePointer + (x * 4)]);
+				unsigned long volumeEnd = 0;
+
+				unsigned long pitchBendDataPointer = CharArrayToLong(&inputMID[pitchBendPointer + (x * 4)]);
+				unsigned long pitchBendEnd = 0;
+
+				std::vector<SngTimeValue> volumeByAbsoluteTime;
+				if (volumeDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long volumeDataPointerTest = CharArrayToLong(&inputMID[volumePointer + (y * 4)]);
+				
+						if (volumeDataPointerTest != 0)
+						{
+							volumeEnd = volumeDataPointerTest;
+							break;
+						}
+					}
+
+					if (volumeEnd == 0)
+					{
+						if (pitchBendDataPointer != 0)
+						{
+							for (int y = 0; y < numberTracks; y++)
+							{
+								unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+
+								if (pitchBendDataPointerTest != 0)
+								{
+									volumeEnd = pitchBendDataPointerTest;
+									break;
+								}
+							}
+						}
+
+						if (volumeEnd == 0)
+						{
+							// First track
+							volumeEnd = CharArrayToLong(&inputMID[trackPointer]);;
+						}
+					}
+				}
+
+				std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+				if (pitchBendDataPointer != 0)
+				{
+					for (int y = (x + 1); y < numberTracks; y++)
+					{
+						unsigned long pitchBendDataPointerTest = CharArrayToLong(&inputMID[pitchBendPointer + (y * 4)]);
+				
+						if (pitchBendDataPointerTest != 0)
+						{
+							pitchBendEnd = pitchBendDataPointerTest;
+							break;
+						}
+					}
+
+					if (pitchBendEnd == 0)
+					{
+						pitchBendEnd = CharArrayToLong(&inputMID[trackPointer]);
+					}
+				}
+
+				
+				unsigned long trackEnd = 0x00000000;
+				if (trackDataPointer != 0x00000000)
+				{
+					if (x < (numberTracks - 1))
+					{
+						trackEnd = CharArrayToLong(&inputMID[trackPointer + ((x + 1) * 4)]);
+
+						if (trackEnd == 0x00000000)
+							trackEnd = inputSize;
+					}
+					else
+					{
+						trackEnd = inputSize;
+					}
+				}
+
+
+				//fprintf(outFile, "\n\n------------------------------------------------------\nTrack %d: %08X Volume Start %08X Volume End %08X\n------------------------------------------------------\n", x + 1, trackDataPointer, volumeDataPointer, volumeEnd);
+
+				if (volumeDataPointer != 0)
+				{
+					//fprintf(outFile, "\nVolume\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = volumeDataPointer;
+					while (spot < volumeEnd)
+					{
+						unsigned char volume = inputMID[spot];
+						bool singleLength = !(volume & 0x80);
+
+						volume = volume & 0x7F;
+						spot++;
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x82)
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X Volume %02X Length %02X%02X (%d)\n", spot-1, absoluteTime, volume, inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X Volume %02X Length 01*\n", spot-1, absoluteTime, volume);
+						}
+
+						SngTimeValue volumePair;
+						volumePair.value = volume;
+						volumePair.startAbsoluteTime = absoluteTime;
+						volumePair.endAbsoluteTime = absoluteTime + length;
+						volumeByAbsoluteTime.push_back(volumePair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+
+				if (pitchBendDataPointer != 0)
+				{
+					//fprintf(outFile, "\nPitch Bend\n");
+					unsigned long absoluteTime = 0;
+					unsigned long spot = pitchBendDataPointer;
+					while (spot < pitchBendEnd)
+					{
+						unsigned char pitchBend = inputMID[spot];
+						bool singleLength = !(pitchBend & 0x80);
+
+						pitchBend = pitchBend & 0x7F;
+						spot++;
+
+						int length = 1;
+						if (!singleLength)
+						{
+							length = GetSngVariableLength(inputMID, spot) + 2;
+
+							if (length < 0x82)
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], length);
+								spot++;
+							}
+							else
+							{
+								//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length %02X%02X (%d)\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40), inputMID[spot], inputMID[spot+1], length);
+								spot += 2;
+							}
+						}
+						else
+						{
+							//fprintf(outFile, "%08X Time: %08X PitchBend %02X (%d) Length 01*\n", spot-1, absoluteTime, pitchBend, (signed char)(pitchBend - 0x40));
+						}
+
+						SngTimeValue pitchBendPair;
+						pitchBendPair.value = pitchBend;
+						pitchBendPair.startAbsoluteTime = absoluteTime;
+						pitchBendPair.endAbsoluteTime = pitchBendPair.startAbsoluteTime + length;
+						pitchBendByAbsoluteTime.push_back(pitchBendPair);
+
+						absoluteTime += length;
+					}
+				}
+
+
+				//fprintf(outFile, "\nTrack Data\n");
+
+				ParseSngTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, NULL, adsrPointer, drumPointer, volumeByAbsoluteTime, pitchBendByAbsoluteTime, SngStyle::Old, noteUniqueId, -1);
+			}
+
+			//fclose(outFile);
+		}
+
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
+	}
+}
+
+bool CMidiParse::IsOverlap(float x1, float x2, float y1, float y2)
+{
+	return x2 > y1 && y2 > x1;
+}
+
+int CMidiParse::GetSizeFile(CString filename)
+{
+	FILE* inFile = fopen(filename, "rb");
+	
+	if (inFile == 0)
+		return 0;
+
+	fseek(inFile, 0, SEEK_END);
+	int fileSize = ftell(inFile);
+	fclose(inFile);
+	return fileSize;
+}
+
+bool CMidiParse::MidiToSngList(CString input, std::vector<SngNoteInfoMidiImport>& sngNoteList, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfoMidiImport> channels[MAXCHANNELS], int& numChannels, std::vector<int>& instruments, int& lowestAbsoluteTime, int& highestAbsoluteTime, bool loop, int loopPoint)
+{
+	numChannels = 0;
+	lowestAbsoluteTime = 0x7FFFFFFF;
+	highestAbsoluteTime = 0;
+
+	int noteUniqueId = 0;
+
+	numberTracks = 0;
+
+	
+
+	std::vector<CString> inputMidiNames;
+	inputMidiNames.push_back(input);
+
+	int checkAdditional = 1;
+	while (true)
+	{
+		CString midiNameStr = input;
+		bool isMidiExtension = false;
+
+		int indexEnd = midiNameStr.ReverseFind('.');
+		if (indexEnd == -1)
+			break;
+
+		CString extension = midiNameStr.Mid(indexEnd);
+		if (extension == ".midi")
+		{
+			midiNameStr = midiNameStr.Mid(0, indexEnd);
+			isMidiExtension = true;
+		}
+		else if (extension == ".mid")
+		{
+			midiNameStr = midiNameStr.Mid(0, indexEnd);
+		}
+		else
+		{
+			break;
+		}
+
+		CString tempStr;
+		tempStr.Format("%d", checkAdditional);
+		
+		midiNameStr += "_AdditionalPart" + tempStr;
+		if (isMidiExtension)
+			midiNameStr += ".midi";
+		else
+			midiNameStr += ".mid";
+
+		if (GetSizeFile(midiNameStr) == 0)
+			break;
+		else if (checkAdditional == 1)
+		{
+			int iResults = MessageBox(NULL, "Do you want to incorporate the additional midi portions automatically found using the _AdditionalPart[#].mid", "Do you want to use additional midi portions?", MB_YESNO);
+			if (iResults == IDNO)
+				break;
+		}
+
+		inputMidiNames.push_back(midiNameStr);
+		checkAdditional++;
+	}
+
+	int trackOffset = 0;
+
+	for (int portion = 0; portion < inputMidiNames.size(); portion++)
+	{
+		CString tempFileName = inputMidiNames[portion];
+
+		struct stat results;
+		stat(tempFileName, &results);		
+
+		FILE* inFile1 = fopen(tempFileName, "rb");
+		if (inFile1 == NULL)
+		{
+			MessageBox(NULL, "Error reading file", "Error", NULL);
+			return false;
+		}	
+
+		byte* inputMID = new byte[results.st_size];
+		fread(inputMID, 1, results.st_size, inFile1);
+		fclose(inFile1);
+
+		unsigned long header = CharArrayToLong(&inputMID[0]);
+
+		if (header != 0x4D546864)
+		{
+			delete [] inputMID;
+			MessageBox(NULL, "Invalid midi hdr", "Error", NULL);
+			return false;
+		}
+
+		unsigned long headerLength = CharArrayToLong(&inputMID[4]);
+
+		unsigned short type = CharArrayToShort(&inputMID[8]);
+		unsigned short numTracks = CharArrayToShort(&inputMID[0xA]);
+		unsigned short division = CharArrayToShort(&inputMID[0xC]);
+
+		float noteTimeDivisor = division / 0x30;
+
+		if (type == 0)
+		{
+			
+		}
+		else if (type == 1)
+		{
+
+		}
+		else
+		{
+			delete [] inputMID;
+
+			MessageBox(NULL, "Invalid midi type", "Error", NULL);
+			return false;
+		}
+
+
+
+		int position = 0xE;
+
+		byte* repeatPattern = NULL;
+		byte altOffset = 0;
+		byte altLength = 0;
+
+		bool unknownsHit = false;
+		for (int trackNum = 0; trackNum < numTracks; trackNum++)
+		{
+			std::vector<SngNoteInfoMidiImport> pendingNoteList;
+
+			unsigned char currentPan[0x10];
+			unsigned char currentVolume[0x10];
+			unsigned char currentReverb[0x10];
+			signed char currentPitchBend[0x10];
+
+			unsigned char currentMSBBank[0x10];
+			unsigned char currentLSBBank[0x10];
+			unsigned char currentInstrument[0x10];
+
+			// Controllers defaults
+			for (int x = 0; x < 0x10; x++)
+			{
+				currentPan[x] = 0x40;
+				currentVolume[x] = 0x7F;
+				currentReverb[x] = 0x00;
+				currentInstrument[x] = 0x00;
+				currentPitchBend[x] = 0x40;
+
+				currentMSBBank[x] = 0x00;
+				currentLSBBank[x] = 0x00;
+				currentInstrument[x] = 0x00;
+			}
+
+			unsigned long absoluteTime = 0;
+			float absoluteTimeFloat = 0;
+
+			unsigned long trackHeader = ((((((inputMID[position] << 8) | inputMID[position+1]) << 8) | inputMID[position+2]) << 8) | inputMID[position+3]);
+			if (trackHeader != 0x4D54726B)
+			{
+				delete [] inputMID;
+
+				MessageBox(NULL, "Invalid track midi hdr", "Error", NULL);
+				return false;
+			}
+			
+			unsigned long trackLength = ((((((inputMID[position+4] << 8) | inputMID[position+5]) << 8) | inputMID[position+6]) << 8) | inputMID[position+7]);
+
+			position += 8;
+
+			byte previousEventValue = 0xFF;
+
+			bool endFlag = false;
+
+			while (!endFlag && (position < results.st_size))
+			{
+				unsigned long original;
+				unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+				absoluteTimeFloat += (float)timeTag / noteTimeDivisor;
+				
+				absoluteTime = absoluteTimeFloat;
+
+				byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				bool statusBit = false;
+
+				if (eventVal <= 0x7F)
+				{
+					// continuation
+					statusBit = true;
+				}
+				else
+				{
+					statusBit = false;
+				}
+
+				if (eventVal == 0xFF) // meta event
+				{
+					byte subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					if (subType == 0x2F) //End of Track Event.
+					{
+						endFlag = true;
+
+						unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);  // end 00 in real mid
+					}
+					else if (subType == 0x51) //Set Tempo Event.
+					{
+						unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+						unsigned char byteData[3];
+						byteData[0] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						byteData[1] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						byteData[2] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+						unsigned long microSecondsSinceQuarterNote = ((((byteData[0] << 8) | byteData[1]) << 8) | byteData[2]);
+						unsigned long tempTempo = 60000000.0 / microSecondsSinceQuarterNote;
+
+						if (tempTempo > 255)
+							tempTempo = 255;
+						else if (tempTempo < 1)
+							tempTempo = 1;
+						else
+							tempTempo = (unsigned char)tempTempo;
+
+						bool matchTempo = false;
+						for (int y = 0; y < tempoPositions.size(); y++)
+						{
+							if (tempoPositions[y].absoluteTime == absoluteTime)
+							{
+								matchTempo = true;
+							}
+						}
+
+						if (!matchTempo)
+						{
+							tempoPositions.push_back(TimeAndValue(absoluteTime, tempTempo));
+						}
+					}
+					//Various Unused Meta Events.
+					else if ((subType < 0x7F) && !(subType == 0x51 || subType == 0x2F))
+					{
+						//newTrackEvent->type = 0xFF;
+						unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+						for (int i = 0; i < length; i++)
+							ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					}
+					else if (subType == 0x7F) //Unused Sequencer Specific Event.
+					{
+						//newTrackEvent->type = 0xFF;
+						int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+						// subtract length
+						for (int i = 0; i < length; i++)
+						{
+							ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						}
+					}
+
+					previousEventValue = eventVal;
+				}
+				// Note off
+				else if ((eventVal >= 0x80 && eventVal < 0x90) || (statusBit && (previousEventValue >= 0x80 && previousEventValue < 0x90)))
+				{
+					byte curEventVal;
+
+					byte noteNumber;
+					if (statusBit)
+					{
+						noteNumber = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+					byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					int controller = (curEventVal & 0xF);
+
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+							continue;
+
+						// Go backwards in list
+						if (pendingNoteList[p].noteNumber == noteNumber)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+							// Promote to regular
+							sngNoteList.push_back(pendingNoteList[p]);
+
+							pendingNoteList.erase(pendingNoteList.begin() + p);
+							break;
+						}
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90 && previousEventValue < 0xA0)))
+				{
+					byte curEventVal;
+
+					byte noteNumber;
+					if (statusBit)
+					{
+						noteNumber = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+					byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					int controller = (curEventVal & 0xF);
+
+					if (velocity == 0)
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+								continue;
+
+							// Go backwards in list
+							if (pendingNoteList[p].noteNumber == noteNumber)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+								// Promote to regular
+								sngNoteList.push_back(pendingNoteList[p]);
+
+								pendingNoteList.erase(pendingNoteList.begin() + p);
+								break;
+							}
+						}
+					}
+					else
+					{
+						// If wasn't shut off, turn it off from before, then start new note
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+								continue;
+
+							// Go backwards in list
+							if (pendingNoteList[p].noteNumber == noteNumber)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+								// Promote to regular
+								sngNoteList.push_back(pendingNoteList[p]);
+
+								pendingNoteList.erase(pendingNoteList.begin() + p);
+								break;
+							}
+						}
+
+						SngNoteInfoMidiImport newSongInfo;
+						newSongInfo.originalController = controller + (portion * 0x10);
+						newSongInfo.originalTrack = trackNum + trackOffset;
+						newSongInfo.originalNoteUniqueId = noteUniqueId++;
+						newSongInfo.noteNumber = noteNumber;
+						newSongInfo.velocity = velocity;
+						// Apply tempo later as master track
+						//newSongInfo.tempo = currentTempo;
+						newSongInfo.pan = currentPan[controller];
+						newSongInfo.volume = currentVolume[controller];
+						newSongInfo.effect = currentReverb[controller];
+						newSongInfo.instrument = currentInstrument[controller] + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+						newSongInfo.pitchBend = currentPitchBend[controller];
+						newSongInfo.startAbsoluteTime = absoluteTime;
+						pendingNoteList.push_back(newSongInfo);
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xB0) && (eventVal < 0xC0))  || (statusBit && (previousEventValue >= 0xB0 && previousEventValue < 0xC0))) // controller change
+				{
+					byte controllerType;
+					unsigned char curEventVal;
+
+					if (statusBit)
+					{
+						controllerType = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+
+					int controller = (curEventVal & 0xF);
+
+					byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					if (controllerType == 0) // MSB Instrument Bank
+					{
+						currentMSBBank[controller] = controllerValue;	
+					}
+					else if (controllerType == 7) // Volume
+					{
+						if (controllerValue != currentVolume[controller])
+						{
+							for (int p = 0; p < pendingNoteList.size(); p++)
+							{
+								if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+									continue;
+
+								// Reopen
+								if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+								{
+									pendingNoteList[p].endAbsoluteTime = absoluteTime;
+						
+									// Promote to regular
+									sngNoteList.push_back(pendingNoteList[p]);
+
+									// Reset
+									pendingNoteList[p].startAbsoluteTime = absoluteTime;
+									pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+								}
+								
+								pendingNoteList[p].volume = controllerValue;
+							}
+						}
+
+						currentVolume[controller] = controllerValue;	
+					}
+					else if (controllerType == 10) // Pan
+					{
+						if (controllerValue != currentPan[controller])
+						{
+							for (int p = 0; p < pendingNoteList.size(); p++)
+							{
+								if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+									continue;
+
+								// Reopen
+								if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+								{
+									pendingNoteList[p].endAbsoluteTime = absoluteTime;
+						
+									// Promote to regular
+									sngNoteList.push_back(pendingNoteList[p]);
+
+									// Reset
+									pendingNoteList[p].startAbsoluteTime = absoluteTime;
+									pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+								}
+								
+								pendingNoteList[p].pan = controllerValue;
+							}
+						}
+
+						currentPan[controller] = controllerValue;
+					}
+					else if (controllerType == 32) // LSB Instrument Bank
+					{
+						currentLSBBank[controller] = controllerValue;	
+					}
+					else if (controllerType == 91) // Reverb
+					{
+						if (controllerValue != currentReverb[controller])
+						{
+							for (int p = 0; p < pendingNoteList.size(); p++)
+							{
+								if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+									continue;
+
+								// Reopen
+								if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+								{
+									pendingNoteList[p].endAbsoluteTime = absoluteTime;
+						
+									// Promote to regular
+									sngNoteList.push_back(pendingNoteList[p]);
+
+									// Reset
+									pendingNoteList[p].startAbsoluteTime = absoluteTime;
+									pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+								}
+								
+								pendingNoteList[p].effect = controllerValue;
+							}
+						}
+
+						currentReverb[controller] = controllerValue;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0 && previousEventValue < 0xD0))) // change instrument
+				{
+					byte instrument;
+					unsigned char curEventVal;
+
+					if (statusBit)
+					{
+						instrument = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+
+					if ((eventVal & 0xF) == 9) // Drums in GM
+						instrument = instrument;
+					else
+						instrument = instrument;
+
+					int controller = (curEventVal & 0xF);
+
+					unsigned short tempInstrument = instrument + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+					
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+							continue;
+
+						if (pendingNoteList[p].instrument != tempInstrument)
+						{
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								sngNoteList.push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+
+							pendingNoteList[p].instrument = tempInstrument;
+						}
+					}
+
+					currentInstrument[controller] = instrument;
+					
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xD0) && (eventVal < 0xE0))  || (statusBit && (previousEventValue >= 0xD0 && previousEventValue < 0xE0))) // channel aftertouch
+				{
+					unsigned char curEventVal;
+					byte amount;
+					if (statusBit)
+					{
+						amount = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				// Pitch Bend
+				else if (((eventVal >= 0xE0) && (eventVal < 0xF0))  || (statusBit && (previousEventValue >= 0xE0 && previousEventValue < 0xF0))) // pitch bend
+				{
+					byte valueLSB;
+
+					unsigned char curEventVal;
+					if (statusBit)
+					{
+						valueLSB = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+						curEventVal = eventVal;
+					}
+
+					byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					int controller = (curEventVal & 0xF);
+
+					if (currentPitchBend[controller] != valueMSB)
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller + (portion * 0x10)))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								sngNoteList.push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].pitchBend = valueMSB;
+						}
+					}
+
+					currentPitchBend[controller] = valueMSB;
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (eventVal == 0xF0 || eventVal == 0xF7)
+				{
+					unsigned char curEventVal = eventVal;
+					int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+					// subtract length
+					for (int i = 0; i < length; i++)
+					{
+						ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					}
+				}
+				else
+				{
+					if (!unknownsHit)
+					{
+						MessageBox(NULL, "Invalid midi character found", "Error", NULL);
+						unknownsHit = true;
+					}
+				}
+			}
+
+			for (int p = 0; p < pendingNoteList.size(); p++)
+			{
+				pendingNoteList[p].endAbsoluteTime = absoluteTime;
+				sngNoteList.push_back(pendingNoteList[p]);
+			}
+		}
+
+		trackOffset += numTracks;
+		
+		delete [] inputMID;
+	}
+
+	// Clear empty notes
+	for (int x = (sngNoteList.size() - 1); x >= 0; x--)
+	{
+		if (sngNoteList[x].startAbsoluteTime == sngNoteList[x].endAbsoluteTime)
+			sngNoteList.erase(sngNoteList.begin() + x);
+	}
+
+
+
+
+
+
+
+	//FILE* outDebug = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\debug.txt", "w");
+	FILE* outDebug = NULL;
+
+	if (outDebug != NULL)
+	{
+		for (int x = 0; x < sngNoteList.size(); x++)
+		{
+			fprintf(outDebug, "Start %08X End %08X Instrument %02X Note %02X Volume %02X Pitch Bend %02X Pan %02X Velocity %02X\n", sngNoteList[x].startAbsoluteTime, sngNoteList[x].endAbsoluteTime, sngNoteList[x].instrument, sngNoteList[x].noteNumber, sngNoteList[x].volume, sngNoteList[x].pitchBend, sngNoteList[x].pan, sngNoteList[x].velocity);
+		}
+	}
+
+	if (outDebug != NULL)
+		fclose(outDebug);
+
+	// Now assign to tracks
+	for (int x = 0; x < sngNoteList.size(); x++)
+	{
+		SngNoteInfoMidiImport tempNoteInfo = sngNoteList[x];
+
+		if (tempNoteInfo.endAbsoluteTime > highestAbsoluteTime)
+			highestAbsoluteTime = tempNoteInfo.endAbsoluteTime;
+
+		if (tempNoteInfo.startAbsoluteTime < lowestAbsoluteTime)
+			lowestAbsoluteTime = tempNoteInfo.startAbsoluteTime;
+
+		if(std::find(instruments.begin(), instruments.end(), tempNoteInfo.instrument) == instruments.end()) 
+		{
+			instruments.push_back(tempNoteInfo.instrument);
+		}
+
+		int appliedChannel = -1;
+		for (int channel = 0; channel < MAXCHANNELS; channel++)
+		{
+			bool allowOnChannel = true;
+
+			for (int y = 0; y < channels[channel].size(); y++)
+			{
+				// Check if is valid
+				SngNoteInfo matchNoteInfo = channels[channel][y];
+
+				// Any overlap
+				if (IsOverlap(tempNoteInfo.startAbsoluteTime, tempNoteInfo.endAbsoluteTime, matchNoteInfo.startAbsoluteTime, matchNoteInfo.endAbsoluteTime))
+				{
+					allowOnChannel = false;
+					break;
+				}
+
+			}
+
+			if (allowOnChannel)
+			{
+				appliedChannel = channel;
+				break;
+			}
+		}
+
+		if (appliedChannel == -1)
+		{
+
+			MessageBox(NULL, "Error, too many channels for midi", "Error", NULL);
+			return false;
+		}
+		else
+		{
+			if ((appliedChannel + 1) > numChannels)
+				numChannels = (appliedChannel + 1);
+			channels[appliedChannel].push_back(tempNoteInfo);
+		}
+	}
+
+	if (numChannels == 0)
+	{
+
+		MessageBox(NULL, "No Channels", "Error", NULL);
+		return false;
+	}
+
+	if (loop && (loopPoint > highestAbsoluteTime))
+	{
+
+		MessageBox(NULL, "Error, loop point is beyond end of midi", "Error", NULL);
+		return false;
+	}
+
+	std::sort(tempoPositions.begin(), tempoPositions.end(), timeAndValueSortByTime());
+
+	for (int x = 0; x < numChannels; x++)
+	{
+		std::sort(channels[x].begin(), channels[x].end(), sngSortByStartTime());
+	}
+
+	return true;
+}
+
+bool CMidiParse::MidiToKonami(CString input, CString output, bool loop, unsigned long loopPoint)
+{
+	try
+	{
+		std::vector<SngNoteInfoMidiImport> sngNoteList;
+		std::vector<TimeAndValue> tempoPositions;
+		std::vector<SngNoteInfoMidiImport> channels[MAXCHANNELS];
+		int numChannels = 0;
+		std::vector<int> instruments;
+		int lowestAbsoluteTime = 0x7FFFFFFF;
+		int highestAbsoluteTime = 0;
+
+
+		if (!MidiToSngList(input, sngNoteList, tempoPositions, channels, numChannels, instruments, lowestAbsoluteTime, highestAbsoluteTime, loop, loopPoint))
+			return false;
+
+		for (int x = 0; x < sngNoteList.size(); x++)
+		{
+			if (sngNoteList[x].noteNumber < 0)
+				sngNoteList[x].noteNumber = 0x00;
+			else if (sngNoteList[x].noteNumber > 0x47)
+				sngNoteList[x].noteNumber = 0x47;
+		}
+		for (int x = (numChannels - 1); x >= 0; x--)
+		{
+			// Remove 0 sized
+			if (channels[x].size() == 0)
+			{
+				channels[x].erase(channels[x].begin() + x);
+			}
+		}
+
+		int outputPosition = 0;
+
+		unsigned char* outputBuffer = new unsigned char[0x100000];
+
+		for (int x = 0; x < 0x100000; x++)
+			outputBuffer[x] = 0x00;
+
+		unsigned long trackOffsetsPointersStart = 0x00000000;
+
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			// Merge notes with same everything except volume and pitch bend
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				SngNoteInfoMidiImport tempSongNote = channels[x][y];
+
+				if (y == (channels[x].size() - 1))
+					break;
+
+				SngNoteInfoMidiImport tempSongNoteNext = channels[x][y + 1];
+
+				if (
+					(tempSongNote.endAbsoluteTime == tempSongNoteNext.startAbsoluteTime)
+					&& (tempSongNote.effect == tempSongNoteNext.effect)
+					&& (tempSongNote.instrument == tempSongNoteNext.instrument)
+					&& (tempSongNote.noteNumber == tempSongNoteNext.noteNumber)
+					&& (tempSongNote.pan == tempSongNoteNext.pan)
+					&& (tempSongNote.velocity == tempSongNoteNext.velocity)
+					&& (tempSongNote.pitchBend == tempSongNoteNext.pitchBend)
+					&& (tempSongNote.volume == tempSongNoteNext.volume)
+					&& (tempSongNote.originalTrack == tempSongNoteNext.originalTrack)
+					&& (tempSongNote.originalController == tempSongNoteNext.originalController)
+					&& (tempSongNote.originalNoteUniqueId == tempSongNoteNext.originalNoteUniqueId)
+					)
+				{
+					// Merge
+					channels[x][y].endAbsoluteTime = tempSongNoteNext.endAbsoluteTime;
+					channels[x].erase(channels[x].begin() + y + 1);
+
+					// Redo Note
+					y--;
+				}
+			}
+		}
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			bool wroteChannelLoop = false;
+			unsigned long absoluteTime = 0;
+
+			if (loop && !wroteChannelLoop && (loopPoint == 0))
+			{
+				outputBuffer[outputPosition++] = 0xEB;
+				wroteChannelLoop = true;
+			}
+
+			unsigned short currentInstrument = 0xFFFF;
+			unsigned char currentPan = 0x40;
+			unsigned char currentEffect = 0xFF;
+			unsigned char currentVolume = 0x7F;
+
+			int lastLength = 0xFF;
+			int lastDuration = 0xFF;
+
+			int tempoIndex = 0;
+
+			bool wroteTempo = false;
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				if (tempoPositions.size() > 0)
+				{
+					for (int z = tempoIndex; z < tempoPositions.size(); z++)
+					{
+						if ((tempoPositions[z].absoluteTime >= absoluteTime) && (tempoPositions[z].absoluteTime <= channels[x][y].startAbsoluteTime))
+						{
+							if (!wroteTempo)
+							{
+								outputBuffer[outputPosition++] = 0xD0;
+								outputBuffer[outputPosition++] = tempoPositions[z].value;
+
+								wroteTempo = true;
+							}
+							else
+							{
+								outputBuffer[outputPosition++] = 0xD1;
+								outputBuffer[outputPosition++] = 0x60;
+								outputBuffer[outputPosition++] = tempoPositions[z].value;
+							}
+							tempoIndex = z + 1;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+
+				// Split note out
+				if (loop && !wroteChannelLoop && ((loopPoint > absoluteTime) && (loopPoint > channels[x][y].startAbsoluteTime) && (loopPoint < channels[x][y].endAbsoluteTime)))
+				{
+					SngNoteInfoMidiImport tempSongInfoCopy = channels[x][y];	
+					channels[x][y].endAbsoluteTime = loopPoint;
+					tempSongInfoCopy.startAbsoluteTime = loopPoint;
+
+					channels[x].insert(channels[x].begin() + y + 1, tempSongInfoCopy);
+				}
+
+				if (loop && !wroteChannelLoop && ((loopPoint >= absoluteTime) && (loopPoint <= channels[x][y].startAbsoluteTime)))
+				{
+					unsigned long delta = (loopPoint - absoluteTime);
+
+					while (delta > 0)
+					{
+						outputBuffer[outputPosition++] = 0xF2;
+
+						if (delta < 0x80)
+						{
+							outputBuffer[outputPosition++] = delta;
+							absoluteTime += delta;
+							delta = 0;
+						}
+						else
+						{
+							outputBuffer[outputPosition++] = 0x7F;
+							absoluteTime += 0x7F;
+							delta -= 0x7F;
+						}
+					}
+
+					outputBuffer[outputPosition++] = 0xEB;
+					wroteChannelLoop = true;
+				}
+
+				// Write initial rest
+				if (channels[x][y].startAbsoluteTime > absoluteTime)
+				{
+					// Write rest	
+					unsigned long delta = channels[x][y].startAbsoluteTime - absoluteTime;
+
+					while (delta > 0)
+					{
+						outputBuffer[outputPosition++] = 0xF2;
+
+						if (delta < 0x80)
+						{
+							outputBuffer[outputPosition++] = delta;
+							absoluteTime += delta;
+							delta = 0;
+						}
+						else
+						{
+							outputBuffer[outputPosition++] = 0x7F;
+							absoluteTime += 0x7F;
+							delta -= 0x7F;
+						}
+					}
+				}
+
+				SngNoteInfoMidiImport tempSongInfo = channels[x][y];	
+
+				if (
+					(tempSongInfo.instrument != currentInstrument)
+					&& (tempSongInfo.pan != currentPan)
+					&& (tempSongInfo.volume != currentVolume)
+					)
+				{
+					currentVolume = tempSongInfo.volume;
+					currentInstrument = tempSongInfo.instrument;
+					currentPan = tempSongInfo.pan;
+
+					outputBuffer[outputPosition++] = 0xD4;
+					outputBuffer[outputPosition++] = currentVolume * 2;
+					outputBuffer[outputPosition++] = currentInstrument;
+					outputBuffer[outputPosition++] = currentPan;
+					
+				}
+				else if (
+					(tempSongInfo.instrument != currentInstrument)
+					&& (tempSongInfo.volume != currentVolume)
+					)
+				{
+					currentVolume = tempSongInfo.volume;
+					currentInstrument = tempSongInfo.instrument;
+
+					outputBuffer[outputPosition++] = 0xD3;
+					outputBuffer[outputPosition++] = currentVolume * 2;
+					outputBuffer[outputPosition++] = currentInstrument;	
+				}
+				else if (
+					(tempSongInfo.instrument != currentInstrument)
+					)
+				{
+					currentInstrument = tempSongInfo.instrument;
+
+					outputBuffer[outputPosition++] = 0xD2;
+					outputBuffer[outputPosition++] = currentInstrument;
+				}
+				else if (
+					(tempSongInfo.volume != currentVolume)
+					)
+				{
+					currentVolume = tempSongInfo.volume;
+
+					outputBuffer[outputPosition++] = 0xD5;
+					outputBuffer[outputPosition++] = currentVolume * 2;
+				}
+				else if (
+					(tempSongInfo.pan != currentPan)
+					)
+				{
+					currentPan = tempSongInfo.pan;
+
+					outputBuffer[outputPosition++] = 0xDD;
+					outputBuffer[outputPosition++] = currentPan;
+				}
+
+				if (tempSongInfo.effect != currentEffect)
+				{
+					currentEffect = tempSongInfo.effect;
+
+					outputBuffer[outputPosition++] = 0xEF;
+					outputBuffer[outputPosition++] = tempSongInfo.effect;
+				}
+
+
+				int noteLength = tempSongInfo.endAbsoluteTime - tempSongInfo.startAbsoluteTime;
+
+				int noteDuration;
+				if (y == (channels[x].size() - 1))
+					noteDuration = highestAbsoluteTime - tempSongInfo.endAbsoluteTime;
+				else
+					noteDuration = channels[x][y+1].startAbsoluteTime - tempSongInfo.startAbsoluteTime;
+
+				if (noteLength > 0x7F)
+				{
+					outputBuffer[outputPosition++] = tempSongInfo.noteNumber;
+					outputBuffer[outputPosition++] = 0x7F;
+					lastDuration = 0x7F;
+
+					outputBuffer[outputPosition++] = 0x00;
+					lastLength = 0x00;
+
+					noteLength -= 0x7F;
+					absoluteTime += 0x7F;
+					noteDuration -= 0x7F;
+
+					while (noteLength > 0)
+					{
+						outputBuffer[outputPosition++] = 0xF3;
+						if (noteLength > 0x7F)
+						{
+							outputBuffer[outputPosition++] = 0x7F;
+							outputBuffer[outputPosition++] = 0x00;
+							
+							noteLength -= 0x7F;
+							absoluteTime += 0x7F;
+							noteDuration -= 0x7F;
+						}
+						else
+						{
+							if (noteDuration > 0x7F)
+							{
+								outputBuffer[outputPosition++] = 0x7F;
+								outputBuffer[outputPosition++] = noteLength;
+
+								absoluteTime += 0x7F;
+								noteDuration -= 0x7F;
+							}
+							else
+							{
+								outputBuffer[outputPosition++] = noteDuration;
+								outputBuffer[outputPosition++] = noteLength;
+								absoluteTime += noteDuration;
+								noteDuration = 0;
+							}
+
+							noteLength = 0;
+						}
+					}
+				}
+				else
+				{
+					if (noteDuration > 0x7F)
+						noteDuration = 0x7F;
+
+					if (lastDuration == noteDuration)
+					{
+						outputBuffer[outputPosition++] = tempSongInfo.noteNumber + 0x68;
+					}
+					else
+					{
+						outputBuffer[outputPosition++] = tempSongInfo.noteNumber;
+						outputBuffer[outputPosition++] = noteDuration;
+					}
+
+					lastDuration = noteDuration;
+
+					if (lastLength == noteLength)
+					{
+						outputBuffer[outputPosition++] = tempSongInfo.velocity + 0x80;
+					}
+					else
+					{
+						outputBuffer[outputPosition++] = noteLength;
+						outputBuffer[outputPosition++] = tempSongInfo.velocity;
+					}
+
+					lastLength = noteLength;
+
+					absoluteTime += noteDuration;
+				}
+
+
+			
+				if (
+					(tempSongInfo.pitchBend != 0x40)
+					)
+				{
+					if (tempSongInfo.pitchBend >= 0x7F)
+					{
+						if (tempSongInfo.noteNumber < 0x46)
+						{
+							outputBuffer[outputPosition++] = 0xE4;
+							outputBuffer[outputPosition++] = 0x00;
+							outputBuffer[outputPosition++] = 0x04;
+
+							outputBuffer[outputPosition++] = tempSongInfo.noteNumber + 2;
+						}
+					}
+					else if (tempSongInfo.pitchBend >= 0x60)
+					{
+						if (tempSongInfo.noteNumber < 0x47)
+						{
+							outputBuffer[outputPosition++] = 0xE4;
+							outputBuffer[outputPosition++] = 0x00;
+							outputBuffer[outputPosition++] = 0x04;
+
+							outputBuffer[outputPosition++] = tempSongInfo.noteNumber + 1;
+						}
+					}
+					else if (tempSongInfo.pitchBend <= 0x00)
+					{
+						if (tempSongInfo.noteNumber > 1)
+						{
+							outputBuffer[outputPosition++] = 0xE4;
+							outputBuffer[outputPosition++] = 0x00;
+							outputBuffer[outputPosition++] = 0x04;
+
+							outputBuffer[outputPosition++] = tempSongInfo.noteNumber - 2;
+						}
+					}
+					else if (tempSongInfo.pitchBend <= 0x20)
+					{
+						if (tempSongInfo.noteNumber > 0)
+						{
+							outputBuffer[outputPosition++] = 0xE4;
+							outputBuffer[outputPosition++] = 0x00;
+							outputBuffer[outputPosition++] = 0x04;
+
+							outputBuffer[outputPosition++] = tempSongInfo.noteNumber - 1;
+						}
+					}
+				}
+			}
+
+			if (loop && (!wroteChannelLoop))
+			{
+				unsigned long delta = (loopPoint - absoluteTime);
+
+				while (delta > 0)
+				{
+					outputBuffer[outputPosition++] = 0xF2;
+
+					if (delta < 0x80)
+					{
+						outputBuffer[outputPosition++] = delta;
+						absoluteTime += delta;
+						delta = 0;
+					}
+					else
+					{
+						outputBuffer[outputPosition++] = 0x7F;
+						absoluteTime += 0x7F;
+						delta -= 0x7F;
+					}
+				}
+
+				outputBuffer[outputPosition++] = 0xEB;
+
+				wroteChannelLoop = true;
+			}
+
+			unsigned long delta = (highestAbsoluteTime - absoluteTime);
+
+			while (delta > 0)
+			{
+				outputBuffer[outputPosition++] = 0xF2;
+
+				if (delta < 0x80)
+				{
+					outputBuffer[outputPosition++] = delta;
+					absoluteTime += delta;
+					delta = 0;
+				}
+				else
+				{
+					outputBuffer[outputPosition++] = 0x7F;
+					absoluteTime += 0x7F;
+					delta -= 0x7F;
+				}
+
+				outputBuffer[outputPosition++] = 0x00;
+			}
+
+			if (wroteChannelLoop)
+			{
+				outputBuffer[outputPosition++] = 0xEC;
+			}
+			
+			outputBuffer[outputPosition++] = 0xFF;
+		}
+
+
+		FILE* outFile = fopen(output, "wb");
+		if (outFile == NULL)
+		{
+			delete [] outputBuffer;
+
+			MessageBox(NULL, "Error outputting file", "Error", NULL);
+			return false;
+		}
+
+		fwrite(outputBuffer, 1, outputPosition, outFile);
+
+		delete [] outputBuffer;
+		fclose(outFile);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error converting", "Error", NULL);
+		return false;
+	}
+	return true;
+}
+
+bool CMidiParse::MidiToSng(CString input, CString output, bool loop, unsigned long loopPoint, SngStyle sngStyle, unsigned char masterTrackEffect)
+{
+	try
+	{
+		std::vector<SngNoteInfoMidiImport> sngNoteList;
+		std::vector<TimeAndValue> tempoPositions;
+		std::vector<SngNoteInfoMidiImport> channels[MAXCHANNELS];
+		int numChannels = 0;
+		std::vector<int> instruments;
+		int lowestAbsoluteTime = 0x7FFFFFFF;
+		int highestAbsoluteTime = 0;
+
+
+		if (!MidiToSngList(input, sngNoteList, tempoPositions, channels, numChannels, instruments, lowestAbsoluteTime, highestAbsoluteTime, loop, loopPoint))
+			return false;
+
+
+
+		std::vector<TimeAndValue> volumeData[MAXCHANNELS];
+		std::vector<TimeAndValue> pitchBendData[MAXCHANNELS];
+		for (int x = 0; x < numChannels; x++)
+		{
+			unsigned char currentVolume = 0x7F;
+			unsigned char currentPitchBend = 0x40;
+
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				SngNoteInfoMidiImport tempNoteInfo = channels[x][y];
+
+				if (tempNoteInfo.volume != currentVolume)
+				{
+					if ((volumeData[x].size() == 0) || (volumeData[x].back().absoluteTime < tempNoteInfo.startAbsoluteTime))
+					{
+						volumeData[x].push_back(TimeAndValue(tempNoteInfo.startAbsoluteTime, tempNoteInfo.volume));
+					}
+					else
+					{
+						volumeData[x][volumeData[x].size()-1] = TimeAndValue(tempNoteInfo.startAbsoluteTime, tempNoteInfo.volume);
+					}
+
+					currentVolume = tempNoteInfo.volume;
+				}
+
+				if (tempNoteInfo.pitchBend != currentPitchBend)
+				{
+					if ((pitchBendData[x].size() == 0) || (pitchBendData[x].back().absoluteTime < tempNoteInfo.startAbsoluteTime))
+					{
+						pitchBendData[x].push_back(TimeAndValue(tempNoteInfo.startAbsoluteTime, tempNoteInfo.pitchBend));
+					}
+					else
+					{
+						pitchBendData[x][pitchBendData[x].size()-1] = TimeAndValue(tempNoteInfo.startAbsoluteTime, tempNoteInfo.pitchBend);
+					}
+
+					currentPitchBend = tempNoteInfo.pitchBend;
+				}
+			}
+		}
+
+		int outputPosition = 0;
+
+		unsigned char* outputBuffer = new unsigned char[0x100000];
+
+		for (int x = 0; x < 0x100000; x++)
+			outputBuffer[x] = 0x00;
+
+		unsigned long trackOffsetsPointersStart = 0x00000000;
+		unsigned long volumePointersStart = 0x00000000;
+		unsigned long pitchBendPointersStart = 0x00000000;
+
+		if (sngStyle == SngStyle::Normal)
+		{
+			WriteLongToBuffer(outputBuffer, outputPosition, 0x00000215);
+			outputPosition += 4;
+
+			WriteLongToBuffer(outputBuffer, outputPosition, numChannels);
+			outputPosition += 4;
+
+			WriteLongToBuffer(outputBuffer, outputPosition, instruments.size());
+			outputPosition += 4;
+
+			trackOffsetsPointersStart = 0x00000038;
+			WriteLongToBuffer(outputBuffer, outputPosition, trackOffsetsPointersStart);
+			outputPosition += 4;
+
+
+			outputPosition = 0x38;
+
+			// Track Offsets, 0x00000038
+			outputPosition += (numChannels * 0x4);
+
+			// Write Volume tracks
+			WriteLongToBuffer(outputBuffer, 0x10, outputPosition);
+			
+			volumePointersStart = outputPosition;
+			outputPosition += (numChannels * 0x4);
+
+			// Write PitchBend tracks
+			WriteLongToBuffer(outputBuffer, 0x14, outputPosition);
+
+			pitchBendPointersStart = outputPosition;
+			outputPosition += (numChannels * 0x4);
+
+			// Write Instruments
+			WriteLongToBuffer(outputBuffer, 0x20, outputPosition);
+
+			unsigned long instrumentsPointersStart = outputPosition;
+
+			for (int x = 0; x < instruments.size(); x++)
+			{
+				WriteShortToBuffer(outputBuffer, outputPosition, instruments[x]);
+				outputPosition += 2;
+			}
+
+			// Skip Drums
+			WriteLongToBuffer(outputBuffer, 0x1C, outputPosition);
+
+			
+
+			// Skip ADSR
+			WriteLongToBuffer(outputBuffer, 0x18, outputPosition);
+
+			// ADSR Rate
+			outputBuffer[outputPosition++] = 0x01;
+
+			// ADSR Start Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Attack Rate
+			outputBuffer[outputPosition++] = 0x01;
+
+			// ADSR Peak Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Decay Rate
+			outputBuffer[outputPosition++] = 0x20;
+
+			// ADSR Sustain Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Release Rate
+			outputBuffer[outputPosition++] = 0x03;
+		}
+		else if (sngStyle == SngStyle::Old)
+		{
+			if ((numChannels % 8) != 0)
+				numChannels = numChannels + (8 - (numChannels % 8));
+
+			WriteLongToBuffer(outputBuffer, 0x0, numChannels);
+			outputPosition += 4;
+
+			// Track Offset
+			trackOffsetsPointersStart = 0x00000018;
+			WriteLongToBuffer(outputBuffer, 0x4, trackOffsetsPointersStart);
+
+			outputPosition = 0x18;
+			outputPosition += (numChannels * 0x4);
+
+			// Write Volume tracks
+			WriteLongToBuffer(outputBuffer, 0x8, outputPosition);
+
+			volumePointersStart = outputPosition;
+			outputPosition += (numChannels * 0x4);
+
+			// Write PitchBend tracks
+			WriteLongToBuffer(outputBuffer, 0xC, outputPosition);
+
+			pitchBendPointersStart = outputPosition;
+			outputPosition += (numChannels * 0x4);
+
+			// Skip Drums
+			WriteLongToBuffer(outputBuffer, 0x14, outputPosition);
+
+			// Skip ADSR
+			WriteLongToBuffer(outputBuffer, 0x10, outputPosition);
+
+			// ADSR Rate
+			outputBuffer[outputPosition++] = 0x01;
+
+			// ADSR Start Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Attack Rate
+			outputBuffer[outputPosition++] = 0x01;
+
+			// ADSR Peak Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Decay Rate
+			outputBuffer[outputPosition++] = 0x20;
+
+			// ADSR Sustain Level
+			outputBuffer[outputPosition++] = 0x7F;
+
+			// ADSR Release Rate
+			outputBuffer[outputPosition++] = 0x03;
+		}
+		else if (sngStyle == SngStyle::OldBfx)
+		{
+			WriteLongToBuffer(outputBuffer, 0x0, numChannels);
+			WriteLongToBuffer(outputBuffer, 0x4, 0x00000000);
+
+			// Write Volume tracks
+			volumePointersStart = 0x00000010;
+			WriteLongToBuffer(outputBuffer, 0x8, volumePointersStart);
+
+			outputPosition = 0x10;
+
+			for (int x = 0; x < numChannels; x++)
+			{
+				if (x == 0)
+					WriteLongToBuffer(outputBuffer, 0x4, 0x00000000);
+				else
+					WriteLongToBuffer(outputBuffer, 0x4, 0x00000064);
+				outputPosition += 4;
+			}
+
+			// Track Offset
+			trackOffsetsPointersStart = outputPosition;
+			WriteLongToBuffer(outputBuffer, 0xC, trackOffsetsPointersStart);
+
+			outputPosition += (numChannels * 0x4);
+		}
+		else if (sngStyle == SngStyle::OldBfx)
+		{
+			WriteLongToBuffer(outputBuffer, 0x0, numChannels);
+			WriteLongToBuffer(outputBuffer, 0x4, numChannels);
+			WriteLongToBuffer(outputBuffer, 0x8, numChannels);
+			WriteLongToBuffer(outputBuffer, 0xC, 0x00000000);
+			WriteLongToBuffer(outputBuffer, 0x10, 0x00000000);
+
+			outputPosition = 0x18;
+
+			trackOffsetsPointersStart = outputPosition;
+
+			outputPosition += 4;
+			for (int x = 0; x < numChannels; x++)
+			{
+				WriteLongToBuffer(outputBuffer, 0x4, 0x00000064);
+				outputPosition += 8;
+			}
+		}
+		else if (sngStyle == SngStyle::PtrBfx)
+		{
+			return false;
+		}
+
+		
+
+		// Data starts now
+		unsigned long absoluteTime = 0;
+
+		if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+		{
+			for (int x = 0; x < numChannels; x++)
+			{
+				unsigned long volumeDataOffset = outputPosition;
+
+				if (volumeData[x].size() == 0)
+					WriteLongToBuffer(outputBuffer, (volumePointersStart + (x * 0x4)), 0x00000000);
+				else
+					WriteLongToBuffer(outputBuffer, (volumePointersStart + (x * 0x4)), volumeDataOffset);
+
+				if (volumeData[x].size() > 0)
+				{
+					if (volumeData[x][0].absoluteTime > 0)
+					{
+						// Write initial length
+						int totalVolumeLength = volumeData[x][0].absoluteTime;
+
+						while (totalVolumeLength > 0)
+						{
+							// Default
+							outputBuffer[outputPosition] = 0x7F;
+					
+							int volumeLength = totalVolumeLength;
+
+							if (volumeLength > 0x8000)
+								volumeLength = 0x8000;
+
+							if (volumeLength == 1)
+							{
+								outputPosition++;
+							}
+							else
+							{
+								outputBuffer[outputPosition] |= 0x80;
+								outputPosition++;
+								WriteSngVariableLength(outputBuffer, outputPosition, (volumeLength - 2));
+							}
+
+							totalVolumeLength -= volumeLength;
+						}
+					}
+				}
+
+				for (int y = 0; y < volumeData[x].size(); y++)
+				{
+					outputBuffer[outputPosition] = volumeData[x][y].value;
+					int totalVolumeLength;
+					if (y != (volumeData[x].size()-1))
+					{
+						totalVolumeLength = volumeData[x][y+1].absoluteTime - volumeData[x][y].absoluteTime;
+					}
+					else
+					{
+						totalVolumeLength = highestAbsoluteTime;
+					}
+
+					while (totalVolumeLength > 0)
+					{
+						int volumeLength = totalVolumeLength;
+
+						if (volumeLength > 0x8000)
+							volumeLength = 0x8000;
+
+						if (volumeLength == 1)
+						{
+							outputPosition++;
+						}
+						else
+						{
+							// Stored 0 value = 2, etc
+							outputBuffer[outputPosition] |= 0x80;
+							outputPosition++;
+							WriteSngVariableLength(outputBuffer, outputPosition, (volumeLength - 2));
+						}
+
+						totalVolumeLength -= volumeLength;
+					}
+				}
+			}
+
+
+
+
+
+		
+			absoluteTime = 0;
+
+			for (int x = 0; x < numChannels; x++)
+			{
+				unsigned long pitchBendDataOffset = outputPosition;
+
+				if (pitchBendData[x].size() == 0)
+					WriteLongToBuffer(outputBuffer, (pitchBendPointersStart + (x * 0x4)), 0x00000000);
+				else				
+					WriteLongToBuffer(outputBuffer, (pitchBendPointersStart + (x * 0x4)), pitchBendDataOffset);
+
+				if (pitchBendData[x].size() > 0)
+				{
+					if (pitchBendData[x][0].absoluteTime > 0)
+					{
+						// Write initial length
+						int totalPitchBendLength = pitchBendData[x][0].absoluteTime;
+
+						while (totalPitchBendLength > 0)
+						{
+							// Default
+							outputBuffer[outputPosition] = 0x40;
+					
+							int pitchBendLength = totalPitchBendLength;
+
+							if (pitchBendLength > 0x8000)
+								pitchBendLength = 0x8000;
+
+							if (pitchBendLength == 1)
+							{
+								outputPosition++;
+							}
+							else
+							{
+								outputBuffer[outputPosition] |= 0x80;
+								outputPosition++;
+								WriteSngVariableLength(outputBuffer, outputPosition, (pitchBendLength - 2));
+							}
+
+							totalPitchBendLength -= pitchBendLength;
+						}
+					}
+				}
+
+				for (int y = 0; y < pitchBendData[x].size(); y++)
+				{
+					outputBuffer[outputPosition] = pitchBendData[x][y].value;
+					int totalPitchBendLength;
+					if (y != (pitchBendData[x].size()-1))
+					{
+						totalPitchBendLength = pitchBendData[x][y+1].absoluteTime - pitchBendData[x][y].absoluteTime;
+					}
+					else
+					{
+						totalPitchBendLength = highestAbsoluteTime;
+					}
+
+					while (totalPitchBendLength > 0)
+					{
+						int pitchBendLength = totalPitchBendLength;
+
+						if (pitchBendLength > 0x8000)
+							pitchBendLength = 0x8000;
+
+						if (pitchBendLength == 1)
+						{
+							outputPosition++;
+						}
+						else
+						{
+							outputBuffer[outputPosition] |= 0x80;
+							outputPosition++;
+							WriteSngVariableLength(outputBuffer, outputPosition, (pitchBendLength - 2));
+						}
+
+						totalPitchBendLength -= pitchBendLength;
+					}
+				}
+			}
+		}
+	
+
+
+		if (sngStyle == SngStyle::Normal)
+		{
+			// Master Track Pointer
+			WriteLongToBuffer(outputBuffer, 0x24, outputPosition);
+
+			unsigned long masterTrackIndex = outputPosition;
+
+			bool wroteMasterLoop = false;
+			bool sharedMasterVelocity = false;
+
+			unsigned long currentTempo = 0xFFFFFFFF;
+
+			int countMasterTempoChanges = 0;
+
+			for (int x = 0; x < tempoPositions.size(); x++)
+			{
+				if (currentTempo == tempoPositions[x].value)
+					continue;
+
+				countMasterTempoChanges++;
+				currentTempo = tempoPositions[x].value;
+			}
+
+			currentTempo = 0xFFFFFFFF;
+
+			absoluteTime = 0;
+
+			if (masterTrackEffect != 0x00)
+			{
+				outputBuffer[outputPosition++] = 0xAA;
+				outputBuffer[outputPosition++] = masterTrackEffect;
+			}
+
+			// Write Master Track
+			for (int x = 0; x < tempoPositions.size(); x++)
+			{
+				if (currentTempo == tempoPositions[x].value)
+					continue;
+
+				if (loop && !wroteMasterLoop && ((loopPoint >= absoluteTime) && (loopPoint <= tempoPositions[x].absoluteTime)))
+				{
+					unsigned long delta = (loopPoint - absoluteTime);
+
+					while (delta > 0)
+					{
+						outputBuffer[outputPosition++] = 0x60;
+						if (!sharedMasterVelocity)
+						{
+							outputBuffer[outputPosition] = 0x00;
+							if (countMasterTempoChanges > 3)
+							{
+								outputBuffer[outputPosition] |= 0x80;
+								sharedMasterVelocity = true;
+							}
+							outputPosition++;
+						}
+						
+						delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+						absoluteTime += delta;
+					}
+
+					outputBuffer[outputPosition++] = 0x95;
+					outputBuffer[outputPosition++] = 0xFF;
+
+					sharedMasterVelocity = false;
+					outputBuffer[outputPosition++] = 0x99;
+
+					wroteMasterLoop = true;
+				}
+
+				unsigned long delta = (tempoPositions[x].absoluteTime - absoluteTime);
+
+				while (delta > 0)
+				{
+					outputBuffer[outputPosition++] = 0x60;
+					if (!sharedMasterVelocity)
+					{
+						outputBuffer[outputPosition] = 0x00;
+						if (countMasterTempoChanges > 3)
+						{
+							outputBuffer[outputPosition] |= 0x80;
+							sharedMasterVelocity = true;
+						}
+						outputPosition++;
+					}
+					
+					delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+					absoluteTime += delta;
+				}
+
+
+				outputBuffer[outputPosition++] = 0x85;
+				outputBuffer[outputPosition++] = tempoPositions[x].value;
+
+				currentTempo = tempoPositions[x].value;
+			}
+
+			if (loop && (!wroteMasterLoop))
+			{
+				unsigned long delta = (loopPoint - absoluteTime);
+
+				while (delta > 0)
+				{
+					outputBuffer[outputPosition++] = 0x60;
+					if (!sharedMasterVelocity)
+					{
+						outputBuffer[outputPosition] = 0x00;
+						if (countMasterTempoChanges > 3)
+						{
+							outputBuffer[outputPosition] |= 0x80;
+							sharedMasterVelocity = true;
+						}
+						outputPosition++;
+					}
+					
+					delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+					absoluteTime += delta;
+				}
+
+				outputBuffer[outputPosition++] = 0x95;
+				outputBuffer[outputPosition++] = 0xFF;
+
+				sharedMasterVelocity = false;
+				outputBuffer[outputPosition++] = 0x99;
+
+				wroteMasterLoop = true;
+			}
+
+			unsigned long delta = (highestAbsoluteTime - absoluteTime);
+
+			while (delta > 0)
+			{
+				outputBuffer[outputPosition++] = 0x60;
+				if (!sharedMasterVelocity)
+				{
+					outputBuffer[outputPosition] = 0x00;
+					if (countMasterTempoChanges > 3)
+					{
+						outputBuffer[outputPosition] |= 0x80;
+						sharedMasterVelocity = true;
+					}
+					outputPosition++;
+				}
+				
+				delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+				absoluteTime += delta;
+			}
+
+			// Seems like even if not turned on, turned off
+			sharedMasterVelocity = false;
+			outputBuffer[outputPosition++] = 0x99;
+
+
+			if (wroteMasterLoop)
+			{
+				outputBuffer[outputPosition++] = 0x96;
+			}
+			else
+			{
+				outputBuffer[outputPosition++] = 0x80;
+			}
+		}
+
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			// Merge notes with same everything except volume and pitch bend
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				SngNoteInfoMidiImport tempSongNote = channels[x][y];
+
+				if (y == (channels[x].size() - 1))
+					break;
+
+				SngNoteInfoMidiImport tempSongNoteNext = channels[x][y + 1];
+
+				if (
+					(tempSongNote.endAbsoluteTime == tempSongNoteNext.startAbsoluteTime)
+					&& (tempSongNote.effect == tempSongNoteNext.effect)
+					&& (tempSongNote.instrument == tempSongNoteNext.instrument)
+					&& (tempSongNote.noteNumber == tempSongNoteNext.noteNumber)
+					&& (tempSongNote.pan == tempSongNoteNext.pan)
+					&& (tempSongNote.velocity == tempSongNoteNext.velocity)
+					&& (tempSongNote.originalTrack == tempSongNoteNext.originalTrack)
+					&& (tempSongNote.originalController == tempSongNoteNext.originalController)
+					&& (tempSongNote.originalNoteUniqueId == tempSongNoteNext.originalNoteUniqueId)
+					)
+				{
+					// Merge
+					channels[x][y].endAbsoluteTime = tempSongNoteNext.endAbsoluteTime;
+					channels[x].erase(channels[x].begin() + y + 1);
+
+					// Redo Note
+					y--;
+				}
+			}
+		}
+
+		unsigned long currentOldSngTempo = 0xFFFFFFFF;
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			if (sngStyle == SngStyle::Old)
+			{
+				if (channels[x].size() == 0)
+				{
+					WriteLongToBuffer(outputBuffer, trackOffsetsPointersStart + (x * 4), 0x00000000);	
+
+					continue;
+				}
+
+				if (x == 0)
+				{
+					if (masterTrackEffect != 0x00)
+					{
+						outputBuffer[outputPosition++] = 0xAA;
+						outputBuffer[outputPosition++] = masterTrackEffect;
+					}
+				}
+			}
+
+			if (sngStyle == SngStyle::Bfx)
+			{
+				WriteLongToBuffer(outputBuffer, trackOffsetsPointersStart + (x * 8), outputPosition);	
+			}
+			else if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old) || (sngStyle == SngStyle::OldBfx))
+			{
+				WriteLongToBuffer(outputBuffer, trackOffsetsPointersStart + (x * 4), outputPosition);	
+			}
+
+			absoluteTime = 0;
+			
+			if (channels[x].size() == 0)
+			{
+				bool sharedChannelVelocity = false;
+
+				if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Bfx))
+					sharedChannelVelocity = true;
+
+				if (loop)
+				{
+					if (loopPoint == 0)
+					{
+						outputBuffer[outputPosition++] = 0x95;
+						outputBuffer[outputPosition++] = 0xFF;
+
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+						{
+							sharedChannelVelocity = false;
+							outputBuffer[outputPosition++] = 0x99;
+						}
+					}
+					else
+					{
+						unsigned long delta = loopPoint;
+
+						while (delta > 0)
+						{
+							if (sngStyle == SngStyle::Old)
+							{
+								if (!sharedChannelVelocity)
+								{
+									sharedChannelVelocity = true;
+									outputBuffer[outputPosition++] = 0x9B;
+									outputBuffer[outputPosition++] = 0x00;
+
+									outputBuffer[outputPosition++] = 0x9A;
+								}
+							}
+
+							outputBuffer[outputPosition++] = 0x60;
+							if (sngStyle == SngStyle::Normal)
+							{
+								if (!sharedChannelVelocity)
+								{
+									sharedChannelVelocity = true;
+									outputBuffer[outputPosition++] = 0x80;
+								}
+							}
+							
+							delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+							absoluteTime += delta;
+						}
+
+						outputBuffer[outputPosition++] = 0x95;
+						outputBuffer[outputPosition++] = 0xFF;
+
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+						{
+							sharedChannelVelocity = false;
+							outputBuffer[outputPosition++] = 0x99;
+						}
+					}
+
+					unsigned long delta = (highestAbsoluteTime - absoluteTime);
+
+					while (delta > 0)
+					{
+						if (sngStyle == SngStyle::Old)
+						{
+							if (!sharedChannelVelocity)
+							{
+								sharedChannelVelocity = true;
+
+								outputBuffer[outputPosition++] = 0x9B;
+								outputBuffer[outputPosition++] = 0x00;
+
+								outputBuffer[outputPosition++] = 0x9A;
+							}
+						}
+
+						outputBuffer[outputPosition++] = 0x60;
+					
+						if (!sharedChannelVelocity)
+						{
+							if (sngStyle == SngStyle::Normal)
+							{
+								outputBuffer[outputPosition++] = 0x80;
+								sharedChannelVelocity = true;
+							}
+						}
+						
+						delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+						absoluteTime += delta;
+					}
+
+					if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+					{
+						if (sharedChannelVelocity)
+						{
+							outputBuffer[outputPosition++] = 0x99;
+							sharedChannelVelocity = false;
+						}
+					}
+
+					outputBuffer[outputPosition++] = 0x96;
+				}
+				else
+				{
+					outputBuffer[outputPosition++] = 0x80;
+				}
+			}
+			else
+			{
+				bool sharedChannelVelocity = false;
+				unsigned char currentVelocity = 0x7F;
+
+				bool setLength = false;
+				int currentLength = 0;
+
+				bool wroteChannelLoop = false;
+
+				if (loop && !wroteChannelLoop && (loopPoint == 0))
+				{
+					outputBuffer[outputPosition++] = 0x95;
+					outputBuffer[outputPosition++] = 0xFF;
+
+					if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+					{
+						sharedChannelVelocity = false;
+						outputBuffer[outputPosition++] = 0x99;
+					}
+
+					if (sngStyle == SngStyle::Normal)
+					{
+						setLength = false;
+						outputBuffer[outputPosition++] = 0xAC;
+					}
+					else if (sngStyle == SngStyle::Old)
+					{
+						setLength = false;
+						outputBuffer[outputPosition++] = 0x8B;
+						outputBuffer[outputPosition++] = 0x00;
+					}
+
+					wroteChannelLoop = true;
+				}
+
+				// Not sure what this does
+				outputBuffer[outputPosition++] = 0x82;
+				outputBuffer[outputPosition++] = 0x00;
+
+				// Set Release Time Back to Full 01
+				outputBuffer[outputPosition++] = 0x87;
+				outputBuffer[outputPosition++] = 0x01;
+
+				if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+				{
+					// Reenable velocity on notes
+					sharedChannelVelocity = false;
+					outputBuffer[outputPosition++] = 0x99;
+
+					if (sngStyle == SngStyle::Normal)
+					{
+						setLength = false;
+						outputBuffer[outputPosition++] = 0xAC;
+					}
+					else if (sngStyle == SngStyle::Old)
+					{
+						setLength = false;
+						outputBuffer[outputPosition++] = 0x8B;
+						outputBuffer[outputPosition++] = 0x00;
+					}
+				}
+
+				// Default Effect 00
+				outputBuffer[outputPosition++] = 0xA2;
+				outputBuffer[outputPosition++] = 0x00;
+
+				// Transpose 00
+				outputBuffer[outputPosition++] = 0x8D;
+				outputBuffer[outputPosition++] = 0x00;
+
+				if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+				{
+					outputBuffer[outputPosition++] = 0x90;
+					outputBuffer[outputPosition++] = 0x00;
+				}
+				else if ((sngStyle == SngStyle::Bfx) || (sngStyle == SngStyle::OldBfx))
+				{
+					outputBuffer[outputPosition++] = 0x84;
+					outputBuffer[outputPosition++] = 0x01;
+					outputBuffer[outputPosition++] = 0x7F;
+					outputBuffer[outputPosition++] = 0x01;
+					outputBuffer[outputPosition++] = 0x7F;
+					outputBuffer[outputPosition++] = 0x01;
+					outputBuffer[outputPosition++] = 0x7F;
+					outputBuffer[outputPosition++] = 0x10;
+				}
+
+				unsigned short currentInstrument = 0xFFFF;
+				unsigned char currentPan = 0x40;
+				unsigned char currentEffect = 0xFF;
+
+				int tempoIndex = 0;
+
+				for (int y = 0; y < channels[x].size(); y++)
+				{
+					if (sngStyle == SngStyle::Old)
+					{
+						if (tempoPositions.size() > 0)
+						{
+							for (int z = tempoIndex; z < tempoPositions.size(); z++)
+							{
+								if ((tempoPositions[z].absoluteTime >= absoluteTime) && (tempoPositions[z].absoluteTime <= channels[x][y].startAbsoluteTime))
+								{
+									tempoIndex = z + 1;
+								}
+								else
+								{
+									break;
+								}
+							}
+						}
+					}
+
+					// Split note out
+					if (loop && !wroteChannelLoop && ((loopPoint > absoluteTime) && (loopPoint > channels[x][y].startAbsoluteTime) && (loopPoint < channels[x][y].endAbsoluteTime)))
+					{
+						SngNoteInfoMidiImport tempSongInfoCopy = channels[x][y];	
+						channels[x][y].endAbsoluteTime = loopPoint;
+						tempSongInfoCopy.startAbsoluteTime = loopPoint;
+
+						channels[x].insert(channels[x].begin() + y + 1, tempSongInfoCopy);
+					}
+
+					if (loop && !wroteChannelLoop && ((loopPoint >= absoluteTime) && (loopPoint <= channels[x][y].startAbsoluteTime)))
+					{
+						unsigned long delta = (loopPoint - absoluteTime);
+
+						while (delta > 0)
+						{
+							outputBuffer[outputPosition++] = 0x60;
+
+							if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+							{
+								// Don't try and share, but if is, is ok
+								if (!sharedChannelVelocity)
+								{
+									outputBuffer[outputPosition++] = 0x00;
+									currentVelocity = 0x00;
+								}
+							}
+							
+							delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+							absoluteTime += delta;
+						}
+
+						outputBuffer[outputPosition++] = 0x95;
+						outputBuffer[outputPosition++] = 0xFF;
+
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+						{
+							sharedChannelVelocity = false;
+							outputBuffer[outputPosition++] = 0x99;
+
+							if (sngStyle == SngStyle::Normal)
+							{
+								setLength = false;
+								outputBuffer[outputPosition++] = 0xAC;
+							}
+							else if (sngStyle == SngStyle::Old)
+							{
+								setLength = false;
+								outputBuffer[outputPosition++] = 0x8B;
+								outputBuffer[outputPosition++] = 0x00;
+							}
+						}
+
+						wroteChannelLoop = true;
+					}
+
+					// Write initial rest
+					if (channels[x][y].startAbsoluteTime > absoluteTime)
+					{
+						int restLength = channels[x][y].startAbsoluteTime - absoluteTime;
+						if (setLength)
+						{
+							if (restLength != currentLength)
+							{
+								int countSameLength = 1;
+								unsigned long tempAbsoluteTime = absoluteTime;
+
+								for (int z = y; z < channels[x].size(); z++)
+								{
+									if (
+										((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == restLength)
+										||
+										((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == 0)
+										)
+									{
+										
+									}
+									else
+										break;
+
+									tempAbsoluteTime = channels[x][z].startAbsoluteTime;
+
+									if ((channels[x][z].endAbsoluteTime - tempAbsoluteTime) == restLength)
+										countSameLength++;
+									else
+										break;
+
+									tempAbsoluteTime = channels[x][z].endAbsoluteTime;
+								}
+
+								if ((countSameLength >= 3) && (restLength <= 0x7FFE))
+								{
+									outputBuffer[outputPosition++] = 0x8B;
+									WriteSngVariableLength(outputBuffer, outputPosition, restLength);
+
+									setLength = true;
+									currentLength = restLength;
+								}
+								else
+								{
+									if (sngStyle == SngStyle::Normal)
+									{
+										outputBuffer[outputPosition++] = 0xAC;
+									}
+									else if (sngStyle == SngStyle::Old)
+									{
+										outputBuffer[outputPosition++] = 0x8B;
+										outputBuffer[outputPosition++] = 0x00;
+									}
+
+									setLength = false;
+								}
+							}
+						}
+						else
+						{
+							int countSameLength = 1;
+							unsigned long tempAbsoluteTime = absoluteTime;
+
+							for (int z = y; z < channels[x].size(); z++)
+							{
+								if (
+									((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == restLength)
+									||
+									((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == 0)
+									)
+								{
+									
+								}
+								else
+									break;
+
+								tempAbsoluteTime = channels[x][z].startAbsoluteTime;
+
+								if ((channels[x][z].endAbsoluteTime - tempAbsoluteTime) == restLength)
+									countSameLength++;
+								else
+									break;
+
+								tempAbsoluteTime = channels[x][z].endAbsoluteTime;
+							}
+
+							if ((countSameLength >= 3) && (restLength <= 0x7FFE))
+							{
+								outputBuffer[outputPosition++] = 0x8B;
+								WriteSngVariableLength(outputBuffer, outputPosition, restLength);
+
+								setLength = true;
+								currentLength = restLength;
+							}
+						}
+						
+						int countSameVelocity = 0;
+						for (int z = (y + 1); z < channels[x].size(); z++)
+						{
+							if ((channels[x][y].velocity) == channels[x][z].velocity)
+								countSameVelocity++;
+							else
+								break;
+						}
+
+						if (!sharedChannelVelocity)
+						{
+							if (sngStyle == SngStyle::Old)
+							{
+								if (countSameVelocity >= 3)
+								{
+									sharedChannelVelocity = true;
+									currentVelocity = channels[x][y].velocity;
+
+									outputBuffer[outputPosition++] = 0x9B;
+									outputBuffer[outputPosition++] = currentVelocity;
+
+									outputBuffer[outputPosition++] = 0x9A;
+								}
+							}
+						}
+
+						// Write rest
+						outputBuffer[outputPosition++] = 0x60;
+					
+						if (!sharedChannelVelocity)
+						{
+							if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+							{
+								// Should be same as previous velocity, the rest velocity
+								outputBuffer[outputPosition] = channels[x][y].velocity;
+								if (sngStyle == SngStyle::Normal)
+								{
+									if (countSameVelocity >= 3)
+									{
+										sharedChannelVelocity = true;
+										currentVelocity = channels[x][y].velocity;
+										outputBuffer[outputPosition] |= 0x80;
+									}
+								}
+								outputPosition++;
+							}
+						}
+
+						if (!setLength)
+						{
+							WriteSngVariableLength(outputBuffer, outputPosition, restLength);
+						}
+
+						absoluteTime += restLength;
+					}
+
+					SngNoteInfoMidiImport tempSongInfo = channels[x][y];	
+
+					if (tempSongInfo.instrument != currentInstrument)
+					{
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Bfx))
+						{
+							for (int z = 0; z < instruments.size(); z++)
+							{
+								if (instruments[z] == tempSongInfo.instrument)
+								{
+									outputBuffer[outputPosition++] = 0x81;
+									outputBuffer[outputPosition++] = z;
+
+									currentInstrument = instruments[z];
+
+									break;
+								}
+							}
+						}
+						else if ((sngStyle == SngStyle::OldBfx) || (sngStyle == SngStyle::Old))
+						{
+							outputBuffer[outputPosition++] = 0x81;
+
+							WriteSngVariableLength(outputBuffer, outputPosition, tempSongInfo.instrument);
+
+							currentInstrument = tempSongInfo.instrument;
+						}
+					}
+
+					int noteLength = tempSongInfo.endAbsoluteTime - tempSongInfo.startAbsoluteTime;
+					if (setLength)
+					{
+						if (noteLength != currentLength)
+						{
+							int countSameLength = 1;
+							unsigned long tempAbsoluteTime = absoluteTime;
+
+							for (int z = (y + 1); z < channels[x].size(); z++)
+							{
+								if (
+									((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == noteLength)
+									||
+									((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == 0)
+									)
+								{
+									
+								}
+								else
+									break;
+
+								tempAbsoluteTime = channels[x][z].startAbsoluteTime;
+
+								if ((channels[x][z].endAbsoluteTime - tempAbsoluteTime) == noteLength)
+									countSameLength++;
+								else
+									break;
+
+								tempAbsoluteTime = channels[x][z].endAbsoluteTime;
+							}
+
+							if ((countSameLength >= 3) && (noteLength <= 0x7FFE))
+							{
+								outputBuffer[outputPosition++] = 0x8B;
+								WriteSngVariableLength(outputBuffer, outputPosition, noteLength);
+
+								setLength = true;
+								currentLength = noteLength;
+							}
+							else
+							{
+								if (sngStyle == SngStyle::Normal)
+								{
+									outputBuffer[outputPosition++] = 0xAC;
+								}
+								else if (sngStyle == SngStyle::Old)
+								{
+									outputBuffer[outputPosition++] = 0x8B;
+									outputBuffer[outputPosition++] = 0x00;
+								}
+								setLength = false;
+							}
+						}
+					}
+					else
+					{
+						int countSameLength = 1;
+						unsigned long tempAbsoluteTime = absoluteTime;
+
+						for (int z = (y + 1); z < channels[x].size(); z++)
+						{
+							if (
+								((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == noteLength)
+								||
+								((channels[x][z].startAbsoluteTime - tempAbsoluteTime) == 0)
+								)
+							{
+								
+							}
+							else
+								break;
+
+							tempAbsoluteTime = channels[x][z].startAbsoluteTime;
+
+							if ((channels[x][z].endAbsoluteTime - tempAbsoluteTime) == noteLength)
+								countSameLength++;
+							else
+								break;
+
+							tempAbsoluteTime = channels[x][z].endAbsoluteTime;
+						}
+
+						if ((countSameLength >= 3) && (noteLength <= 0x7FFE))
+						{
+							outputBuffer[outputPosition++] = 0x8B;
+							WriteSngVariableLength(outputBuffer, outputPosition, noteLength);
+
+							setLength = true;
+							currentLength = noteLength;
+						}
+					}
+
+					int countSameVelocity = 1;
+					for (int z = (y + 1); z < channels[x].size(); z++)
+					{
+						if ((channels[x][z].velocity) == tempSongInfo.velocity)
+							countSameVelocity++;
+						else
+							break;
+					}
+
+					if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+					{
+						if (sharedChannelVelocity)
+						{
+							if (currentVelocity != tempSongInfo.velocity)
+							{
+								outputBuffer[outputPosition++] = 0x99;
+								sharedChannelVelocity = false;
+							}
+						}
+					}
+
+					if (!sharedChannelVelocity)
+					{
+						if (sngStyle == SngStyle::Old)
+						{
+							if (countSameVelocity >= 3)
+							{
+								sharedChannelVelocity = true;
+								currentVelocity = channels[x][y].velocity;
+
+								outputBuffer[outputPosition++] = 0x9B;
+								outputBuffer[outputPosition++] = currentVelocity;
+
+								outputBuffer[outputPosition++] = 0x9A;
+							}
+						}
+					}
+
+					if (tempSongInfo.effect != currentEffect)
+					{
+						outputBuffer[outputPosition++] = 0xA2;
+						outputBuffer[outputPosition++] = tempSongInfo.effect;
+
+						currentEffect = tempSongInfo.effect;
+					}
+
+					if (tempSongInfo.pan != currentPan)
+					{
+						outputBuffer[outputPosition++] = 0x9C;
+						if (tempSongInfo.pan == 0x7F)
+							outputBuffer[outputPosition++] = 255;
+						else if (tempSongInfo.pan == 0x40)
+							outputBuffer[outputPosition++] = 127;
+						else
+							outputBuffer[outputPosition++] = tempSongInfo.pan * 2;
+
+						currentPan = tempSongInfo.pan;
+					}
+
+					// Write note
+					if (tempSongInfo.noteNumber <= 0xC)
+						outputBuffer[outputPosition++] = 0;
+					else if (tempSongInfo.noteNumber >= 0x6B)
+						outputBuffer[outputPosition++] = 0x5F;
+					else
+						outputBuffer[outputPosition++] = tempSongInfo.noteNumber - 0xC;
+
+					if (!sharedChannelVelocity)
+					{
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+						{
+							outputBuffer[outputPosition] = tempSongInfo.velocity;
+							if (sngStyle == SngStyle::Normal)
+							{
+								if (countSameVelocity >= 3)
+								{
+									sharedChannelVelocity = true;
+									outputBuffer[outputPosition] |= 0x80;
+								}
+							}
+							outputPosition++;
+						}
+					}
+
+					if (!setLength)
+					{
+						WriteSngVariableLength(outputBuffer, outputPosition, noteLength);
+					}
+
+					absoluteTime += noteLength;
+				}
+
+				if (setLength)
+				{
+					if (sngStyle == SngStyle::Normal)
+					{
+						outputBuffer[outputPosition++] = 0xAC;
+					}
+					else if (sngStyle == SngStyle::Old)
+					{
+						outputBuffer[outputPosition++] = 0x8B;
+						outputBuffer[outputPosition++] = 0x00;
+					}
+					setLength = false;
+				}
+
+
+				if (loop && (!wroteChannelLoop))
+				{
+					unsigned long delta = (loopPoint - absoluteTime);
+
+					while (delta > 0)
+					{
+						outputBuffer[outputPosition++] = 0x60;
+						if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+						{
+							if (!sharedChannelVelocity)
+							{
+								outputBuffer[outputPosition++] = 0x00;
+								currentVelocity = 0x00;
+							}
+						}
+						
+						delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+						absoluteTime += delta;
+					}
+
+					outputBuffer[outputPosition++] = 0x95;
+					outputBuffer[outputPosition++] = 0xFF;
+
+					if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+					{
+						sharedChannelVelocity = false;
+						outputBuffer[outputPosition++] = 0x99;
+
+						if (sngStyle == SngStyle::Normal)
+						{
+							setLength = false;
+							outputBuffer[outputPosition++] = 0xAC;
+						}
+						else if (sngStyle == SngStyle::Old)
+						{
+							setLength = false;
+							outputBuffer[outputPosition++] = 0x8B;
+							outputBuffer[outputPosition++] = 0x00;
+						}
+					}
+
+					wroteChannelLoop = true;
+				}
+
+				unsigned long delta = (highestAbsoluteTime - absoluteTime);
+
+				while (delta > 0)
+				{
+					outputBuffer[outputPosition++] = 0x60;
+					if ((sngStyle == SngStyle::Normal) || (sngStyle == SngStyle::Old))
+					{
+						if (!sharedChannelVelocity)
+						{
+							outputBuffer[outputPosition++] = 0x00;
+							currentVelocity = 0x00;
+						}
+					}
+					
+					delta = WriteSngVariableLength(outputBuffer, outputPosition, delta);
+
+					absoluteTime += delta;
+				}
+
+				if (wroteChannelLoop)
+				{
+					outputBuffer[outputPosition++] = 0x96;
+				}
+				else
+				{
+					outputBuffer[outputPosition++] = 0x80;
+				}
+			}
+		}
+
+		if (sngStyle == SngStyle::Bfx)
+		{
+			WriteLongToBuffer(outputBuffer, 0x14, outputPosition);
+
+			unsigned long instrumentsPointersStart = outputPosition;
+
+			for (int x = 0; x < instruments.size(); x++)
+			{
+				WriteShortToBuffer(outputBuffer, outputPosition, instruments[x]);
+				outputPosition += 2;
+			}
+		}
+
+		FILE* outFile = fopen(output, "wb");
+		if (outFile == NULL)
+		{
+			delete [] outputBuffer;
+
+			MessageBox(NULL, "Error outputting file", "Error", NULL);
+			return false;
+		}
+
+		fwrite(outputBuffer, 1, outputPosition, outFile);
+
+		delete [] outputBuffer;
+		fclose(outFile);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error converting", "Error", NULL);
+		return false;
+	}
+	return true;
+}
+
+void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest)
 {
 	numberInstruments = 0;
 	try
@@ -1724,38 +7990,29 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 		int counterTrack = 0;
 
+		int highestTrackLength = 0;
+
 		for (int iii = 0; iii < trackSize; iii++)
 		{
 			unsigned long absoluteTime = 0;
-
-			int trackEventCount = 0;
-			TrackEvent* trackEvents = new TrackEvent[0x90000];
-
-			for (int j = 0; j < 0x90000; j++)
-			{
-				trackEvents[j].contents = NULL;
-				trackEvents[j].contentSize = 0;
-				trackEvents[j].obsoleteEvent = false;
-				trackEvents[j].deltaTime = 0;
-				trackEvents[j].absoluteTime = 0;
-			}
 
 			unsigned long offset = CharArrayToLong(&inputMID[(iii * 4) + 0x8]);
 			
 			int position = offset;	
 
+			
 			if (position != 0)
 			{
-				tempLong = Flip32Bit(0x4D54726B);
-				fwrite(&tempLong, 1 ,4 , outFile);
-	
 				int previousEventValue = 0;
+
+				std::map<int, int> loopEndsWithCount;
 
 				byte* repeatPattern = NULL;
 				byte altOffset = 0;
 				byte altLength = 0;
 
 				bool endFlag = false;
+
 				while ((position < inputSize) && !endFlag)
 				{
 					int timePosition = position;
@@ -1763,10 +8020,11 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 					unsigned long original;
 					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
 
-					trackEvents[trackEventCount].deltaTime += timeTag;
-
 					absoluteTime += timeTag;
-					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					if (absoluteTime > highestTrackLength)
+						highestTrackLength = absoluteTime;
+
 
 					int vlLength = 0;
 					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
@@ -1795,17 +8053,307 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						{
 							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
 
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 5;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+						}
+						else if (subType == 0x2D) // end loop
+						{
+							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 							
-							trackEvents[trackEventCount].contents[0] = 0x51;
-							trackEvents[trackEventCount].contents[1] = 0x3;
-							trackEvents[trackEventCount].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
-							trackEvents[trackEventCount].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
-							trackEvents[trackEventCount].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+							if ((loopCount == 0xFF) || (loopCount == 0x00))
+							{
+								
+							}
+							else
+							{
+								std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+								if (it != loopEndsWithCount.end())
+								{
+									int countLeft = it->second;
 
-							trackEventCount++;
+									if (countLeft == 0)
+									{
+										loopEndsWithCount.erase(it);
+									}
+									else
+									{
+										loopEndsWithCount[position] = (countLeft - 1);
+
+										if (repeatPattern == NULL)
+										{
+											position = position - offsetToBeginningLoop;
+										}
+										else
+										{
+											loopEndsWithCount.erase(it);
+										}
+									}
+								}
+								else
+								{
+									loopEndsWithCount[position] = loopCount - 1;
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
+						}
+						else if (subType == 0x2E) // start loop
+						{
+							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true); // Always FF
+						}
+						else if (subType == 0x2F)
+						{
+							endFlag = true;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90) && (previousEventValue < 0xA0)))
+					{
+						byte curEventVal;
+
+						byte noteNumber;
+						if (statusBit)
+						{
+							noteNumber = eventVal;
+							curEventVal = previousEventValue;
+						}
+						else
+						{
+							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							curEventVal = eventVal;
+						}
+						byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						unsigned long timeDuration = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xB0) && (eventVal < 0xC0)) || (statusBit && (previousEventValue >= 0xB0) && (previousEventValue < 0xC0))) // controller change
+					{
+						CString controllerTypeText = "";
+						byte controllerType;
+						
+						if (statusBit)
+						{
+							controllerType = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0) && (previousEventValue < 0xD0))) // change instrument
+					{
+						byte instrument;
+						if (statusBit)
+						{
+							instrument = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xD0) && (eventVal < 0xE0)) || (statusBit && (previousEventValue >= 0xD0) && (previousEventValue < 0xE0))) // channel aftertouch
+					{
+						byte amount;
+						if (statusBit)
+						{
+							amount = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (((eventVal >= 0xE0) && (eventVal < 0xF0)) || (statusBit && (previousEventValue >= 0xE0) && (previousEventValue < 0xF0))) // pitch bend
+					{
+						byte valueLSB;
+						if (statusBit)
+						{
+							valueLSB = eventVal;
+							previousEventValue;
+						}
+						else
+						{
+							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							eventVal;
+						}
+						
+						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if (eventVal == 0xFE) // repeat operation
+					{
+						// should not be here...
+
+						// no prev event set
+					}
+					else
+					{
+						
+					}
+				}
+			}
+		}
+
+		for (int iii = 0; iii < trackSize; iii++)
+		{
+			unsigned long absoluteTime = 0;
+
+			int trackEventCountSub = 0;
+			TrackEvent* trackEventsSub = new TrackEvent[0x30000];
+
+			for (int j = 0; j < 0x30000; j++)
+			{
+				trackEventsSub[j].contents = NULL;
+				trackEventsSub[j].contentSize = 0;
+				trackEventsSub[j].obsoleteEvent = false;
+				trackEventsSub[j].deltaTime = 0;
+				trackEventsSub[j].absoluteTime = 0;
+			}
+
+			unsigned long offset = CharArrayToLong(&inputMID[(iii * 4) + 0x8]);
+			
+			int position = offset;	
+
+			if (position != 0)
+			{
+				tempLong = Flip32Bit(0x4D54726B);
+				fwrite(&tempLong, 1 ,4 , outFile);
+	
+				int previousEventValue = 0;
+
+				std::map<int, int> loopEndsWithCount;
+
+				byte* repeatPattern = NULL;
+				byte altOffset = 0;
+				byte altLength = 0;
+
+				bool endFlag = false;
+				while ((position < inputSize) && !endFlag)
+				{
+					if (extendTracksToHighest)
+					{
+						if (absoluteTime >= highestTrackLength)
+						{
+							trackEventsSub[trackEventCountSub].absoluteTime = highestTrackLength;
+							trackEventsSub[trackEventCountSub].deltaTime = (highestTrackLength - absoluteTime);
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
+
+							trackEventCountSub++;
+
+							endFlag = true;
+
+							break;
+						}
+					}
+
+					int timePosition = position;
+
+					unsigned long original;
+					unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+					if (extendTracksToHighest)
+					{
+						if ((absoluteTime + timeTag) > highestTrackLength)
+						{
+							trackEventsSub[trackEventCountSub].absoluteTime = highestTrackLength;
+							trackEventsSub[trackEventCountSub].deltaTime = (highestTrackLength - absoluteTime);
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
+
+							trackEventCountSub++;
+
+							endFlag = true;
+
+							break;
+						}
+					}
+
+					trackEventsSub[trackEventCountSub].deltaTime += timeTag;
+
+					absoluteTime += timeTag;
+					trackEventsSub[trackEventCountSub].absoluteTime = absoluteTime;
+
+					int vlLength = 0;
+					byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					bool statusBit = false;
+
+					if (eventVal < 0x80)
+					{
+						// continuation
+						statusBit = true;
+					}
+					else
+					{
+						statusBit = false;
+					}
+
+					if ((eventVal == 0xFF) || (statusBit && (previousEventValue == 0xFF))) // meta event
+					{
+						byte subType;
+						if (statusBit)
+							subType = eventVal;
+						else
+							subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (subType == 0x51) // tempo
+						{
+							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 5;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							
+							trackEventsSub[trackEventCountSub].contents[0] = 0x51;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x3;
+							trackEventsSub[trackEventCountSub].contents[2] = ((microsecondsSinceQuarterNote >> 16) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[3] = ((microsecondsSinceQuarterNote >> 8) & 0xFF);
+							trackEventsSub[trackEventCountSub].contents[4] = ((microsecondsSinceQuarterNote >> 0) & 0xFF);
+
+							trackEventCountSub++;
 
 							
 							int MICROSECONDS_PER_MINUTE = 60000000;
@@ -1813,35 +8361,81 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						}
 						else if (subType == 0x2D) // end loop
 						{
-							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 
-							trackEvents[trackEventCount].obsoleteEvent = true;
-							trackEventCount++;
+							if ((loopCount == 0xFF) || (loopCount == 0x00))
+							{
+								hasLoopPoint = true;
+								loopEnd = absoluteTime;
+
+								if (extendTracksToHighest)
+								{
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+								}
+							}
+							else
+							{
+								std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+								if (it != loopEndsWithCount.end())
+								{
+									int countLeft = it->second;
+
+									if (countLeft == 0)
+									{
+										loopEndsWithCount.erase(it);
+									}
+									else
+									{
+										loopEndsWithCount[position] = (countLeft - 1);
+
+										if (repeatPattern == NULL)
+										{
+											position = position - offsetToBeginningLoop;
+										}
+										else
+										{
+											loopEndsWithCount.erase(it);
+										}
+									}
+								}
+								else
+								{
+									loopEndsWithCount[position] = loopCount - 1;
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
 						}
 						else if (subType == 0x2E) // start loop
 						{
-							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							if (endLoop != 0xFF)
-							{
-								// is this used?
-							}
-
-							trackEvents[trackEventCount].obsoleteEvent = true;
-							trackEventCount++;
+							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+							
+							hasLoopPoint = true;
+							loopStart = absoluteTime;
 						}
 						else if (subType == 0x2F)
 						{
-							trackEvents[trackEventCount].type = 0xFF;
-							trackEvents[trackEventCount].contentSize = 2;
-							trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+							trackEventsSub[trackEventCountSub].type = 0xFF;
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							
-							trackEvents[trackEventCount].contents[0] = 0x2F;
-							trackEvents[trackEventCount].contents[1] = 0x0;
+							trackEventsSub[trackEventCountSub].contents[0] = 0x2F;
+							trackEventsSub[trackEventCountSub].contents[1] = 0x0;
 
-							trackEventCount++;
+							trackEventCountSub++;
 
 							endFlag = true;
 						}
@@ -1856,13 +8450,13 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						byte noteNumber;
 						if (statusBit)
 						{
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 							noteNumber = eventVal;
 							curEventVal = previousEventValue;
 						}
 						else
 						{
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							curEventVal = eventVal;
 						}
@@ -1872,13 +8466,13 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 						
 
-						trackEvents[trackEventCount].durationTime = timeDuration; // to be filled in
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = noteNumber;
-						trackEvents[trackEventCount].contents[1] = velocity;
+						trackEventsSub[trackEventCountSub].durationTime = timeDuration; // to be filled in
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = noteNumber;
+						trackEventsSub[trackEventCountSub].contents[1] = velocity;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1891,21 +8485,21 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							controllerType = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = controllerType;
-						trackEvents[trackEventCount].contents[1] = controllerValue;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = controllerType;
+						trackEventsSub[trackEventCountSub].contents[1] = controllerValue;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1916,21 +8510,21 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							instrument = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = instrument;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = instrument;
 						if (instrument >= numberInstruments)
 							numberInstruments = (instrument + 1);
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1941,19 +8535,19 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							amount = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 
-						trackEvents[trackEventCount].contentSize = 1;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = amount;
+						trackEventsSub[trackEventCountSub].contentSize = 1;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = amount;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1964,22 +8558,22 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 						if (statusBit)
 						{
 							valueLSB = eventVal;
-							trackEvents[trackEventCount].type = previousEventValue;
+							trackEventsSub[trackEventCountSub].type = previousEventValue;
 						}
 						else
 						{
 							valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							trackEvents[trackEventCount].type = eventVal;
+							trackEventsSub[trackEventCountSub].type = eventVal;
 						}
 						
 						byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						trackEvents[trackEventCount].contentSize = 2;
-						trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
-						trackEvents[trackEventCount].contents[0] = valueLSB;
-						trackEvents[trackEventCount].contents[1] = valueMSB;
+						trackEventsSub[trackEventCountSub].contentSize = 2;
+						trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+						trackEventsSub[trackEventCountSub].contents[0] = valueLSB;
+						trackEventsSub[trackEventCountSub].contents[1] = valueMSB;
 
-						trackEventCount++;
+						trackEventCountSub++;
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -1997,9 +8591,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 					if ((trackEvent.type >= 0x90) && (trackEvent.type < 0xA0))
 					{
 						// need to split out
@@ -2008,130 +8602,130 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 							unsigned long shutoffTime = (trackEvent.absoluteTime + trackEvent.durationTime);
 
-							if (eventCount != (trackEventCount - 1))
+							if (eventCount != (trackEventCountSub - 1))
 							{
 
-								for (int i = (eventCount+1); i < trackEventCount; i++)
+								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEvents[i].absoluteTime > shutoffTime) && (i != (trackEventCount - 1)))
+									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
-										for (int j = (trackEventCount - 1); j >= i; j--)
+										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
-											trackEvents[j+1].absoluteTime = trackEvents[j].absoluteTime;
-											trackEvents[j+1].contentSize = trackEvents[j].contentSize;
- 											if (trackEvents[j+1].contents != NULL)
+											trackEventsSub[j+1].absoluteTime = trackEventsSub[j].absoluteTime;
+											trackEventsSub[j+1].contentSize = trackEventsSub[j].contentSize;
+ 											if (trackEventsSub[j+1].contents != NULL)
 											{
-												delete [] trackEvents[j+1].contents;
-												trackEvents[j+1].contents = NULL;
+												delete [] trackEventsSub[j+1].contents;
+												trackEventsSub[j+1].contents = NULL;
 											}
-											trackEvents[j+1].contents = new byte[trackEvents[j].contentSize];
-											for (int r = 0; r < trackEvents[j].contentSize; r++)
+											trackEventsSub[j+1].contents = new byte[trackEventsSub[j].contentSize];
+											for (int r = 0; r < trackEventsSub[j].contentSize; r++)
 											{
-												trackEvents[j+1].contents[r] = trackEvents[j].contents[r];
+												trackEventsSub[j+1].contents[r] = trackEventsSub[j].contents[r];
 											}
-											trackEvents[j+1].deltaTime = trackEvents[j].deltaTime;
-											trackEvents[j+1].durationTime = trackEvents[j].durationTime;
-											trackEvents[j+1].obsoleteEvent = trackEvents[j].obsoleteEvent;
-											trackEvents[j+1].type = trackEvents[j].type;
+											trackEventsSub[j+1].deltaTime = trackEventsSub[j].deltaTime;
+											trackEventsSub[j+1].durationTime = trackEventsSub[j].durationTime;
+											trackEventsSub[j+1].obsoleteEvent = trackEventsSub[j].obsoleteEvent;
+											trackEventsSub[j+1].type = trackEventsSub[j].type;
 										}
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i-1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i-1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
 
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
 
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
-									else if (i == (trackEventCount - 1))
+									else if (i == (trackEventCountSub - 1))
 									{
-										trackEvents[i+1].absoluteTime = shutoffTime; // move end to end
-										trackEvents[i+1].contentSize = trackEvents[i].contentSize;
-										if (trackEvents[i+1].contents != NULL)
+										trackEventsSub[i+1].absoluteTime = shutoffTime; // move end to end
+										trackEventsSub[i+1].contentSize = trackEventsSub[i].contentSize;
+										if (trackEventsSub[i+1].contents != NULL)
 										{
-											delete [] trackEvents[i+1].contents;
-											trackEvents[i+1].contents = NULL;
+											delete [] trackEventsSub[i+1].contents;
+											trackEventsSub[i+1].contents = NULL;
 										}
-										trackEvents[i+1].contents = new byte[trackEvents[i].contentSize];
-										for (int r = 0; r < trackEvents[i].contentSize; r++)
+										trackEventsSub[i+1].contents = new byte[trackEventsSub[i].contentSize];
+										for (int r = 0; r < trackEventsSub[i].contentSize; r++)
 										{
-											trackEvents[i+1].contents[r] = trackEvents[i].contents[r];
+											trackEventsSub[i+1].contents[r] = trackEventsSub[i].contents[r];
 										}
-										trackEvents[i+1].deltaTime = trackEvents[i].deltaTime;
-										trackEvents[i+1].durationTime = trackEvents[i].durationTime;
-										trackEvents[i+1].obsoleteEvent = trackEvents[i].obsoleteEvent;
-										trackEvents[i+1].type = trackEvents[i].type;
+										trackEventsSub[i+1].deltaTime = trackEventsSub[i].deltaTime;
+										trackEventsSub[i+1].durationTime = trackEventsSub[i].durationTime;
+										trackEventsSub[i+1].obsoleteEvent = trackEventsSub[i].obsoleteEvent;
+										trackEventsSub[i+1].type = trackEventsSub[i].type;
 
 
-										trackEvents[i].type = trackEvents[eventCount].type;
-										trackEvents[i].absoluteTime = shutoffTime;
-										trackEvents[i].deltaTime = (trackEvents[i].absoluteTime - trackEvents[i - 1].absoluteTime);
-										trackEvents[i].contentSize = trackEvents[eventCount].contentSize;
-										trackEvents[i].durationTime = 0;
-										trackEvents[i].contents = new byte[trackEvents[i].contentSize];
-										trackEvents[i].contents[0] = trackEvents[eventCount].contents[0];
-										trackEvents[i].contents[1] = 0;
+										trackEventsSub[i].type = trackEventsSub[eventCount].type;
+										trackEventsSub[i].absoluteTime = shutoffTime;
+										trackEventsSub[i].deltaTime = (trackEventsSub[i].absoluteTime - trackEventsSub[i - 1].absoluteTime);
+										trackEventsSub[i].contentSize = trackEventsSub[eventCount].contentSize;
+										trackEventsSub[i].durationTime = 0;
+										trackEventsSub[i].contents = new byte[trackEventsSub[i].contentSize];
+										trackEventsSub[i].contents[0] = trackEventsSub[eventCount].contents[0];
+										trackEventsSub[i].contents[1] = 0;
 
-										trackEvents[i+1].deltaTime = (trackEvents[i+1].absoluteTime - trackEvents[i].absoluteTime);
-										if (trackEvents[i].deltaTime > 0xFF000000)
+										trackEventsSub[i+1].deltaTime = (trackEventsSub[i+1].absoluteTime - trackEventsSub[i].absoluteTime);
+										if (trackEventsSub[i].deltaTime > 0xFF000000)
 										{
 											int a =1;
 										}
-										trackEventCount++;
+										trackEventCountSub++;
 										break;
 									}
 								}
 							}
 							else
 							{
-								trackEvents[eventCount+1].absoluteTime = shutoffTime; // move end to end
-								trackEvents[eventCount+1].contentSize = trackEvents[eventCount].contentSize;
-								if (trackEvents[eventCount+1].contents != NULL)
+								trackEventsSub[eventCount+1].absoluteTime = shutoffTime; // move end to end
+								trackEventsSub[eventCount+1].contentSize = trackEventsSub[eventCount].contentSize;
+								if (trackEventsSub[eventCount+1].contents != NULL)
 								{
-									delete [] trackEvents[eventCount+1].contents;
-									trackEvents[eventCount+1].contents = NULL;
+									delete [] trackEventsSub[eventCount+1].contents;
+									trackEventsSub[eventCount+1].contents = NULL;
 								}
-								trackEvents[eventCount+1].contents = new byte[trackEvents[eventCount].contentSize];
-								for (int r = 0; r < trackEvents[eventCount].contentSize; r++)
+								trackEventsSub[eventCount+1].contents = new byte[trackEventsSub[eventCount].contentSize];
+								for (int r = 0; r < trackEventsSub[eventCount].contentSize; r++)
 								{
-									trackEvents[eventCount+1].contents[r] = trackEvents[eventCount].contents[r];
+									trackEventsSub[eventCount+1].contents[r] = trackEventsSub[eventCount].contents[r];
 								}
-								trackEvents[eventCount+1].deltaTime = trackEvents[eventCount].deltaTime;
-								trackEvents[eventCount+1].durationTime = trackEvents[eventCount].durationTime;
-								trackEvents[eventCount+1].obsoleteEvent = trackEvents[eventCount].obsoleteEvent;
-								trackEvents[eventCount+1].type = trackEvents[eventCount].type;
+								trackEventsSub[eventCount+1].deltaTime = trackEventsSub[eventCount].deltaTime;
+								trackEventsSub[eventCount+1].durationTime = trackEventsSub[eventCount].durationTime;
+								trackEventsSub[eventCount+1].obsoleteEvent = trackEventsSub[eventCount].obsoleteEvent;
+								trackEventsSub[eventCount+1].type = trackEventsSub[eventCount].type;
 
 
-								trackEvents[eventCount].type = trackEvents[eventCount].type;
-								trackEvents[eventCount].absoluteTime = shutoffTime;
-								if ((trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime) > 0xFF000000)
+								trackEventsSub[eventCount].type = trackEventsSub[eventCount].type;
+								trackEventsSub[eventCount].absoluteTime = shutoffTime;
+								if ((trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime) > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEvents[eventCount].deltaTime = (trackEvents[eventCount].absoluteTime - trackEvents[eventCount - 1].absoluteTime);
-								trackEvents[eventCount].contentSize = trackEvents[eventCount].contentSize;
-								trackEvents[eventCount].durationTime = 0;
-								trackEvents[eventCount].contents = new byte[trackEvents[eventCount].contentSize];
-								trackEvents[eventCount].contents[0] = trackEvents[eventCount].contents[0];
-								trackEvents[eventCount].contents[1] = 0;
+								trackEventsSub[eventCount].deltaTime = (trackEventsSub[eventCount].absoluteTime - trackEventsSub[eventCount - 1].absoluteTime);
+								trackEventsSub[eventCount].contentSize = trackEventsSub[eventCount].contentSize;
+								trackEventsSub[eventCount].durationTime = 0;
+								trackEventsSub[eventCount].contents = new byte[trackEventsSub[eventCount].contentSize];
+								trackEventsSub[eventCount].contents[0] = trackEventsSub[eventCount].contents[0];
+								trackEventsSub[eventCount].contents[1] = 0;
 
-								trackEvents[eventCount+1].deltaTime = (trackEvents[eventCount+1].absoluteTime - trackEvents[eventCount].absoluteTime);
-								if (trackEvents[eventCount].deltaTime > 0xFF000000)
+								trackEventsSub[eventCount+1].deltaTime = (trackEventsSub[eventCount+1].absoluteTime - trackEventsSub[eventCount].absoluteTime);
+								if (trackEventsSub[eventCount].deltaTime > 0xFF000000)
 								{
 									int a =1;
 								}
-								trackEventCount++;
+								trackEventCountSub++;
 							}
 						}
 					}
@@ -2144,9 +8738,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte previousTrackEvent = 0x0;
 
 				
-				for (int j = 0; j < trackEventCount; j++)
+				for (int j = 0; j < trackEventCountSub; j++)
 				{
-					TrackEvent trackEvent =  trackEvents[j];
+					TrackEvent trackEvent =  trackEventsSub[j];
 					if (trackEvent.obsoleteEvent)
 					{
 						timeOffset += trackEvent.deltaTime;
@@ -2176,9 +8770,9 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 				timeOffset = 0;
 				previousTrackEvent = 0x0;
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					TrackEvent trackEvent = trackEvents[eventCount];
+					TrackEvent trackEvent = trackEventsSub[eventCount];
 
 					if (trackEvent.obsoleteEvent)
 					{
@@ -2202,12 +8796,12 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 					}
 				}
 
-				for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+				for (int eventCount = 0; eventCount < trackEventCountSub; eventCount++)
 				{
-					if (trackEvents[eventCount].contents != NULL)
+					if (trackEventsSub[eventCount].contents != NULL)
 					{
-						delete [] trackEvents[eventCount].contents;
-						trackEvents[eventCount].contents = NULL;
+						delete [] trackEventsSub[eventCount].contents;
+						trackEventsSub[eventCount].contents = NULL;
 					}
 				}
 			}
@@ -2217,7 +8811,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 			}
 
 			counterTrack++;
-			delete [] trackEvents;
+			delete [] trackEventsSub;
 		}
 
 
@@ -2234,50 +8828,27 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 }
 
 
-void CMidiParse::ImportMidiConfig(CString configFile)
-{
-	FILE* inFile = fopen(configFile, "r");
-	if (inFile == NULL)
-	{
-		MessageBox(NULL, "Error opening midi config " + configFile, "Error", NULL);
-	}
-	try
-	{
-		int countInstruments = 0;
-		int maxInstruments = 0x80;// GE is 0x80
-		while ((!feof(inFile)) && (countInstruments < 0x100))
-		{
-			char tempChar[1000];
-			fgets(tempChar, 1000, inFile);
-
-			CString tempStr;
-			tempStr.Format("%s", tempChar);
-			
-			tempStr.Replace(",", "");
-			tempStr.Replace("0x", "");
-			tempStr.Replace(" ", "");
-
-			if (tempStr.Find("//", 0) != -1)
-			{
-				tempStr = tempStr.Mid(0, tempStr.Find("//", 0));
-			}
-
-			instrumentMidiToGEMapping[countInstruments] = (byte)StringToUnsignedChar(tempStr);
-			countInstruments++;
-		}
-
-		fclose(inFile);
-	}
-	catch (...)
-	{
-		MessageBox(NULL, "Error importing txt", "Error", NULL);
-	}
-}
-
 bool CMidiParse::MidiToBTFormat(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters)
 {
+	numberTracks = 0;
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x30000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
+
 	CString tempOutput = (output + "temp.bin");
-	if (MidiToBTFormatStageOne(input, tempOutput, loop, loopPoint, useRepeaters))
+
+	unsigned short numberTracks = 0x20;
+
+	if (MidiToBTFormatStageOne(input, tempOutput, loop, loopPoint, useRepeaters, numberTracks))
 	{
 		FILE* inFile = fopen(tempOutput, "rb");
 		if (inFile == NULL)
@@ -2293,9 +8864,12 @@ bool CMidiParse::MidiToBTFormat(CString input, CString output, bool loop, unsign
 		fread(inArray, 1, sizeOut, inFile);
 		fclose(inFile);
 
+		::DeleteFile(tempOutput);
+
 		FILE* outFile = fopen(output, "wb");
 		if (outFile == NULL)
 		{
+			delete [] inArray;
 			MessageBox(NULL, "Error opening output", "Error", NULL);
 			return false;
 		}
@@ -2305,13 +8879,12 @@ bool CMidiParse::MidiToBTFormat(CString input, CString output, bool loop, unsign
 		
 
 		unsigned long offsetheader[0x20];
-		int numberTracks = 0x20;
+		
 		for (int x = 0; x < 0x80; x+=4)
 		{
 			offsetheader[x/4] = ((((((inArray[x] << 8) | inArray[x+1]) << 8) | inArray[x+2]) << 8) | inArray[x+3]);
 			if (offsetheader[x/4] == 0)
 			{
-				numberTracks = x/4;
 				break;
 			}
 		}
@@ -2337,6 +8910,12 @@ bool CMidiParse::MidiToBTFormat(CString input, CString output, bool loop, unsign
 
 		fclose(outFile);
 	}
+	else
+	{
+		return false;
+	}
+
+	return true;
 }
 
 bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, bool loop, unsigned long loopPoint, bool useRepeaters)
@@ -2350,6 +8929,19 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 	int numberInstruments = 0;
 	numberTracks = 0x10;
+
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x30000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
 
 	try
 	{
@@ -2564,9 +9156,6 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 
 
-		trackEvents = new TrackEvent*[0x10];
-
-
 		int counterTrack = 0;
 
 		for (int iii = 0; iii < (lengthHeader - 4); iii+=4) // ignore last 00000180
@@ -2575,9 +9164,8 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 			unsigned long absoluteTime = 0;
 
 			trackEventCount[counterTrack] = 0;
-			trackEvents[counterTrack] = new TrackEvent[0x100000];
 
-			for (int j = 0; j < 0x100000; j++)
+			for (int j = 0; j < 0x30000; j++)
 			{
 				trackEvents[counterTrack][j].contents = NULL;
 				trackEvents[counterTrack][j].obsoleteEvent = false;
@@ -2620,7 +9208,7 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 				bool endFlag = false;
 				while ((position < inputSize) && !endFlag)
 				{
-					if (trackEventCount[counterTrack] > 0x90000)
+					if (trackEventCount[counterTrack] >= 0x30000)
 						return false;
 
 					int timePosition = position;
@@ -3017,7 +9605,8 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 	{
 		if (trackEventCount[i] > 0)
 		{
-			if (outDebug != NULL) fprintf(outDebug, "Track %X\n", i);
+			if (outDebug != NULL) 
+				fprintf(outDebug, "Track %X\n", i);
 			byte previousTrackEvent = 0x0;
 			for (int j = 0; j < trackEventCount[i]; j++)
 			{
@@ -3120,6 +9709,7 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 	outFile = fopen(output, "wb");
 	if (outFile == NULL)
 	{
+		delete [] inArray;
 		MessageBox(NULL, "Error reading file", "Error", NULL);
 		return false;
 	}
@@ -3244,6 +9834,9 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 					if (bestMatchLoopCount > 6)
 					{
+						if (bestMatchLoopCount > 0xFD)
+                            bestMatchLoopCount = 0xFD;
+
 						outArray[outputSpot++] = 0xFE;
 						int distBack = ((outputSpot - bestMatchOffset) - 1);
 
@@ -3331,6 +9924,8 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 		outFile = fopen(output, "wb");
 		if (outFile == NULL)
 		{
+			delete [] inArray;
+			delete [] outArray;
 			MessageBox(NULL, "Error reading file", "Error", NULL);
 			return false;
 		}
@@ -3350,9 +9945,11 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 
 
 	}
+
+	return true;
 }
 
-bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters)
+bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop, unsigned long loopPoint, bool useRepeaters, unsigned short& numTracks)
 {
 	try
 	{
@@ -3384,15 +9981,16 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	unsigned long headerLength = CharArrayToLong(&inputMID[4]);
 
 	unsigned short type = CharArrayToShort(&inputMID[8]);
-	unsigned short numTracks = CharArrayToShort(&inputMID[0xA]);
+	numTracks = CharArrayToShort(&inputMID[0xA]);
 	unsigned short tempo = CharArrayToShort(&inputMID[0xC]);
-
 
 	if (numTracks > 32)
 	{
 		MessageBox(NULL, "Too many tracks, truncated to 32", "Warning", NULL);
 		numTracks = 32;
 	}
+
+	unsigned long lessOffset = 0x84 - ((numTracks * 0x4) + 0x8);
 
 	
 
@@ -3404,9 +10002,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	}
 
 
-	CMidiParse midiParse;
-
-	midiParse.numberTracks = numTracks;
+	numberTracks = numTracks;
 
 	if (type == 0)
 	{
@@ -3418,6 +10014,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	}
 	else
 	{
+		fclose(outFile);
 		MessageBox(NULL, "Invalid midi type", "Error", NULL);
 		return false;
 	}
@@ -3437,7 +10034,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	for (int x = 0; x < 0x20; x++)
 		highestAbsoluteTimeByTrack[x] = 0;
 
-	for (int trackNum = 0; trackNum < midiParse.numberTracks; trackNum++)
+	for (int trackNum = 0; trackNum < numberTracks; trackNum++)
 	{
 		unsigned long absoluteTime = 0;
 
@@ -3659,7 +10256,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	altOffset = 0;
 	altLength = 0;
 
-	for (int trackNum = 0; trackNum < midiParse.numberTracks; trackNum++)
+	for (int trackNum = 0; trackNum < numberTracks; trackNum++)
 	{
 		unsigned long absoluteTime = 0;
 
@@ -3682,7 +10279,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 
 		if ((loop) && (loopPoint == 0) && (highestAbsoluteTimeByTrack[trackNum] > 0))
 		{
-			TrackEvent* newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+			TrackEvent* newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 			newTrackEvent->type = 0xFF;
 			newTrackEvent->absoluteTime = 0;
 			newTrackEvent->contentSize = 3;
@@ -3693,7 +10290,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 			newTrackEvent->deltaTime = 0;
 			newTrackEvent->obsoleteEvent = false;
 			
-			midiParse.trackEventCount[trackNum]++;
+			trackEventCount[trackNum]++;
 			didLoop = true;
 		}
 
@@ -3704,7 +10301,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 			unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
 			absoluteTime += timeTag;
 
-			TrackEvent* newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+			TrackEvent* newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 			newTrackEvent->deltaTime = timeTag;
 			newTrackEvent->obsoleteEvent = false;
 			newTrackEvent->contents = NULL;
@@ -3714,7 +10311,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 			{
 				if (absoluteTime == loopPoint)
 				{
-					TrackEvent* newTrackEventLoop = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					TrackEvent* newTrackEventLoop = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEventLoop->type = 0xFF;
 					newTrackEventLoop->absoluteTime = absoluteTime;
 					newTrackEventLoop->contentSize = 3;
@@ -3725,9 +10322,9 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 					newTrackEventLoop->deltaTime = timeTag;
 					newTrackEventLoop->obsoleteEvent = false;
 					
-					midiParse.trackEventCount[trackNum]++;
+					trackEventCount[trackNum]++;
 
-					newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEvent->deltaTime = 0;
 					newTrackEvent->obsoleteEvent = false;
 					newTrackEvent->contents = NULL;
@@ -3737,7 +10334,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 				}
 				else if (absoluteTime > loopPoint)
 				{
-					TrackEvent* newTrackEventLoop = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					TrackEvent* newTrackEventLoop = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEventLoop->type = 0xFF;
 					newTrackEventLoop->absoluteTime = loopPoint;
 					newTrackEventLoop->contentSize = 3;
@@ -3745,12 +10342,15 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 					newTrackEventLoop->contents[0] = 0x2E;
 					newTrackEventLoop->contents[1] = 0x00;
 					newTrackEventLoop->contents[2] = 0xFF;
-					newTrackEventLoop->deltaTime = (loopPoint - ((TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]-1]))->absoluteTime);
+					if (trackEventCount[trackNum] > 0)
+						newTrackEventLoop->deltaTime = (loopPoint - ((TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]-1]))->absoluteTime);
+					else
+						newTrackEventLoop->deltaTime = loopPoint;
 					newTrackEventLoop->obsoleteEvent = false;
 					
-					midiParse.trackEventCount[trackNum]++;
+					trackEventCount[trackNum]++;
 
-					newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEvent->deltaTime = (absoluteTime - loopPoint);
 					newTrackEvent->obsoleteEvent = false;
 					newTrackEvent->contents = NULL;
@@ -3785,7 +10385,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 					if (loop && (highestAbsoluteTimeByTrack[trackNum] > loopPoint))
 					{
 
-						TrackEvent* prevEvent = ((TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]-1]));
+						TrackEvent* prevEvent = ((TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]-1]));
 						if (
 							(prevEvent->type == 0xFF)
 							&& (prevEvent->contentSize > 0)
@@ -3802,7 +10402,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 						}
 						else
 						{
-							TrackEvent* newTrackEventLast = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]+1]);
+							TrackEvent* newTrackEventLast = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]+1]);
 							newTrackEventLast->absoluteTime = highestAbsoluteTime;
 							newTrackEventLast->deltaTime = 0;
 							newTrackEventLast->durationTime = newTrackEvent->durationTime;
@@ -3836,7 +10436,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 							newTrackEvent->contents[6] = 0x0;
 							newTrackEvent->obsoleteEvent = false;
 							
-							midiParse.trackEventCount[trackNum]++;
+							trackEventCount[trackNum]++;
 						}
 					}
 					else
@@ -3907,13 +10507,13 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 				}
 				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 
-				for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+				for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 				{
-					if ((midiParse.trackEvents[trackNum][testBackwards].type == (0x90 | (curEventVal & 0xF))) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+					if ((trackEvents[trackNum][testBackwards].type == (0x90 | (curEventVal & 0xF))) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 					{
-						if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+						if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 						{
-							midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+							trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 							break;
 						}
 					}
@@ -3952,13 +10552,13 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 				if (velocity == 0)
 				{
 					// simulate note off
-					for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+					for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 					{
-						if (((midiParse.trackEvents[trackNum][testBackwards].type == curEventVal)) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+						if (((trackEvents[trackNum][testBackwards].type == curEventVal)) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 						{
-							if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+							if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 							{
-								midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+								trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 								break;
 							}
 						}
@@ -3974,14 +10574,14 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 				else
 				{
 					// check if no note off received, if so, turn it off and restart note
-					for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+					for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 					{
-						if (((midiParse.trackEvents[trackNum][testBackwards].type == curEventVal)) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+						if (((trackEvents[trackNum][testBackwards].type == curEventVal)) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 						{
-							if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+							if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 							{
-								if (midiParse.trackEvents[trackNum][testBackwards].durationTime == 0) // means unfinished note
-									midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+								if (trackEvents[trackNum][testBackwards].durationTime == 0) // means unfinished note
+									trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 								break;
 							}
 						}
@@ -4035,10 +10635,10 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 					newTrackEvent->type = eventVal;
 				}
 
-				if ((eventVal & 0xF) == 9)
-					instrument = drumMidiToGEMapping[instrument];
+				if ((eventVal & 0xF) == 9) // drums in GM
+					instrument = instrument;
 				else
-					instrument = instrumentMidiToGEMapping[instrument];
+					instrument = instrument;
 
 				newTrackEvent->contentSize = 1;
 				newTrackEvent->contents = new byte[newTrackEvent->contentSize];
@@ -4117,7 +10717,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 				}
 			}
 
-			midiParse.trackEventCount[trackNum]++;
+			trackEventCount[trackNum]++;
 		}
 	}
 
@@ -4126,21 +10726,21 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	unsigned long startPosition = 0x84;
 
 	// get offsets
-	for (int i = 0; i < midiParse.numberTracks; i++)
+	for (int i = 0; i < numberTracks; i++)
 	{
 		unsigned long sizeData = 0;
 		int loopStartPosition = 0;
 		bool foundLoopStart = false;
 		byte previousTrackEvent = 0x0;
 
-		if (midiParse.trackEventCount[i] > 0)
+		if (trackEventCount[i] > 0)
 		{
 			unsigned long tempLong = Flip32Bit(startPosition);
 			fwrite(&tempLong, 1, 4, outFile);
 
-			for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+			for (int j = 0; j < trackEventCount[i]; j++)
 			{
-				TrackEvent* trackEvent =  &(midiParse.trackEvents[i][j]);
+				TrackEvent* trackEvent =  &(trackEvents[i][j]);
 				unsigned long lengthTimeDelta = 0;
 				unsigned long timeDelta = ReturnVLBytes((trackEvent->deltaTime + timeOffset), lengthTimeDelta);
 
@@ -4196,7 +10796,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 		}
 	}
 
-	for (int i = midiParse.numberTracks; i < 32; i++)
+	for (int i = numberTracks; i < 32; i++)
 	{
 		unsigned long zero = 0;
 		fwrite(&zero, 1, 4, outFile);
@@ -4208,15 +10808,15 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	//FILE* outDebug = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\debug.txt", "w");
 	FILE* outDebug = NULL;
 
-	for (int i = 0; i < midiParse.numberTracks; i++)
+	for (int i = 0; i < numberTracks; i++)
 	{
-		if (midiParse.trackEventCount[i] > 0)
+		if (trackEventCount[i] > 0)
 		{
 			if (outDebug != NULL) fprintf(outDebug, "Track %X\n", i);
 			byte previousTrackEvent = 0x0;
-			for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+			for (int j = 0; j < trackEventCount[i]; j++)
 			{
-				TrackEvent* trackEvent =  &(midiParse.trackEvents[i][j]);
+				TrackEvent* trackEvent =  &(trackEvents[i][j]);
 				if (trackEvent->obsoleteEvent)
 				{
 					timeOffset += trackEvent->deltaTime;
@@ -4259,12 +10859,12 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 			}
 		}
 
-		for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+		for (int j = 0; j < trackEventCount[i]; j++)
 		{
-			if (midiParse.trackEvents[i][j].contents != NULL)
+			if (trackEvents[i][j].contents != NULL)
 			{
-				delete [] midiParse.trackEvents[i][j].contents;
-				midiParse.trackEvents[i][j].contents = NULL;
+				delete [] trackEvents[i][j].contents;
+				trackEvents[i][j].contents = NULL;
 			}
 		}
 	}
@@ -4301,7 +10901,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 		{
 			if (inArray[x] == 0xFE) // need to write twice
 			{
-				for (int y = 0; y < midiParse.numberTracks; y++)
+				for (int y = 0; y < numberTracks; y++)
 				{
 					if (offsetheader[y] > x)
 					{
@@ -4315,6 +10915,7 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 	outFile = fopen(output, "wb");
 	if (outFile == NULL)
 	{
+		delete [] inArray;
 		MessageBox(NULL, "Error reading file", "Error", NULL);
 		return false;
 	}
@@ -4439,6 +11040,9 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 
 					if (bestMatchLoopCount > 6)
 					{
+						if (bestMatchLoopCount > 0xFD)
+                            bestMatchLoopCount = 0xFD;
+
 						outArray[outputSpot++] = 0xFE;
 						int distBack = ((outputSpot - bestMatchOffset) - 1);
 
@@ -4526,6 +11130,8 @@ bool CMidiParse::MidiToBTFormatStageOne(CString input, CString output, bool loop
 		outFile = fopen(output, "wb");
 		if (outFile == NULL)
 		{
+			delete [] inArray;
+			delete [] outArray;
 			MessageBox(NULL, "Error reading file", "Error", NULL);
 			return false;
 		}
@@ -4552,6 +11158,20 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 {
 	try
 	{
+
+	numberTracks = 0;
+	for (unsigned int x = 0; x < 0x20; x++)
+	{
+		for (int y = 0; y < 0x30000; y++)
+		{
+			if (trackEvents[x][y].contents != NULL)
+			{
+				delete[] trackEvents[x][y].contents;
+				trackEvents[x][y].contents = NULL;
+			}
+		}
+		trackEventCount[x] = 0;
+	}
 
 	CString tempFileName = input;
 
@@ -4600,9 +11220,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	}
 
 
-	CMidiParse midiParse;
-
-	midiParse.numberTracks = numTracks;
+	numberTracks = numTracks;
 
 	if (type == 0)
 	{
@@ -4614,6 +11232,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	}
 	else
 	{
+		fclose(outFile);
 		MessageBox(NULL, "Invalid midi type", "Error", NULL);
 		return false;
 	}
@@ -4633,7 +11252,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	for (int x = 0; x < 0x10; x++)
 		highestAbsoluteTimeByTrack[x] = 0;
 
-	for (int trackNum = 0; trackNum < midiParse.numberTracks; trackNum++)
+	for (int trackNum = 0; trackNum < numberTracks; trackNum++)
 	{
 		unsigned long absoluteTime = 0;
 
@@ -4855,7 +11474,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	altOffset = 0;
 	altLength = 0;
 
-	for (int trackNum = 0; trackNum < midiParse.numberTracks; trackNum++)
+	for (int trackNum = 0; trackNum < numberTracks; trackNum++)
 	{
 		unsigned long absoluteTime = 0;
 
@@ -4878,7 +11497,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 
 		if ((loop) && (loopPoint == 0) && (highestAbsoluteTimeByTrack[trackNum] > 0))
 		{
-			TrackEvent* newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+			TrackEvent* newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 			newTrackEvent->type = 0xFF;
 			newTrackEvent->absoluteTime = 0;
 			newTrackEvent->contentSize = 3;
@@ -4889,7 +11508,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 			newTrackEvent->deltaTime = 0;
 			newTrackEvent->obsoleteEvent = false;
 			
-			midiParse.trackEventCount[trackNum]++;
+			trackEventCount[trackNum]++;
 			didLoop = true;
 		}
 
@@ -4900,7 +11519,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 			unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
 			absoluteTime += timeTag;
 
-			TrackEvent* newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+			TrackEvent* newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 			newTrackEvent->deltaTime = timeTag;
 			newTrackEvent->obsoleteEvent = false;
 			newTrackEvent->contents = NULL;
@@ -4910,7 +11529,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 			{
 				if (absoluteTime == loopPoint)
 				{
-					TrackEvent* newTrackEventLoop = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					TrackEvent* newTrackEventLoop = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEventLoop->type = 0xFF;
 					newTrackEventLoop->absoluteTime = absoluteTime;
 					newTrackEventLoop->contentSize = 3;
@@ -4921,9 +11540,9 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 					newTrackEventLoop->deltaTime = timeTag;
 					newTrackEventLoop->obsoleteEvent = false;
 					
-					midiParse.trackEventCount[trackNum]++;
+					trackEventCount[trackNum]++;
 
-					newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEvent->deltaTime = 0;
 					newTrackEvent->obsoleteEvent = false;
 					newTrackEvent->contents = NULL;
@@ -4933,7 +11552,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 				}
 				else if (absoluteTime > loopPoint)
 				{
-					TrackEvent* newTrackEventLoop = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					TrackEvent* newTrackEventLoop = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEventLoop->type = 0xFF;
 					newTrackEventLoop->absoluteTime = loopPoint;
 					newTrackEventLoop->contentSize = 3;
@@ -4941,12 +11560,15 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 					newTrackEventLoop->contents[0] = 0x2E;
 					newTrackEventLoop->contents[1] = 0x00;
 					newTrackEventLoop->contents[2] = 0xFF;
-					newTrackEventLoop->deltaTime = (loopPoint - ((TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]-1]))->absoluteTime);
+					if (trackEventCount[trackNum] > 0)
+						newTrackEventLoop->deltaTime = (loopPoint - ((TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]-1]))->absoluteTime);
+					else
+						newTrackEventLoop->deltaTime = loopPoint;
 					newTrackEventLoop->obsoleteEvent = false;
 					
-					midiParse.trackEventCount[trackNum]++;
+					trackEventCount[trackNum]++;
 
-					newTrackEvent = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]]);
+					newTrackEvent = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]]);
 					newTrackEvent->deltaTime = (absoluteTime - loopPoint);
 					newTrackEvent->obsoleteEvent = false;
 					newTrackEvent->contents = NULL;
@@ -4981,7 +11603,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 					if (loop && (highestAbsoluteTimeByTrack[trackNum] > loopPoint))
 					{
 
-						TrackEvent* prevEvent = ((TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]-1]));
+						TrackEvent* prevEvent = ((TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]-1]));
 						if (
 							(prevEvent->type == 0xFF)
 							&& (prevEvent->contentSize > 0)
@@ -4998,7 +11620,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 						}
 						else
 						{
-							TrackEvent* newTrackEventLast = (TrackEvent*)&(midiParse.trackEvents[trackNum][midiParse.trackEventCount[trackNum]+1]);
+							TrackEvent* newTrackEventLast = (TrackEvent*)&(trackEvents[trackNum][trackEventCount[trackNum]+1]);
 							newTrackEventLast->absoluteTime = highestAbsoluteTime;
 							newTrackEventLast->deltaTime = 0;
 							newTrackEventLast->durationTime = newTrackEvent->durationTime;
@@ -5032,7 +11654,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 							newTrackEvent->contents[6] = 0x0;
 							newTrackEvent->obsoleteEvent = false;
 							
-							midiParse.trackEventCount[trackNum]++;
+							trackEventCount[trackNum]++;
 						}
 					}
 					else
@@ -5103,13 +11725,13 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 				}
 				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 
-				for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+				for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 				{
-					if ((midiParse.trackEvents[trackNum][testBackwards].type == (0x90 | (curEventVal & 0xF))) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+					if ((trackEvents[trackNum][testBackwards].type == (0x90 | (curEventVal & 0xF))) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 					{
-						if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+						if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 						{
-							midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+							trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 							break;
 						}
 					}
@@ -5148,13 +11770,13 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 				if (velocity == 0)
 				{
 					// simulate note off
-					for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+					for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 					{
-						if (((midiParse.trackEvents[trackNum][testBackwards].type == curEventVal)) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+						if (((trackEvents[trackNum][testBackwards].type == curEventVal)) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 						{
-							if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+							if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 							{
-								midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+								trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 								break;
 							}
 						}
@@ -5170,14 +11792,14 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 				else
 				{
 					// check if no note off received, if so, turn it off and restart note
-					for (int testBackwards = (midiParse.trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
+					for (int testBackwards = (trackEventCount[trackNum] - 1); testBackwards >= 0; testBackwards--)
 					{
-						if (((midiParse.trackEvents[trackNum][testBackwards].type == curEventVal)) && !(midiParse.trackEvents[trackNum][testBackwards].obsoleteEvent))
+						if (((trackEvents[trackNum][testBackwards].type == curEventVal)) && !(trackEvents[trackNum][testBackwards].obsoleteEvent))
 						{
-							if (midiParse.trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
+							if (trackEvents[trackNum][testBackwards].contents[0] == noteNumber)
 							{
-								if (midiParse.trackEvents[trackNum][testBackwards].durationTime == 0) // means unfinished note
-									midiParse.trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - midiParse.trackEvents[trackNum][testBackwards].absoluteTime);
+								if (trackEvents[trackNum][testBackwards].durationTime == 0) // means unfinished note
+									trackEvents[trackNum][testBackwards].durationTime = (absoluteTime - trackEvents[trackNum][testBackwards].absoluteTime);
 								break;
 							}
 						}
@@ -5231,10 +11853,10 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 					newTrackEvent->type = eventVal;
 				}
 
-				if ((eventVal & 0xF) == 9)
-					instrument = drumMidiToGEMapping[instrument];
+				if ((eventVal & 0xF) == 9) // Drums in GM
+					instrument = instrument;
 				else
-					instrument = instrumentMidiToGEMapping[instrument];
+					instrument = instrument;
 
 				newTrackEvent->contentSize = 1;
 				newTrackEvent->contents = new byte[newTrackEvent->contentSize];
@@ -5313,7 +11935,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 				}
 			}
 
-			midiParse.trackEventCount[trackNum]++;
+			trackEventCount[trackNum]++;
 		}
 	}
 
@@ -5322,21 +11944,21 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	unsigned long startPosition = 0x44;
 
 	// get offsets
-	for (int i = 0; i < midiParse.numberTracks; i++)
+	for (int i = 0; i < numberTracks; i++)
 	{
 		unsigned long sizeData = 0;
 		int loopStartPosition = 0;
 		bool foundLoopStart = false;
 		byte previousTrackEvent = 0x0;
 
-		if (midiParse.trackEventCount[i] > 0)
+		if (trackEventCount[i] > 0)
 		{
 			unsigned long tempLong = Flip32Bit(startPosition);
 			fwrite(&tempLong, 1, 4, outFile);
 
-			for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+			for (int j = 0; j < trackEventCount[i]; j++)
 			{
-				TrackEvent* trackEvent =  &(midiParse.trackEvents[i][j]);
+				TrackEvent* trackEvent =  &(trackEvents[i][j]);
 				unsigned long lengthTimeDelta = 0;
 				unsigned long timeDelta = ReturnVLBytes((trackEvent->deltaTime + timeOffset), lengthTimeDelta);
 
@@ -5392,7 +12014,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 		}
 	}
 
-	for (int i = midiParse.numberTracks; i < 16; i++)
+	for (int i = numberTracks; i < 16; i++)
 	{
 		unsigned long zero = 0;
 		fwrite(&zero, 1, 4, outFile);
@@ -5404,15 +12026,15 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	//FILE* outDebug = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\debug.txt", "w");
 	FILE* outDebug = NULL;
 
-	for (int i = 0; i < midiParse.numberTracks; i++)
+	for (int i = 0; i < numberTracks; i++)
 	{
-		if (midiParse.trackEventCount[i] > 0)
+		if (trackEventCount[i] > 0)
 		{
 			if (outDebug != NULL) fprintf(outDebug, "Track %X\n", i);
 			byte previousTrackEvent = 0x0;
-			for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+			for (int j = 0; j < trackEventCount[i]; j++)
 			{
-				TrackEvent* trackEvent =  &(midiParse.trackEvents[i][j]);
+				TrackEvent* trackEvent =  &(trackEvents[i][j]);
 				if (trackEvent->obsoleteEvent)
 				{
 					timeOffset += trackEvent->deltaTime;
@@ -5455,12 +12077,12 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 			}
 		}
 
-		for (int j = 0; j < midiParse.trackEventCount[i]; j++)
+		for (int j = 0; j < trackEventCount[i]; j++)
 		{
-			if (midiParse.trackEvents[i][j].contents != NULL)
+			if (trackEvents[i][j].contents != NULL)
 			{
-				delete [] midiParse.trackEvents[i][j].contents;
-				midiParse.trackEvents[i][j].contents = NULL;
+				delete [] trackEvents[i][j].contents;
+				trackEvents[i][j].contents = NULL;
 			}
 		}
 	}
@@ -5497,7 +12119,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 		{
 			if (inArray[x] == 0xFE) // need to write twice
 			{
-				for (int y = 0; y < midiParse.numberTracks; y++)
+				for (int y = 0; y < numberTracks; y++)
 				{
 					if (offsetheader[y] > x)
 					{
@@ -5511,6 +12133,7 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 	outFile = fopen(output, "wb");
 	if (outFile == NULL)
 	{
+		delete [] inArray;
 		MessageBox(NULL, "Error reading file", "Error", NULL);
 		return false;
 	}
@@ -5635,6 +12258,9 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 
 					if (bestMatchLoopCount > 6)
 					{
+						if (bestMatchLoopCount > 0xFD)
+							bestMatchLoopCount = 0xFD;
+
 						outArray[outputSpot++] = 0xFE;
 						int distBack = ((outputSpot - bestMatchOffset) - 1);
 
@@ -5722,6 +12348,8 @@ bool CMidiParse::MidiToGEFormat(CString input, CString output, bool loop, unsign
 		outFile = fopen(output, "wb");
 		if (outFile == NULL)
 		{
+			delete [] inArray;
+			delete [] outArray;
 			MessageBox(NULL, "Error reading file", "Error", NULL);
 			return false;
 		}
@@ -5787,6 +12415,7 @@ unsigned long CMidiParse::CharArrayToLong(unsigned char* currentSpot)
 
 unsigned char CMidiParse::StringToUnsignedChar(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 2)
 	{
@@ -5812,6 +12441,7 @@ unsigned char CMidiParse::StringToUnsignedChar(CString inString)
 
 unsigned long CMidiParse::StringHexToLong(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 8)
 	{
@@ -5835,621 +12465,642 @@ unsigned long CMidiParse::StringHexToLong(CString inString)
 	return tempLong;
 }
 
-
-CString CMidiParse::instrumentMidiNames[0x100] =  
+void CMidiParse::GEMidiToDebugTextFile(byte* inputMID, int inputSize, CString textFileOut, bool extendTracksToHighest)
 {
-"Acoustic Grand Piano",
-"Bright Acoustic Piano",
-"Electric Grand Piano",
-"Honky-tonk Piano",
-"Electric Piano 1",
-"Electric Piano 2",
-"Harpsichord",
-"Clavi",
-"Celesta",
-"Glockenspiel",
-"Music Box",
-"Vibraphone",
-"Marimba",
-"Xylophone",
-"Tubular Bells",
-"Dulcimer",
-"Drawbar Organ",
-"Percussive Organ",
-"Rock Organ",
-"Church Organ",
-"Reed Organ",
-"Accordion",
-"Harmonica",
-"Tango Accordion",
-"Acoustic Guitar (nylon)",
-"Acoustic Guitar (steel)",
-"Electric Guitar (jazz)",
-"Electric Guitar (clean)",
-"Electric Guitar (muted)",
-"Overdriven Guitar",
-"Distortion Guitar",
-"Guitar harmonics",
-"Acoustic Bass",
-"Electric Bass (finger)",
-"Electric Bass (pick)",
-"Fretless Bass",
-"Slap Bass 1",
-"Slap Bass 2",
-"Synth Bass 1",
-"Synth Bass 2",
-"Violin",
-"Viola",
-"Cello",
-"Contrabass",
-"Tremolo Strings",
-"Pizzicato Strings",
-"Orchestral Harp",
-"Timpani",
-"String Ensemble 1",
-"String Ensemble 2",
-"SynthStrings 1",
-"SynthStrings 2",
-"Choir Aahs",
-"Voice Oohs",
-"Synth Voice",
-"Orchestra Hit",
-"Trumpet",
-"Trombone",
-"Tuba", // 0x59
-"Muted Trumpet",
-"French Horn",
-"Brass Section",
-"SynthBrass 1",
-"SynthBrass 2",
-"Soprano Sax",
-"Alto Sax",
-"Tenor Sax",
-"Baritone Sax",
-"Oboe",
-"English Horn",
-"Bassoon",
-"Clarinet",
-"Piccolo",
-"Flute",
-"Recorder",
-"Pan Flute",
-"Blown Bottle",
-"Shakuhachi",
-"Whistle",
-"Ocarina",
-"Lead 1 (square)",
-"Lead 2 (sawtooth)",
-"Lead 3 (calliope)",
-"Lead 4 (chiff)",
-"Lead 5 (charang)",
-"Lead 6 (voice)",
-"Lead 7 (fifths)",
-"Lead 8 (bass + lead)",
-"Pad 1 (new age)",
-"Pad 2 (warm)",
-"Pad 3 (polysynth)",
-"Pad 4 (choir)",
-"Pad 5 (bowed)",
-"Pad 6 (metallic)",
-"Pad 7 (halo)",
-"Pad 8 (sweep)",
-"FX 1 (rain)",
-"FX 2 (soundtrack)",
-"FX 3 (crystal)",
-"FX 4 (atmosphere)",
-"FX 5 (brightness)",
-"FX 6 (goblins)",
-"FX 7 (echoes)",
-"FX 8 (sci-fi)",
-"Sitar",
-"Banjo",
-"Shamisen",
-"Koto",
-"Kalimba",
-"Bag pipe",
-"Fiddle",
-"Shanai",
-"Tinkle Bell",
-"Agogo",
-"Steel Drums",
-"Woodblock",
-"Taiko Drum",
-"Melodic Tom",
-"Synth Drum",
-"Reverse Cymbal",
-"Guitar Fret Noise",
-"Breath Noise",
-"Seashore",
-"Bird Tweet",
-"Telephone Ring",
-"Helicopter",
-"Applause",
-"Gunshot"
-};
+	FILE* outFile = fopen(textFileOut, "w");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL, "Error outputting file", "Error", NULL);
+		return;
+	}
 
-CString CMidiParse::drumMidiNames[0x100] =  
+	unsigned long lengthHeader = 0x44;
+
+	fprintf(outFile, "Offset Start Midi Events: %08X \n", lengthHeader);
+
+	fprintf(outFile, "Tracks\n");
+
+	// parse midi
+	
+	int counterTrack = 0;
+
+	int highestTrackLength = 0;
+
+	for (int iii = 0; iii < (lengthHeader - 4); iii+=4) // ignore last 00000180
+	{
+		unsigned long absoluteTime = 0;
+
+		unsigned long offset = CharArrayToLong(&inputMID[iii]);
+		
+		int position = offset;	
+
+		if (position != 0)
+		{
+			int previousEventValue = 0;
+
+			std::map<int, int> loopEndsWithCount;
+
+			byte* repeatPattern = NULL;
+			byte altOffset = 0;
+			byte altLength = 0;
+
+			bool endFlag = false;
+
+			while ((position < inputSize) && !endFlag)
+			{
+				int timePosition = position;
+
+				unsigned long original;
+				unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+				absoluteTime += timeTag;
+
+				if (absoluteTime > highestTrackLength)
+					highestTrackLength = absoluteTime;
+
+
+				int vlLength = 0;
+				byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+				bool statusBit = false;
+
+				if (eventVal < 0x80)
+				{
+					// continuation
+					statusBit = true;
+				}
+				else
+				{
+					statusBit = false;
+				}
+
+				if ((eventVal == 0xFF) || (statusBit && (previousEventValue == 0xFF))) // meta event
+				{
+					byte subType;
+					if (statusBit)
+						subType = eventVal;
+					else
+						subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (subType == 0x51) // tempo
+					{
+						int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+
+					}
+					else if (subType == 0x2D) // end loop
+					{
+						byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
+						
+						if ((loopCount == 0xFF) || (loopCount == 0x00))
+						{
+							break;
+						}
+						else
+						{
+							std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+							if (it != loopEndsWithCount.end())
+							{
+								int countLeft = it->second;
+
+								if (countLeft == 0)
+								{
+									loopEndsWithCount.erase(it);
+								}
+								else
+								{
+									loopEndsWithCount[position] = (countLeft - 1);
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
+							else
+							{
+								loopEndsWithCount[position] = loopCount - 1;
+
+								if (repeatPattern == NULL)
+								{
+									position = position - offsetToBeginningLoop;
+								}
+								else
+								{
+									loopEndsWithCount.erase(it);
+								}
+							}
+						}
+					}
+					else if (subType == 0x2E) // start loop
+					{
+						byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true); // Always FF
+					}
+					else if (subType == 0x2F)
+					{
+						endFlag = true;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90) && (previousEventValue < 0xA0)))
+				{
+					byte curEventVal;
+
+					byte noteNumber;
+					if (statusBit)
+					{
+						noteNumber = eventVal;
+						curEventVal = previousEventValue;
+					}
+					else
+					{
+						noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						curEventVal = eventVal;
+					}
+					byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					unsigned long timeDuration = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xB0) && (eventVal < 0xC0)) || (statusBit && (previousEventValue >= 0xB0) && (previousEventValue < 0xC0))) // controller change
+				{
+					CString controllerTypeText = "";
+					byte controllerType;
+					
+					if (statusBit)
+					{
+						controllerType = eventVal;
+						previousEventValue;
+					}
+					else
+					{
+						controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						eventVal;
+					}
+					byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0) && (previousEventValue < 0xD0))) // change instrument
+				{
+					byte instrument;
+					if (statusBit)
+					{
+						instrument = eventVal;
+						previousEventValue;
+					}
+					else
+					{
+						instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						eventVal;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xD0) && (eventVal < 0xE0)) || (statusBit && (previousEventValue >= 0xD0) && (previousEventValue < 0xE0))) // channel aftertouch
+				{
+					byte amount;
+					if (statusBit)
+					{
+						amount = eventVal;
+						previousEventValue;
+					}
+					else
+					{
+						amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						eventVal;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xE0) && (eventVal < 0xF0)) || (statusBit && (previousEventValue >= 0xE0) && (previousEventValue < 0xF0))) // pitch bend
+				{
+					byte valueLSB;
+					if (statusBit)
+					{
+						valueLSB = eventVal;
+						previousEventValue;
+					}
+					else
+					{
+						valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						eventVal;
+					}
+					
+					byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (eventVal == 0xFE) // repeat operation
+				{
+					// should not be here...
+
+					// no prev event set
+				}
+				else
+				{
+					
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < (lengthHeader - 4); i+=4) // ignore last 00000180
+	{
+		unsigned long offset = CharArrayToLong(&inputMID[i]);
+		fprintf(outFile, "Track %X Offset %X: Track Offset %08X\n", counterTrack, i, offset);
+
+		int position = offset;	
+
+		
+
+		if (position != 0)
+		{
+			int previousEventValue = 0;
+
+			byte* repeatPattern = NULL;
+			byte altOffset = 0;
+			byte altLength = 0;
+
+			std::map<int, int> loopEndsWithCount;
+
+			int timeAbsolute = 0;
+			bool endFlag = false;
+			while ((position < inputSize) && !endFlag)
+			{
+				int timePosition = position;
+
+				if (extendTracksToHighest)
+				{
+					if (timeAbsolute >= highestTrackLength)
+					{
+						endFlag = true;
+
+						break;
+					}
+				}
+				unsigned long original;
+				unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+				if (extendTracksToHighest)
+				{
+					if ((timeAbsolute + timeTag) > highestTrackLength)
+					{
+						endFlag = true;
+
+						break;
+					}
+				}
+
+				timeAbsolute += timeTag;
+
+				byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+				bool statusBit = false;
+
+				if (eventVal < 0x80)
+				{
+					// continuation
+					statusBit = true;
+					fprintf(outFile, "Offset: %08X - Event Delta Time: %d -Abs %d (%08X)  -   ", timePosition, timeTag, timeAbsolute, original);
+				}
+				else
+				{
+					statusBit = false;
+					fprintf(outFile, "Offset: %08X - Event Delta Time: %d -Abs %d (%08X) -   ", timePosition, timeTag, timeAbsolute, original);
+				}
+
+				if ((eventVal == 0xFF) || (statusBit && (previousEventValue == 0xFF))) // meta event
+				{
+					byte subType;
+					if (statusBit)
+						subType = eventVal;
+					else
+						subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (subType == 0x51) // tempo
+					{
+						int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+						int MICROSECONDS_PER_MINUTE = 60000000;
+						float beatsPerMinute = (float)MICROSECONDS_PER_MINUTE / (float)microsecondsSinceQuarterNote;
+
+						if (statusBit)
+							fprintf(outFile, "!%02X%06X - MicroSecondSinceQuarterNote %d (BPM: %f)\n", subType, microsecondsSinceQuarterNote, microsecondsSinceQuarterNote, beatsPerMinute);
+						else
+							fprintf(outFile, "%02X%02X%06X - MicroSecondSinceQuarterNote %d (BPM: %f)\n", eventVal, subType, microsecondsSinceQuarterNote, microsecondsSinceQuarterNote, beatsPerMinute);
+					}
+					else if (subType == 0x2D) // end loop
+					{
+						
+						byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+
+						if (statusBit)
+							fprintf(outFile, "!%02X%02X%02X%08X Count %u LoopCount %u OffsetBeginning %u (%04X)", subType, loopCount, currentLoopCount, offsetToBeginningLoop, loopCount, currentLoopCount, offsetToBeginningLoop, (position - offsetToBeginningLoop));
+						else
+							fprintf(outFile, "%02X%02X%02X%02X%08X Count %u LoopCount %u OffsetBeginning %u (%04X)", eventVal, subType, loopCount, currentLoopCount, offsetToBeginningLoop, loopCount, currentLoopCount, offsetToBeginningLoop, (position - offsetToBeginningLoop));
+						 //meta status byte (0xFF), a loop end subtype byte (0x2D), a loop count byte (0-255), a current loop count (should be the same as the loop count byte), and four bytes that specify the number of bytes difference between the end of the loop end event, and the begining of the loop start event. (note that if this value is calculated before the pattern matching compression takes place, this value will have to be adjusted to compensate for any compression of data that takes place between the loop end and the loop start.) The loop count value should be a zero to loop forever, otherwise it should be set to one less than the number of times the section should repeat. (i.e. to hear a section eight times, you would set the loop count to seven.)
+
+						if ((loopCount == 0xFF) || (loopCount == 0x00))
+						{
+							if (extendTracksToHighest)
+							{
+								if (repeatPattern == NULL)
+								{
+									position = position - offsetToBeginningLoop;
+
+									fprintf(outFile, " ...Going to %08X", position);
+								}
+							}
+						}
+						else
+						{
+							std::map<int, int>::iterator it = loopEndsWithCount.find(position);
+							if (it != loopEndsWithCount.end())
+							{
+								int countLeft = it->second;
+
+								if (countLeft == 0)
+								{
+									loopEndsWithCount.erase(it);
+								}
+								else
+								{
+									loopEndsWithCount[position] = (countLeft - 1);
+
+									if (repeatPattern == NULL)
+									{
+										position = position - offsetToBeginningLoop;
+
+										fprintf(outFile, " ...Going to %08X for count left of %02X", position, loopEndsWithCount[position]);
+									}
+									else
+									{
+										loopEndsWithCount.erase(it);
+									}
+								}
+							}
+							else
+							{
+								loopEndsWithCount[position] = loopCount - 1;
+
+								if (repeatPattern == NULL)
+								{
+									position = position - offsetToBeginningLoop;
+
+									fprintf(outFile, " ...Going to %08X for count left of %02X", position, loopEndsWithCount[position]);
+								}
+								else
+								{
+									loopEndsWithCount.erase(it);
+								}
+							}
+						}
+
+						fprintf(outFile, "\n");
+					}
+					else if (subType == 0x2E) // start loop
+					{
+						byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						if (statusBit)
+							fprintf(outFile, "!%02X%02X%02X Loop #%u\n", subType, loopNumber, endLoop, loopNumber);
+						else
+							fprintf(outFile, "%02X%02X%02X%02X Loop #%u\n", eventVal, subType, loopNumber, endLoop, loopNumber);
+					}
+					else if (subType == 0x2F)
+					{
+						if (statusBit)
+							fprintf(outFile, "!%02X End of Track\n", subType);
+						else
+							fprintf(outFile, "%02X%02X End of Track\n", eventVal, subType);
+						endFlag = true;
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90) && (previousEventValue < 0xA0)))
+				{
+					byte noteNumber;
+					if (statusBit)
+						noteNumber = eventVal;
+					else
+						noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+					byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					unsigned long timeDuration = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
+
+					if (statusBit)
+						fprintf(outFile, "!%02X%02X Duration (%X) - Midi Channel %d NoteNumber %d Velocity %d Duration %d\n", noteNumber, velocity, timeDuration, (previousEventValue&0xF), noteNumber, velocity, timeDuration);
+					else
+						fprintf(outFile, "%02X%02X%02X Duration (%X) - Midi Channel %d NoteNumber %d Velocity %d Duration %d\n", eventVal, noteNumber, velocity, timeDuration, (eventVal&0xF), noteNumber, velocity, timeDuration);
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xB0) && (eventVal < 0xC0)) || (statusBit && (previousEventValue >= 0xB0) && (previousEventValue < 0xC0))) // controller change
+				{
+					CString controllerTypeText = "";
+					byte controllerType;
+					if (statusBit)
+						controllerType = eventVal;
+					else
+						controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+					byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (controllerType == 0x00) controllerTypeText = "BankSelect";
+					else if (controllerType == 0x01) controllerTypeText = "Modulation";
+					else if (controllerType == 0x02) controllerTypeText = "BreathController";
+					else if (controllerType == 0x04) controllerTypeText = "FootController";
+					else if (controllerType == 0x05) controllerTypeText = "PortamentoTime";
+					else if (controllerType == 0x06) controllerTypeText = "DataEntryMSB";
+					else if (controllerType == 0x07) controllerTypeText = "MainVolume";
+					else if (controllerType == 0x08) controllerTypeText = "Balance";
+					else if (controllerType == 0x0A) controllerTypeText = "Pan";
+					else if (controllerType == 0x0B) controllerTypeText = "ExpressionController";
+					else if (controllerType == 0x0C) controllerTypeText = "EffectControl1";
+					else if (controllerType == 0x0D) controllerTypeText = "EffectControl2";
+					else if ((controllerType >= 0x10) && (controllerType <= 0x13)) controllerTypeText = "General-PurposeControllers01/04/09";
+					else if ((controllerType >= 0x20) && (controllerType <= 0x3F)) controllerTypeText = "LSBforcontrollers0-31";
+					else if (controllerType == 0x40) controllerTypeText = "Damperpedalsustain";
+					else if (controllerType == 0x41) controllerTypeText = "Portamento";
+					else if (controllerType == 0x42) controllerTypeText = "Sostenuto";
+					else if (controllerType == 0x43) controllerTypeText = "SoftPedal";
+					else if (controllerType == 0x44) controllerTypeText = "LegatoFootswitch";
+					else if (controllerType == 0x45) controllerTypeText = "Hold2";
+					else if (controllerType == 0x46) controllerTypeText = "SoundController1default:TimberVariation";
+					else if (controllerType == 0x47) controllerTypeText = "SoundController2default:Timber/HarmonicContent";
+					else if (controllerType == 0x48) controllerTypeText = "SoundController3default:ReleaseTime";
+					else if (controllerType == 0x49) controllerTypeText = "SoundController4default:AttackTime";
+					else if ((controllerType >= 0x4A) && (controllerType <= 0x4F)) controllerTypeText = "SoundController06/10/09";
+					else if ((controllerType >= 0x50) && (controllerType <= 0x53)) controllerTypeText = "General-PurposeControllers05/08/09";
+					else if (controllerType == 0x54) controllerTypeText = "PortamentoControl";
+					else if (controllerType == 0x5B) controllerTypeText = "Effects1DepthformerlyExternalEffectsDepth";
+					else if (controllerType == 0x5C) controllerTypeText = "Effects2DepthformerlyTremoloDepth";
+					else if (controllerType == 0x5D) controllerTypeText = "Effects3DepthformerlyChorusDepth";
+					else if (controllerType == 0x5E) controllerTypeText = "Effects4DepthformerlyCelesteDetune";
+					else if (controllerType == 0x5F) controllerTypeText = "Effects5DepthformerlyPhaserDepth";
+					else if (controllerType == 0x60) controllerTypeText = "DataIncrement";
+					else if (controllerType == 0x61) controllerTypeText = "DataDecrement";
+					else if (controllerType == 0x62) controllerTypeText = "Non-RegisteredParameterNumberLSB";
+					else if (controllerType == 0x63) controllerTypeText = "Non-RegisteredParameterNumberMSB";
+					else if (controllerType == 0x64) controllerTypeText = "RegisteredParameterNumberLSB";
+					else if (controllerType == 0x65) controllerTypeText = "RegisteredParameterNumberMSB";
+					else if ((controllerType >= 0x79) && (controllerType <= 0x7F)) controllerTypeText = "ModeMessages";
+
+					if (statusBit)
+						fprintf(outFile, "!%02X%02X - Midi Channel %d ControllerType %d (%s) Value %d\n", controllerType, controllerValue, (previousEventValue&0xF), controllerType, controllerTypeText, controllerValue);
+					else
+						fprintf(outFile, "%02X%02X%02X - Midi Channel %d ControllerType %d (%s) Value %d\n", eventVal, controllerType, controllerValue, (eventVal&0xF), controllerType, controllerTypeText, controllerValue);
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0) && (previousEventValue < 0xD0))) // change instrument
+				{
+					byte instrument;
+					if (statusBit)
+						instrument = eventVal;
+					else
+						instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (statusBit)
+					{
+						if ((previousEventValue & 0xF) == 9)
+							fprintf(outFile, "!%02X - Midi Channel %d Instrument %d\n", instrument, (previousEventValue&0xF), instrument);
+						else
+							fprintf(outFile, "!%02X - Midi Channel %d Instrument %d\n", instrument, (previousEventValue&0xF), instrument);
+					}
+					else
+					{
+						if ((eventVal & 0xF) == 9)
+							fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d\n", eventVal, instrument, (eventVal&0xF), instrument);
+						else
+							fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d\n", eventVal, instrument, (eventVal&0xF), instrument);
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xD0) && (eventVal < 0xE0)) || (statusBit && (previousEventValue >= 0xD0) && (previousEventValue < 0xE0))) // channel aftertouch
+				{
+					byte amount;
+					if (statusBit)
+						amount = eventVal;
+					else
+						amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (statusBit)
+					{
+						if ((previousEventValue & 0xF) == 9)
+							fprintf(outFile, "!%02X - Midi Channel %d Amount %d\n", amount, (previousEventValue&0xF), amount);
+						else
+							fprintf(outFile, "!%02X - Midi Channel %d Amount %d\n", amount, (previousEventValue&0xF), amount);
+					}
+					else
+					{
+						if ((eventVal & 0xF) == 9)
+							fprintf(outFile, "%02X%02X - Midi Channel %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
+						else
+							fprintf(outFile, "%02X%02X - Midi Channel %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (((eventVal >= 0xE0) && (eventVal < 0xF0)) || (statusBit && (previousEventValue >= 0xE0) && (previousEventValue < 0xF0))) // pitch bend
+				{
+					byte lsb;
+					if (statusBit)
+						lsb = eventVal;
+					else
+						lsb = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					byte msb = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+					if (statusBit)
+					{
+						if ((previousEventValue & 0xF) == 9)
+							fprintf(outFile, "!%02X%02X - Midi Channel %d lsb %d msb %d\n", lsb, msb, (previousEventValue&0xF), lsb, msb);
+						else
+							fprintf(outFile, "!%02X%02X - Midi Channel %d lsb %d msb %d\n", lsb, msb, (previousEventValue&0xF), lsb, msb);
+					}
+					else
+					{
+						if ((eventVal & 0xF) == 9)
+							fprintf(outFile, "%02X%02X%02X - Midi Channel %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
+						else
+							fprintf(outFile, "%02X%02X%02X - Midi Channel %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
+					}
+
+					if (!statusBit)
+						previousEventValue = eventVal;
+				}
+				else if (eventVal == 0xFE) // repeat operation
+				{
+					// should not be here...
+
+					// no prev event set
+				}
+				else
+				{
+					fprintf(outFile, "%02X ERROR MISSING PARSE OF TYPE\n", eventVal);
+				}
+			}
+		}
+		else
+		{
+			fprintf(outFile, "No Track Data\n");
+		}
+
+		fprintf(outFile, "\n");
+		counterTrack++;
+	}
+
+
+	fclose(outFile);
+}
+
+void CMidiParse::GEMidiToDebugTextFile(CString midiFile, CString textFileOut, bool extendTracksToHighest)
 {
-"Acoustic Grand Piano",
-"Bright Acoustic Piano",
-"Electric Grand Piano",
-"Honky-tonk Piano",
-"Electric Piano 1",
-"Electric Piano 2",
-"Harpsichord",
-"Clavi",
-"Celesta",
-"Glockenspiel",
-"Music Box",
-"Vibraphone",
-"Marimba",
-"Xylophone",
-"Tubular Bells",
-"Dulcimer",
-"Drawbar Organ",
-"Percussive Organ",
-"Rock Organ",
-"Church Organ",
-"Reed Organ",
-"Accordion",
-"Harmonica",
-"Tango Accordion",
-"Acoustic Guitar (nylon)",
-"Acoustic Guitar (steel)",
-"Electric Guitar (jazz)",
-"Electric Guitar (clean)",
-"Electric Guitar (muted)",
-"Overdriven Guitar",
-"Distortion Guitar",
-"Guitar harmonics",
-"Acoustic Bass",
-"Electric Bass (finger)",
-"Acoustic Bass Drum",
-"Bass Drum 1",
-"Side Stick",
-"Acoustic Snare",
-"Hand Clap",
-"Electric Snare",
-"Low Floor Tom",
-"Closed Hi-Hat",
-"High Floor Tom",
-"Pedal Hi-Hat",
-"Low Tom",
-"Open Hi-Hat",
-"Low-Mid Tom",
-"Hi-Mid Tom",
-"Crash Cymbal 1",
-"High Tom",
-"Ride Cymbal 1",
-"Chinese Cymbal",
-"Ride Bell",
-"Tambourine",
-"Splash Cymbal",
-"Cowbell",
-"Crash Cymbal 2",
-"Vibraslap",
-"Ride Cymbal 2",
-"Hi Bongo",
-"Low Bongo",
-"Mute Hi Conga",
-"Open Hi Conga",
-"Low Conga",
-"High Timbale",
-"Low Timbale",
-"High Agogo",
-"Low Agogo",
-"Cabasa",
-"Maracas",
-"Short Whistle",
-"Long Whistle",
-"Short Guiro",
-"Long Guiro",
-"Claves",
-"Hi Wood Block",
-"Low Wood Block",
-"Mute Cuica",
-"Open Cuica",
-"Mute Triangle",
-"Open Triangle"
-};
+	CString filepath = midiFile;
+	
+	FILE* inFile = fopen(filepath, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Can't read input file " + filepath, "Error", NULL);
+		return;
+	}
 
-CString CMidiParse::instrumentGEMidiNames[0x100] =  
-{
-"Fretlass Bass",// 0x00
-"Woodblock",// 0x01
-"Buzzing",// 0x02
-"Pizz Strings",// 0x03
-"Slap Bass 1",// 0x04
-"Tuba",// 0x05
-"Trombone",// 0x06
-"Brass Section",// 0x07
-"Warm",// 0x08
-"Tympani",// 0x09
-"Bottle",// 0x0A
-"Overdrive Guitar (GE Riff)",// 0x0B
-"Celesta",// 0x0C
-"Sweep",// 0x0D
-"Tympani",// 0x0E
-"Kalimba",// 0x0F
-"Xylophone",// 0x10
-"French Horn",// 0x11
-"Contrabass",// 0x12
-"Synth Drum",// 0x13
-"English Horn",// 0x14
-"Taiko Drum",// 0x15
-"Marimba",// 0x16
-"Atmosphere",// 0x17
-"Clean Guitar",// 0x18
-"Halo",// 0x19
-"Agogo",// 0x1A
-"Woodblock",// 0x1B
-"Melodic Tom",// 0x1C
-"Dumstick",// 0x1D
-"Bassoon",// 0x1E
-"Choir Pad",// 0x1F
-"Gloken",// 0x20
-"Gloken",// 0x21
-"Finger Base (nothing much)",// 0x22
-"Sci Fi",// 0x23
-"Flute",// 0x24
-"Oohs",// 0x25
-"Water hit",// 0x26
-"Thump?",// 0x27
-"Oboe",// 0x28
-"Voice Ltd",// 0x29
-"Agogo",// 0x2A
-"Tinkle Bell",// 0x2B
-"Oboe",// 0x2C
-"Nothing?",// 0x2D
-"Nothing?",// 0x2E
-"",// 0x2F
-"",// 0x30
-"",// 0x31
-"",// 0x32
-"",// 0x33
-"",// 0x34
-"",// 0x35
-"",// 0x36
-"",// 0x37
-"",// 0x38
-"",// 0x39
-"",// 0x3A
-"",// 0x3B
-"",// 0x3C
-"",// 0x3D
-"",// 0x3E
-"",// 0x3F
-"",// 0x40
-"",// 0x41
-"",// 0x42
-"",// 0x43
-"",// 0x44
-"",// 0x45
-"",// 0x46
-"",// 0x47
-"",// 0x48
-"",// 0x49
-"",// 0x4A
-"",// 0x4B
-"",// 0x4C
-"",// 0x4D
-"",// 0x4E
-"",// 0x4F
-"",// 0x50
-"",// 0x51
-"",// 0x52
-"",// 0x53
-"",// 0x54
-"",// 0x55
-"",// 0x56
-"",// 0x57
-"",// 0x58
-"",// 0x59
-"",// 0x5A
-"",// 0x5B
-"",// 0x5C
-"",// 0x5D
-"",// 0x5E
-"",// 0x5F
-"",// 0x60
-"",// 0x61
-"",// 0x62
-"",// 0x63
-"",// 0x64
-"",// 0x65
-"",// 0x66
-"",// 0x67
-"",// 0x68
-"",// 0x69
-"",// 0x6A
-"",// 0x6B
-"",// 0x6C
-"",// 0x6D
-"",// 0x6E
-"",// 0x6F
-"",// 0x70
-"",// 0x71
-"",// 0x72
-"",// 0x73
-"",// 0x74
-"",// 0x75
-"",// 0x76
-"",// 0x77
-"",// 0x78
-"",// 0x79
-"",// 0x7A
-"",// 0x7B
-"",// 0x7C
-"",// 0x7D
-"",// 0x7E
-""// 0x7F
-};
+	fseek(inFile, 0, SEEK_END);
+	int inputSize = ftell(inFile);
+	rewind(inFile);
 
-CString CMidiParse::drumGEMidiNames[0x100] =  
-{
-"Fretlass Bass",// 0x00
-"Woodblock",// 0x01
-"Buzzing",// 0x02
-"Pizz Strings",// 0x03
-"Slap Bass 1",// 0x04
-"Tuba",// 0x05
-"Trombone",// 0x06
-"Brass Section",// 0x07
-"Warm",// 0x08
-"Tympani",// 0x09
-"Bottle",// 0x0A
-"Overdrive Guitar (GE Riff)",// 0x0B
-"Celesta",// 0x0C
-"Sweep",// 0x0D
-"Tympani",// 0x0E
-"Kalimba",// 0x0F
-"Xylophone",// 0x10
-"French Horn",// 0x11
-"Contrabass",// 0x12
-"Synth Drum",// 0x13
-"English Horn",// 0x14
-"Taiko Drum",// 0x15
-"Marimba",// 0x16
-"Atmosphere",// 0x17
-"Clean Guitar",// 0x18
-"Halo",// 0x19
-"Agogo",// 0x1A
-"Woodblock",// 0x1B
-"Melodic Tom",// 0x1C
-"Dumstick",// 0x1D
-"Bassoon",// 0x1E
-"Choir Pad",// 0x1F
-"Gloken",// 0x20
-"Gloken",// 0x21
-"Finger Base (nothing much)",// 0x22
-"Sci Fi",// 0x23
-"Flute",// 0x24
-"Oohs",// 0x25
-"Water hit",// 0x26
-"Thump?",// 0x27
-"Oboe",// 0x28
-"Voice Ltd",// 0x29
-"Agogo",// 0x2A
-"Tinkle Bell",// 0x2B
-"Oboe",// 0x2C
-"Nothing?",// 0x2D
-"Nothing?",// 0x2E
-"",// 0x2F
-"",// 0x30
-"",// 0x31
-"",// 0x32
-"",// 0x33
-"",// 0x34
-"",// 0x35
-"",// 0x36
-"",// 0x37
-"",// 0x38
-"",// 0x39
-"",// 0x3A
-"",// 0x3B
-"",// 0x3C
-"",// 0x3D
-"",// 0x3E
-"",// 0x3F
-"",// 0x40
-"",// 0x41
-"",// 0x42
-"",// 0x43
-"",// 0x44
-"",// 0x45
-"",// 0x46
-"",// 0x47
-"",// 0x48
-"",// 0x49
-"",// 0x4A
-"",// 0x4B
-"",// 0x4C
-"",// 0x4D
-"",// 0x4E
-"",// 0x4F
-"",// 0x50
-"",// 0x51
-"",// 0x52
-"",// 0x53
-"",// 0x54
-"",// 0x55
-"",// 0x56
-"",// 0x57
-"",// 0x58
-"",// 0x59
-"",// 0x5A
-"",// 0x5B
-"",// 0x5C
-"",// 0x5D
-"",// 0x5E
-"",// 0x5F
-"",// 0x60
-"",// 0x61
-"",// 0x62
-"",// 0x63
-"",// 0x64
-"",// 0x65
-"",// 0x66
-"",// 0x67
-"",// 0x68
-"",// 0x69
-"",// 0x6A
-"",// 0x6B
-"",// 0x6C
-"",// 0x6D
-"",// 0x6E
-"",// 0x6F
-"",// 0x70
-"",// 0x71
-"",// 0x72
-"",// 0x73
-"",// 0x74
-"",// 0x75
-"",// 0x76
-"",// 0x77
-"",// 0x78
-"",// 0x79
-"",// 0x7A
-"",// 0x7B
-"",// 0x7C
-"",// 0x7D
-"",// 0x7E
-""// 0x7F
-};
+	unsigned char* inputMID = new unsigned char[inputSize];
 
+	fread(inputMID, 1, inputSize, inFile);
+	fclose(inFile);
 
-byte CMidiParse::drumMidiToGEMapping[0x100] =  
-{
-0x12,// 0x00	0
-0x12,// 0x01	1
-0x12,// 0x02	2
-0x12,// 0x03	3
-0x12,// 0x04	4
-0x12,// 0x05	5
-0x12,// 0x06	6
-0x12,// 0x07	7
-0x12,// 0x08	8
-0x0C,// 0x09	9
-0x20,// 0x0A	10
-0x20,// 0x0B	11
-0x20,// 0x0C	12
-0x16,// 0x0D	13
-0x10,// 0x0E	14
-0x20,// 0x0F	15
-0x12,// 0x10	16
-0x12,// 0x11	17
-0x12,// 0x12	18
-0x12,// 0x13	19
-0x12,// 0x14	20
-0x12,// 0x15	21
-0x12,// 0x16	22
-0x12,// 0x17	23
-0x12,// 0x18	24
-0x0B,// 0x19	25
-0x0B,// 0x1A	26
-0x0B,// 0x1B	27
-0x18,// 0x1C	28
-0x0B,// 0x1D	29
-0x0B,// 0x1E	30
-0x0B,// 0x1F	31
-0x0B,// 0x20	32
-0x04,// 0x21	33
-0x04,// 0x22	34
-0x04,// 0x23	35
-0x00,// 0x24	36
-0x04,// 0x25	37
-0x04,// 0x26	38
-0x04,// 0x27	39
-0x04,// 0x28	40
-0x04,// 0x29	41
-0x04,// 0x2A	42
-0x04,// 0x2B	43
-0x12,// 0x2C	44
-0x04,// 0x2D	45
-0x03,// 0x2E	46
-0x2F,// 0x2F	47
-0x09,// 0x30	48
-0x09,// 0x31	49
-0x09,// 0x32	50
-0x09,// 0x33	51
-0x09,// 0x34	52
-0x09,// 0x35	53
-0x25,// 0x36	54
-0x25,// 0x37	55
-0x25,// 0x38	56
-0x39,// 0x39	57
-0x06,// 0x3A	58
-0x05,// 0x3B	59
-0x05,// 0x3C	60
-0x11,// 0x3D	61
-0x07,// 0x3E	62
-0x05,// 0x3F	63
-0x05,// 0x40	64
-0x1E,// 0x41	65
-0x1E,// 0x42	66
-0x1E,// 0x43	67
-0x1E,// 0x44	68
-0x28,// 0x45	69
-0x14,// 0x46	70
-0x1E,// 0x47	71
-0x1E,// 0x48	72
-0x24,// 0x49	73
-0x24,// 0x4A	74
-0x24,// 0x4B	75
-0x24,// 0x4C	76
-0x0A,// 0x4D	77
-0x24,// 0x4E	78
-0x24,// 0x4F	79
-0x24,// 0x50	80
-0x29,// 0x51	81
-0x29,// 0x52	82
-0x29,// 0x53	83
-0x29,// 0x54	84
-0x29,// 0x55	85
-0x29,// 0x56	86
-0x29,// 0x57	87
-0x29,// 0x58	88
-0x08,// 0x59	89
-0x08,// 0x5A	90
-0x08,// 0x5B	91
-0x1F,// 0x5C	92
-0x1F,// 0x5D	93
-0x1F,// 0x5E	94
-0x19,// 0x5F	95
-0x0D,// 0x60	96
-0x0D,// 0x61	97
-0x0D,// 0x62	98
-0x0D,// 0x63	99
-0x17,// 0x64	100
-0x17,// 0x65	101
-0x17,// 0x66	102
-0x17,// 0x67	103
-0x23,// 0x68	104
-0x23,// 0x69	105
-0x23,// 0x6A	106
-0x23,// 0x6B	107
-0x23,// 0x6C	108
-0x0F,// 0x6D	109
-0x1E,// 0x6E	110
-0x1E,// 0x6F	111
-0x1E,// 0x70	112
-0x2B,// 0x71	113
-0x1A,// 0x72	114
-0x1A,// 0x73	115
-0x1B,// 0x74	116
-0x15,// 0x75	117
-0x1C,// 0x76	118
-0x13,// 0x77	119
-0x24,// 0x78	120
-0x24,// 0x79	121
-0x24,// 0x7A	122
-0x24,// 0x7B	123
-0x24,// 0x7C	124
-0x24,// 0x7D	125
-0x24,// 0x7E	126
-0x1// 0x7F		127
-};
+	GEMidiToDebugTextFile(inputMID, inputSize, textFileOut, extendTracksToHighest);
 
+	delete [] inputMID;
+}
 
 void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 {
@@ -6479,19 +13130,50 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 			return;
 		}
 
-		unsigned long lengthHeader = 0x44;
 
-		fprintf(outFile, "Offset Start Midi Events: %08X \n", lengthHeader);
+		if (CharArrayToLong(&inputMID[0]) != 0x4D546864)
+		{
+			fflush(outFile);
+			fclose(outFile);
+			MessageBox(NULL, "Invalid Midi MThd header", "Error", NULL);
+			return;
+		}
+
+		int lengthHeader = CharArrayToShort(&inputMID[6]);
+		int numTracks = CharArrayToShort(&inputMID[0xA]);
+		int division = CharArrayToShort(&inputMID[0xC]);
+
+		fprintf(outFile, "MThd Header Size %08X, Format %02X, # Tracks %02X, Division %04X\n", lengthHeader, CharArrayToShort(&inputMID[8]), numTracks, division);
+
+		
 
 		fprintf(outFile, "Tracks\n");
 
 		// parse midi
+		int truePosition = 8 + lengthHeader;
 		
 		int counterTrack = 0;
 
-		for (int i = 0; i < (lengthHeader - 4); i+=4) // ignore last 00000180
+		for (int i = 0; i < numTracks; i++)
 		{
-			unsigned long offset = CharArrayToLong(&inputMID[i]);
+			if (CharArrayToLong(&inputMID[truePosition]) != 0x4D54726B)
+			{
+				fflush(outFile);
+				MessageBox(NULL, "Invalid Midi MTrk header", "Error", NULL);
+				return;
+			}
+
+			unsigned long midiTrackSize = CharArrayToLong(&inputMID[truePosition + 4]);
+
+			if ((truePosition + 8 + midiTrackSize) > results.st_size)
+			{
+				MessageBox(NULL, "Too big midi track", "Error", NULL);
+				fflush(outFile);
+				return;
+			}
+
+			unsigned long offset = truePosition + 8;
+
 			fprintf(outFile, "Track %X Offset %X: Track Offset %08X\n", counterTrack, i, offset);
 
 			int position = offset;	
@@ -6540,8 +13222,21 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 						else
 							subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						if (subType == 0x51) // tempo
+
+						if (subType == 0x2F) //End of Track Event.
 						{
+							unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);  // end 00 in real mid
+						
+							if (statusBit)
+								fprintf(outFile, "!%02X End of Track\n", subType);
+							else
+								fprintf(outFile, "%02X%02X End of Track\n", eventVal, subType);
+							endFlag = true;
+						}
+						else if (subType == 0x51) //Set Tempo Event.
+						{
+							unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+												
 							int microsecondsSinceQuarterNote = ((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
 							int MICROSECONDS_PER_MINUTE = 60000000;
 							float beatsPerMinute = (float)MICROSECONDS_PER_MINUTE / (float)microsecondsSinceQuarterNote;
@@ -6551,37 +13246,59 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 							else
 								fprintf(outFile, "%02X%02X%06X - MicroSecondSinceQuarterNote %d (BPM: %f)\n", eventVal, subType, microsecondsSinceQuarterNote, microsecondsSinceQuarterNote, beatsPerMinute);
 						}
-						else if (subType == 0x2D) // end loop
+						//Various Unused Meta Events.
+						else if ((subType < 0x7F) && !(subType == 0x51 || subType == 0x2F))
 						{
-							
-							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+							unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
 
 							if (statusBit)
-								fprintf(outFile, "!%02X%02X%02X%08X Count %u LoopCount %u OffsetBeginning %u (%04X)\n", subType, loopCount, currentLoopCount, offsetToBeginningLoop, loopCount, currentLoopCount, offsetToBeginningLoop, (position - offsetToBeginningLoop));
+								fprintf(outFile, "!%02X Unused Meta Events ", subType);
 							else
-								fprintf(outFile, "%02X%02X%02X%02X%08X Count %u LoopCount %u OffsetBeginning %u (%04X)\n", eventVal, subType, loopCount, currentLoopCount, offsetToBeginningLoop, loopCount, currentLoopCount, offsetToBeginningLoop, (position - offsetToBeginningLoop));
-							 //meta status byte (0xFF), a loop end subtype byte (0x2D), a loop count byte (0-255), a current loop count (should be the same as the loop count byte), and four bytes that specify the number of bytes difference between the end of the loop end event, and the begining of the loop start event. (note that if this value is calculated before the pattern matching compression takes place, this value will have to be adjusted to compensate for any compression of data that takes place between the loop end and the loop start.) The loop count value should be a zero to loop forever, otherwise it should be set to one less than the number of times the section should repeat. (i.e. to hear a section eight times, you would set the loop count to seven.)
+								fprintf(outFile, "%02X%02X Unused Meta Events ", eventVal, subType);
+						
+							for (int i = 0; i < length; i++)
+							{
+								unsigned char tempByte = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+								fprintf(outFile, "%02X", tempByte);
+							}
 
+							fprintf(outFile, "\n");
 						}
-						else if (subType == 0x2E) // start loop
+						else if (subType == 0x7F) //Unused Sequencer Specific Event.
 						{
-							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+							int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+
 							if (statusBit)
-								fprintf(outFile, "!%02X%02X%02X Loop #%u\n", subType, loopNumber, endLoop, loopNumber);
+								fprintf(outFile, "!%02X Unused Sequencer Specific Event ", subType);
 							else
-								fprintf(outFile, "%02X%02X%02X%02X Loop #%u\n", eventVal, subType, loopNumber, endLoop, loopNumber);
+								fprintf(outFile, "%02X%02X Unused Sequencer Specific Event ", eventVal, subType);
+
+							// subtract length
+							for (int i = 0; i < length; i++)
+							{
+								unsigned char tempByte = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+								fprintf(outFile, "%02X", tempByte);
+							}
+
+							fprintf(outFile, "\n");
 						}
-						else if (subType == 0x2F)
-						{
-							if (statusBit)
-								fprintf(outFile, "!%02X End of Track\n", subType);
-							else
-								fprintf(outFile, "%02X%02X End of Track\n", eventVal, subType);
-							endFlag = true;
-						}
+
+						if (!statusBit)
+							previousEventValue = eventVal;
+					}
+					else if ((eventVal >= 0x80 && eventVal < 0x90) || (statusBit && (previousEventValue >= 0x80) && (previousEventValue < 0x90)))
+					{
+						byte noteNumber;
+						if (statusBit)
+							noteNumber = eventVal;
+						else
+							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+						byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
+
+						if (statusBit)
+							fprintf(outFile, "!%02X%02X - Midi Channel OFF %d NoteNumber %d Velocity %d\n", noteNumber, velocity, (previousEventValue&0xF), noteNumber, velocity);
+						else
+							fprintf(outFile, "%02X%02X%02X - Midi Channel OFF %d NoteNumber %d Velocity %d\n", eventVal, noteNumber, velocity, (eventVal&0xF), noteNumber, velocity);
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -6595,12 +13312,10 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 							noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 						byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 
-						unsigned long timeDuration = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, true);
-
 						if (statusBit)
-							fprintf(outFile, "!%02X%02X Duration (%X) - Midi Channel %d NoteNumber %d Velocity %d Duration %d\n", noteNumber, velocity, timeDuration, (eventVal&0xF), noteNumber, velocity, timeDuration);
+							fprintf(outFile, "!%02X%02X - Midi Channel ON %d NoteNumber %d Velocity %d\n", noteNumber, velocity, (previousEventValue&0xF), noteNumber, velocity);
 						else
-							fprintf(outFile, "%02X%02X%02X Duration (%X) - Midi Channel %d NoteNumber %d Velocity %d Duration %d\n", eventVal, noteNumber, velocity, timeDuration, (eventVal&0xF), noteNumber, velocity, timeDuration);
+							fprintf(outFile, "%02X%02X%02X - Midi Channel ON %d NoteNumber %d Velocity %d\n", eventVal, noteNumber, velocity, (eventVal&0xF), noteNumber, velocity);
 
 						if (!statusBit)
 							previousEventValue = eventVal;
@@ -6656,7 +13371,7 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 						else if ((controllerType >= 0x79) && (controllerType <= 0x7F)) controllerTypeText = "ModeMessages";
 
 						if (statusBit)
-							fprintf(outFile, "!%02X%02X - Midi Channel %d ControllerType %d (%s) Value %d\n", controllerType, controllerValue, (eventVal&0xF), controllerType, controllerTypeText, controllerValue);
+							fprintf(outFile, "!%02X%02X - Midi Channel %d ControllerType %d (%s) Value %d\n", controllerType, controllerValue, (previousEventValue&0xF), controllerType, controllerTypeText, controllerValue);
 						else
 							fprintf(outFile, "%02X%02X%02X - Midi Channel %d ControllerType %d (%s) Value %d\n", eventVal, controllerType, controllerValue, (eventVal&0xF), controllerType, controllerTypeText, controllerValue);
 
@@ -6673,17 +13388,17 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 
 						if (statusBit)
 						{
-							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "!%02X - Midi Channel %d Instrument %d (%s)\n", instrument, (eventVal&0xF), instrument, drumMidiNames[instrument]);
+							if ((previousEventValue & 0xF) == 9)
+								fprintf(outFile, "!%02X - Midi Channel %d Instrument %d\n", instrument, (previousEventValue&0xF), instrument);
 							else
-								fprintf(outFile, "!%02X - Midi Channel %d Instrument %d (%s)\n", instrument, (eventVal&0xF), instrument, instrumentMidiToGEMapping[instrument]);
+								fprintf(outFile, "!%02X - Midi Channel %d Instrument %d\n", instrument, (previousEventValue&0xF), instrument);
 						}
 						else
 						{
 							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d (%s)\n", eventVal, instrument, (eventVal&0xF), drumMidiNames, drumMidiNames[instrument]);
+								fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d\n", eventVal, instrument, (eventVal&0xF), instrument);
 							else
-								fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d (%s)\n", eventVal, instrument, (eventVal&0xF), instrumentMidiToGEMapping, instrumentMidiNames[instrument]);
+								fprintf(outFile, "%02X%02X - Midi Channel %d Instrument %d\n", eventVal, instrument, (eventVal&0xF), instrument);
 						}
 
 						if (!statusBit)
@@ -6699,17 +13414,17 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 
 						if (statusBit)
 						{
-							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "!%02X - Midi Channel %d Amount %d\n", amount, (eventVal&0xF), amount);
+							if ((previousEventValue & 0xF) == 9)
+								fprintf(outFile, "!%02X - Channel Aftertouch %d Amount %d\n", amount, (previousEventValue&0xF), amount);
 							else
-								fprintf(outFile, "!%02X - Midi Channel %d Amount %d\n", amount, (eventVal&0xF), amount);
+								fprintf(outFile, "!%02X - Channel Aftertouch %d Amount %d\n", amount, (previousEventValue&0xF), amount);
 						}
 						else
 						{
 							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "%02X%02X - Midi Channel %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
+								fprintf(outFile, "%02X%02X - Channel Aftertouch %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
 							else
-								fprintf(outFile, "%02X%02X - Midi Channel %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
+								fprintf(outFile, "%02X%02X - Channel Aftertouch %d Amount %d\n", eventVal, amount, (eventVal&0xF), amount);
 						}
 
 						if (!statusBit)
@@ -6727,17 +13442,17 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 
 						if (statusBit)
 						{
-							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "!%02X%02X - Midi Channel %d lsb %d msb %d\n", lsb, msb, (eventVal&0xF), lsb, msb);
+							if ((previousEventValue & 0xF) == 9)
+								fprintf(outFile, "!%02X%02X - Pitch Bend %d lsb %d msb %d\n", lsb, msb, (previousEventValue&0xF), lsb, msb);
 							else
-								fprintf(outFile, "!%02X%02X - Midi Channel %d lsb %d msb %d\n", lsb, msb, (eventVal&0xF), lsb, msb);
+								fprintf(outFile, "!%02X%02X - Pitch Bend %d lsb %d msb %d\n", lsb, msb, (previousEventValue&0xF), lsb, msb);
 						}
 						else
 						{
 							if ((eventVal & 0xF) == 9)
-								fprintf(outFile, "%02X%02X%02X - Midi Channel %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
+								fprintf(outFile, "%02X%02X%02X - Pitch Bend %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
 							else
-								fprintf(outFile, "%02X%02X%02X - Midi Channel %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
+								fprintf(outFile, "%02X%02X%02X - Pitch Bend %d lsb %d msb %d\n", eventVal, lsb, msb, (eventVal&0xF), lsb, msb);
 						}
 
 						if (!statusBit)
@@ -6762,14 +13477,414 @@ void CMidiParse::MidiToDebugTextFile(CString midiFile, CString textFileOut)
 
 			fprintf(outFile, "\n");
 			counterTrack++;
+
+			truePosition = truePosition + 8 + midiTrackSize;
 		}
-
-
-		delete [] inputMID;
-	
 
 		
 		fclose(outFile);
+}
+
+void CMidiParse::GenerateTestPattern(int type, CString outputFile)
+{
+	try
+	{
+		FILE* outFile = fopen(outputFile, "wb");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL, "Error outputting file", "Error", NULL);
+			return;
+		}
+
+		// parse midi
+		
+		unsigned long tempLong = Flip32Bit(0x4D546864);
+		fwrite(&tempLong, 1 ,4 , outFile);
+		tempLong = Flip32Bit(0x00000006);
+		fwrite(&tempLong, 1 ,4 , outFile);
+		tempLong = Flip32Bit(0x00010000 | 0x0001); // num tracks
+		fwrite(&tempLong, 1 ,4 , outFile);
+
+		unsigned long division = 0x01E0;
+
+		unsigned short tempShort = division;
+		tempShort = Flip16Bit(tempShort);
+		fwrite(&tempShort, 1 ,2 , outFile);
+
+		unsigned long absoluteTime = 0;
+
+		int trackEventCount = 0;
+		TrackEvent* trackEvents = new TrackEvent[0x30000];
+
+		for (int j = 0; j < 0x30000; j++)
+			trackEvents[j].contents = NULL;
+
+		int position = 4;	
+
+		tempLong = Flip32Bit(0x4D54726B);
+		fwrite(&tempLong, 1 ,4 , outFile);
+
+
+		int trackNumber = 1;
+		int instrumentNumber = 0;
+
+		float tempo = 120;
+		unsigned long tempoVal = 60000000.0 / tempo;
+
+		trackEvents[trackEventCount].type = 0xFF;
+		trackEvents[trackEventCount].contentSize = 5;
+		trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+		
+		trackEvents[trackEventCount].contents[0] = 0x51;
+		trackEvents[trackEventCount].contents[1] = 0x3;
+		trackEvents[trackEventCount].contents[2] = (tempoVal >> 16) & 0xFF;
+		trackEvents[trackEventCount].contents[3] = (tempoVal >> 8) & 0xFF;
+		trackEvents[trackEventCount].contents[4] = (tempoVal) & 0xFF;
+
+		trackEventCount++;
+
+		
+
+
+		trackEvents[trackEventCount].type = 0xC0 | trackNumber;
+
+		trackEvents[trackEventCount].contentSize = 1;
+		trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+		trackEvents[trackEventCount].contents[0] = instrumentNumber;
+	
+		trackEventCount++;
+
+
+		byte controllerType = 0x07;
+		byte controllerValue = 0x7F;
+
+		trackEvents[trackEventCount].type = 0xB0 | trackNumber;
+		trackEvents[trackEventCount].contentSize = 2;
+		trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+		trackEvents[trackEventCount].contents[0] = controllerType;
+		trackEvents[trackEventCount].contents[1] = controllerValue;
+
+		trackEventCount++;
+
+
+
+		if ((type == 0) || (type == 1) || (type == 2))
+		{
+			for (unsigned char note = 0x18; note < 0x78; note++)
+			{
+				if (type == 0)
+				{
+					trackEvents[trackEventCount].deltaTime = 0;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x90 | trackNumber;
+					
+					byte velocity = 0x7F;
+
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = note;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+
+
+
+
+
+
+					trackEvents[trackEventCount].deltaTime = 20;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x80 | trackNumber;
+					
+					velocity = 0x2F;
+
+
+					trackEvents[trackEventCount].durationTime = 0; // to be filled in
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = note;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+				}
+				else if (type == 1)
+				{
+					trackEvents[trackEventCount].deltaTime = 200;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x90 | trackNumber;
+					
+					byte velocity = 0x7F;
+
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = note;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+
+
+
+
+
+
+					trackEvents[trackEventCount].deltaTime = 200;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x80 | trackNumber;
+					
+					velocity = 0x2F;
+
+
+					trackEvents[trackEventCount].durationTime = 0; // to be filled in
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = note;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+				}
+				else if (type == 2)
+				{
+					trackEvents[trackEventCount].deltaTime = 200;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x90 | trackNumber;
+					
+					byte velocity = 0x7F;
+
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = 0x78;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+
+
+
+
+
+
+					trackEvents[trackEventCount].deltaTime = 200;
+					trackEvents[trackEventCount].obsoleteEvent = false;
+
+					absoluteTime += trackEvents[trackEventCount].deltaTime;
+					trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+					trackEvents[trackEventCount].type = 0x80 | trackNumber;
+					
+					velocity = 0x2F;
+
+
+					trackEvents[trackEventCount].durationTime = 0; // to be filled in
+					trackEvents[trackEventCount].contentSize = 2;
+					trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+					trackEvents[trackEventCount].contents[0] = 0x78;
+					trackEvents[trackEventCount].contents[1] = velocity;
+
+					trackEventCount++;
+				}
+			}
+		}
+		else if (type == 3)
+		{
+			int note = 0x78;
+			for (int x = 0; x < 2000; x+=10)
+			{
+				trackEvents[trackEventCount].deltaTime = 0;
+				trackEvents[trackEventCount].obsoleteEvent = false;
+
+				absoluteTime += trackEvents[trackEventCount].deltaTime;
+				trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+				trackEvents[trackEventCount].type = 0x90 | trackNumber;
+				
+				byte velocity = 0x7F; // seems ignored on import
+
+				trackEvents[trackEventCount].contentSize = 2;
+				trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+				trackEvents[trackEventCount].contents[0] = note;
+				trackEvents[trackEventCount].contents[1] = velocity;
+
+				trackEventCount++;
+
+
+
+
+
+
+
+				trackEvents[trackEventCount].deltaTime = x;
+				trackEvents[trackEventCount].obsoleteEvent = false;
+
+				absoluteTime += trackEvents[trackEventCount].deltaTime;
+				trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+				trackEvents[trackEventCount].type = 0x80 | trackNumber;
+
+
+				trackEvents[trackEventCount].durationTime = 0; // to be filled in
+				trackEvents[trackEventCount].contentSize = 2;
+				trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+				trackEvents[trackEventCount].contents[0] = note;
+				trackEvents[trackEventCount].contents[1] = velocity;
+
+				trackEventCount++;
+			}
+
+			trackEvents[trackEventCount].deltaTime = 0;
+			trackEvents[trackEventCount].obsoleteEvent = false;
+
+			absoluteTime += trackEvents[trackEventCount].deltaTime;
+			trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+			trackEvents[trackEventCount].type = 0x90 | trackNumber;
+			
+			byte velocity = 0x7F; // seems ignored on import
+
+			trackEvents[trackEventCount].contentSize = 2;
+			trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+			trackEvents[trackEventCount].contents[0] = note;
+			trackEvents[trackEventCount].contents[1] = velocity;
+
+			trackEventCount++;
+
+
+
+
+
+
+
+			trackEvents[trackEventCount].deltaTime = 48;
+			trackEvents[trackEventCount].obsoleteEvent = false;
+
+			absoluteTime += trackEvents[trackEventCount].deltaTime;
+			trackEvents[trackEventCount].absoluteTime = absoluteTime;
+
+			trackEvents[trackEventCount].type = 0x80 | trackNumber;
+
+
+			trackEvents[trackEventCount].durationTime = 0; // to be filled in
+			trackEvents[trackEventCount].contentSize = 2;
+			trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+			trackEvents[trackEventCount].contents[0] = note;
+			trackEvents[trackEventCount].contents[1] = velocity;
+
+			trackEventCount++;
+		}
+
+		trackEvents[trackEventCount].type = 0xFF;
+		trackEvents[trackEventCount].contentSize = 2;
+		trackEvents[trackEventCount].contents = new byte[trackEvents[trackEventCount].contentSize];
+		
+		trackEvents[trackEventCount].contents[0] = 0x2F;
+		trackEvents[trackEventCount].contents[1] = 0x0;
+
+		trackEventCount++;
+			
+		
+		unsigned long timeOffset = 0;
+
+		unsigned long sizeData = 0;
+		byte previousTrackEvent = 0x0;
+
+		
+		for (int j = 0; j < trackEventCount; j++)
+		{
+			TrackEvent trackEvent =  trackEvents[j];
+			if (trackEvent.obsoleteEvent)
+			{
+				timeOffset += trackEvent.deltaTime;
+			}
+			else
+			{
+				unsigned long lengthTimeDelta = 0;
+				unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
+				timeOffset = 0;
+
+				sizeData += lengthTimeDelta;
+
+
+				if ((trackEvent.type != previousTrackEvent) || (trackEvent.type >= 0xF0))
+				{
+					sizeData += 1;
+				}
+
+				sizeData += trackEvent.contentSize;
+
+				previousTrackEvent = trackEvent.type;
+			}
+		}
+
+
+		tempLong = Flip32Bit(sizeData);
+		fwrite(&tempLong,1, 4, outFile);
+
+		timeOffset = 0;
+		previousTrackEvent = 0x0;
+		for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+		{
+			TrackEvent trackEvent = trackEvents[eventCount];
+
+			if (trackEvent.obsoleteEvent)
+			{
+				timeOffset += trackEvent.deltaTime;
+			}
+			else
+			{
+				unsigned long lengthTimeDelta = 0;
+				unsigned long timeDelta = ReturnVLBytes((trackEvent.deltaTime + timeOffset), lengthTimeDelta);
+				timeOffset = 0;
+				WriteVLBytes(outFile, timeDelta, lengthTimeDelta, false);
+
+				if ((trackEvent.type != previousTrackEvent) || (trackEvent.type >= 0xF0))
+				{
+					fwrite(&trackEvent.type, 1, 1, outFile);
+				}
+
+				fwrite(trackEvent.contents, 1, trackEvent.contentSize, outFile);
+
+				previousTrackEvent = trackEvent.type;
+			}
+		}
+
+		for (int eventCount = 0; eventCount < trackEventCount; eventCount++)
+		{
+			if (trackEvents[eventCount].contents != NULL)
+			{
+				delete [] trackEvents[eventCount].contents;
+				trackEvents[eventCount].contents = NULL;
+			}
+		}
+
+		delete [] trackEvents;
+
+		// just one track
+		
+		fflush(outFile);	
+		fclose(outFile);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
+	}
 }
 
 int CMidiParse::HexToInt(char inChar)
@@ -6828,4 +13943,3943 @@ int CMidiParse::HexToInt(char inChar)
 unsigned short CMidiParse::Flip16Bit(unsigned short ShortValue)
 {
 	return ((ShortValue >> 8) | ((ShortValue << 8)));
+}
+
+void CMidiParse::ExportToBin(CString gameName, unsigned char* buffer, unsigned long address, unsigned long size, CString fileName, bool& compressed)
+{
+	gameName.Trim();
+
+	if (compressed)
+	{
+		if (gameName.CompareNoCase("MidiLZSSWilliams") == 0)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed, "WILLIAMS");
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("LZSS_0BSng") == 0)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address+4], fileSizeCompressed, outputDecompressed, "LZSS_0");
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+
+		}
+		else if (gameName.CompareNoCase("AVL_0Sng") == 0)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed, "LZSS");
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+
+		}
+		else if (gameName.CompareNoCase("VigilanteSng") == 0)
+		{
+			int fileSizeCompressed = size;
+			CVigilanteDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("RugratsSng") == 0)
+		{
+			int fileSizeCompressed = size;
+			CRugratsDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("RNCSng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.unpackM1(&buffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("ASMICSng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			CASMICDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("SnowSng") == 0)
+		{
+			int fileSizeCompressed = size;
+			CSnowDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("ArmySargeSng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			n643docompression decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.uncompressedSize(&buffer[address], true);
+
+			expectedSize = decode.dec(&buffer[address], expectedSize, outputDecompressed, fileSizeCompressed, true, false);
+			
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("ArmySarge2Sng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			n643docompression decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.uncompressedSize(&buffer[address], true);
+
+			expectedSize = decode.dec(&buffer[address], expectedSize, outputDecompressed, fileSizeCompressed, true, true);
+			
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("TazSng") == 0)
+		{
+			CString inTempFileName;
+			inTempFileName.Format("tempASAS%08X.mus", address);
+
+			CString outTempFileName;
+			outTempFileName.Format("tempASAS%08X.musb", address);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outTempIn = fopen(inTempFileName, "wb");
+			if (outTempIn == NULL)
+			{
+				return;
+			}
+
+			int musSize = size;
+
+			unsigned long expectedSize = CharArrayToLong(&buffer[address+4]) - 0x14;
+			fwrite(&expectedSize, 1, 4, outTempIn);
+			fwrite(&buffer[address+0x14], 1, musSize-0x14, outTempIn);
+			fflush(outTempIn);
+			fclose(outTempIn);
+
+			flzh huffman;
+			huffman.infile = fopen(inTempFileName, "rb");
+			if (huffman.infile == NULL)
+			{
+				::DeleteFile(inTempFileName);
+				return;
+			}
+
+			huffman.outfile = fopen(outTempFileName, "wb");
+			if (huffman.outfile == NULL)
+			{
+				return;
+			}
+
+			huffman.Decode();
+
+			fflush(huffman.outfile);
+			fclose(huffman.infile);
+			fclose(huffman.outfile);
+
+			musSize = CSharedFunctions::GetSizeFile(outTempFileName);
+
+			FILE* inTempIn = fopen(outTempFileName, "rb");
+			if (inTempIn == NULL)
+			{
+				return;
+			}
+			
+			unsigned char* outputDecompressed = new unsigned char[musSize];
+			fread(outputDecompressed, 1, musSize, inTempIn);
+
+			fclose(inTempIn);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("ARISng") == 0)
+		{
+			CString inTempFileName;
+			inTempFileName.Format("tempASAS%08X.mus", address);
+
+			CString outTempFileName;
+			outTempFileName.Format("tempASAS%08X.musb", address);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outTempIn = fopen(inTempFileName, "wb");
+			if (outTempIn == NULL)
+			{
+				return;
+			}
+
+			int musSize = size;
+
+			unsigned long expectedSize = CharArrayToLong(&buffer[address-4]);
+			fwrite(&expectedSize, 1, 4, outTempIn);
+			fwrite(&buffer[address], 1, musSize, outTempIn);
+			fflush(outTempIn);
+			fclose(outTempIn);
+
+			CLZARIDecoder lzari;
+			lzari.infile = fopen(inTempFileName, "rb");
+			if (lzari.infile == NULL)
+			{
+				::DeleteFile(inTempFileName);
+				return;
+			}
+
+			lzari.outfile = fopen(outTempFileName, "wb");
+			if (lzari.outfile == NULL)
+			{
+				return;
+			}
+
+			lzari.Decode();
+
+			fflush(lzari.outfile);
+			fclose(lzari.infile);
+			fclose(lzari.outfile);
+
+			musSize = CSharedFunctions::GetSizeFile(outTempFileName);
+
+			FILE* inTempIn = fopen(outTempFileName, "rb");
+			if (inTempIn == NULL)
+			{
+				return;
+			}
+			
+			unsigned char* outputDecompressed = new unsigned char[musSize];
+			fread(outputDecompressed, 1, musSize, inTempIn);
+
+			fclose(inTempIn);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("FLA2Sng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			CFLA2Decoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+
+			int expectedSizeUncompressed = Flip32Bit(CharArrayToLong(&buffer[address+4]));
+			int expectedSize = decode.decFLA2(&buffer[address+8], fileSizeCompressed, expectedSizeUncompressed, outputDecompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("RNCSngOffset") == 0)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.unpackM1(&buffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+
+			unsigned long offset = CharArrayToLong(&outputDecompressed[0]);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize - offset; x++)
+			{
+				fwrite(&outputDecompressed[offset + x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("Yay0Sng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			YAY0 decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.decodeAll(&buffer[address], outputDecompressed, fileSizeCompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("BlitzSng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			CBlitzDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], outputDecompressed, fileSizeCompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("MarioTennisSng") == 0)
+		{
+			int fileSizeCompressed = -1;
+			CMarioTennisDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else if (gameName.CompareNoCase("MultiPartTigSng") == 0)
+		{
+			MessageBox(NULL, "Can't write Tig to bin, not supported", "Error", NULL);
+		}
+		else if (gameName.CompareNoCase("Konami") == 0)
+		{
+			int fileSizeCompressed = size;
+			CNaganoDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&buffer[address], fileSizeCompressed, outputDecompressed);
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+
+		}
+		else
+		{
+			DecompressToFile(&buffer[address], size, fileName);
+		}
+	}
+	
+	else
+	{
+		FILE* outFile = fopen(fileName, "wb");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL, "Cannot Write File", "Error", NULL);
+			return;
+		}
+		for (int x = 0; x < size; x++)
+		{
+			fwrite(&buffer[address+x], 1, 1, outFile);
+		}
+		fclose(outFile);
+	}
+}
+
+void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int gamebufferSize, unsigned long address, unsigned long size, CString fileName, CString gameType, int& numberInstruments, unsigned long division, bool& compressed, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool calculateInstrumentCountOnly, bool separateByInstrument, bool generateDebugTextFile, unsigned long extra, unsigned long extra2, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo)
+{
+	gameName.Trim();
+	gameType.Trim();
+	if (gameType.CompareNoCase("BanjoTooie") == 0)
+	{
+		if (compressed)
+		{
+			compress->SetGame(BANJOTOOIE);
+			int decompressedSize = 0;	
+			int compressedSize = -1;
+			byte* outputBuffer = Decompress(&gamebuffer[address], size, decompressedSize, compressedSize);
+			if (outputBuffer != NULL)
+			{
+				BTMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+				delete [] outputBuffer;
+			}
+		}
+		else
+		{
+			BTMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+		}
+	}
+	else if (gameType.CompareNoCase("MIDx") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			MIDxMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments);
+		}
+	}
+	else if (gameType.CompareNoCase("Sng") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			SngToMidi(&gamebuffer[address], size, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", extra);
+		}
+	}
+	else if (gameType.CompareNoCase("Konami") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CNaganoDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+
+			KonamiToMidi(gamebuffer, gamebufferSize, outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+			if (generateDebugTextFile)
+				KonamiToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			KonamiToMidi(gamebuffer, gamebufferSize, &gamebuffer[address], size, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+			if (generateDebugTextFile)
+				KonamiToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+		}
+	}
+	else if (gameType.CompareNoCase("RNCSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("ASMICSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			CASMICDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("SnowSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CSnowDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("ArmySargeSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			n643docompression decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.uncompressedSize(&gamebuffer[address], true);
+
+			expectedSize = decode.dec(&gamebuffer[address], expectedSize, outputDecompressed, fileSizeCompressed, true, false);
+			
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+
+		}
+	}
+	else if (gameType.CompareNoCase("ArmySarge2Sng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			n643docompression decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.uncompressedSize(&gamebuffer[address], true);
+
+			expectedSize = decode.dec(&gamebuffer[address], expectedSize, outputDecompressed, fileSizeCompressed, true, true);
+			
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+
+		}
+	}
+	else if (gameType.CompareNoCase("TazSng") == 0)
+	{
+		if (compressed)
+		{
+			CString inTempFileName;
+			inTempFileName.Format("tempASAS%08X.mus", address);
+
+			CString outTempFileName;
+			outTempFileName.Format("tempASAS%08X.musb", address);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outTempIn = fopen(inTempFileName, "wb");
+			if (outTempIn == NULL)
+			{
+				return;
+			}
+
+			int musSize = size;
+
+			unsigned long expectedSize = CharArrayToLong(&gamebuffer[address+4]) - 0x14;
+			fwrite(&expectedSize, 1, 4, outTempIn);
+			fwrite(&gamebuffer[address+0x14], 1, musSize-0x14, outTempIn);
+			fflush(outTempIn);
+			fclose(outTempIn);
+
+			flzh huffman;
+			huffman.infile = fopen(inTempFileName, "rb");
+			if (huffman.infile == NULL)
+			{
+				::DeleteFile(inTempFileName);
+				return;
+			}
+
+			huffman.outfile = fopen(outTempFileName, "wb");
+			if (huffman.outfile == NULL)
+			{
+				return;
+			}
+
+			huffman.Decode();
+
+			fflush(huffman.outfile);
+			fclose(huffman.infile);
+			fclose(huffman.outfile);
+
+			musSize = CSharedFunctions::GetSizeFile(outTempFileName);
+
+			FILE* inTempIn = fopen(outTempFileName, "rb");
+			if (inTempIn == NULL)
+			{
+				return;
+			}
+			
+			unsigned char* outputDecompressed = new unsigned char[musSize];
+			fread(outputDecompressed, 1, musSize, inTempIn);
+
+			fclose(inTempIn);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("ARISng") == 0)
+	{
+		if (compressed)
+		{
+			CString inTempFileName;
+			inTempFileName.Format("tempASAS%08X.mus", address);
+
+			CString outTempFileName;
+			outTempFileName.Format("tempASAS%08X.musb", address);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			FILE* outTempIn = fopen(inTempFileName, "wb");
+			if (outTempIn == NULL)
+			{
+				return;
+			}
+
+			int musSize = size;
+
+			unsigned long expectedSize = CharArrayToLong(&gamebuffer[address-4]);
+			fwrite(&expectedSize, 1, 4, outTempIn);
+			fwrite(&gamebuffer[address], 1, musSize, outTempIn);
+			fflush(outTempIn);
+			fclose(outTempIn);
+
+			CLZARIDecoder lzari;
+			lzari.infile = fopen(inTempFileName, "rb");
+			if (lzari.infile == NULL)
+			{
+				::DeleteFile(inTempFileName);
+				return;
+			}
+
+			lzari.outfile = fopen(outTempFileName, "wb");
+			if (lzari.outfile == NULL)
+			{
+				return;
+			}
+
+			lzari.Decode();
+
+			fflush(lzari.outfile);
+			fclose(lzari.infile);
+			fclose(lzari.outfile);
+
+			musSize = CSharedFunctions::GetSizeFile(outTempFileName);
+
+			FILE* inTempIn = fopen(outTempFileName, "rb");
+			if (inTempIn == NULL)
+			{
+				return;
+			}
+			
+			unsigned char* outputDecompressed = new unsigned char[musSize];
+			fread(outputDecompressed, 1, musSize, inTempIn);
+
+			fclose(inTempIn);
+
+			::DeleteFile(inTempFileName);
+			::DeleteFile(outTempFileName);
+
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("FLA2Sng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			CFLA2Decoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+
+			int expectedSizeUncompressed = Flip32Bit(CharArrayToLong(&gamebuffer[address+4]));
+			int expectedSize =  decode.decFLA2(&gamebuffer[address+8], fileSizeCompressed, expectedSizeUncompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("RNCSngOffset") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+			
+			unsigned long offset = CharArrayToLong(&outputDecompressed[0]);
+
+			SngToMidi(&outputDecompressed[offset], expectedSize - offset, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, &outputDecompressed[offset], expectedSize - offset, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("Yay0Sng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			YAY0 decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.decodeAll(&gamebuffer[address], outputDecompressed, fileSizeCompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("BlitzSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			CBlitzDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], outputDecompressed, fileSizeCompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("MarioTennisSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			CMarioTennisDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("ZLibSng") == 0)
+	{
+		if (compressed)
+		{
+			compress->SetGame(NOHEADER);
+			int decompressedSize = 0;	
+			int compressedSize = -1;
+			byte* outputBuffer = Decompress(&gamebuffer[address], size, decompressedSize, compressedSize);
+			if (outputBuffer != NULL)
+			{
+				SngToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+				if (generateDebugTextFile)
+					SngToDebugTextFile(gameName, address, outputBuffer, decompressedSize, fileName + " TrackParseDebug.txt", extra);
+
+				delete [] outputBuffer;
+			}
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("ZLibIndexedSng") == 0)
+	{
+		if (compressed)
+		{
+			compress->SetGame(NOHEADER);
+			int decompressedSize = 0;	
+			int compressedSize = -1;
+			byte* outputBuffer = Decompress(&gamebuffer[address], gamebufferSize - address, decompressedSize, compressedSize);
+			if (outputBuffer != NULL)
+			{
+				unsigned long offset = CharArrayToLong(&outputBuffer[4 + (size * 4)]);
+				unsigned long offsetEnd = CharArrayToLong(&outputBuffer[4 + (size * 4) + 4]);
+				if (offsetEnd == 0)
+					offsetEnd = decompressedSize;
+
+				SngToMidi(&outputBuffer[offset], (offsetEnd - offset), fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+				if (generateDebugTextFile)
+					SngToDebugTextFile(gameName, address, outputBuffer, (offsetEnd - offset), fileName + " TrackParseDebug.txt", extra);
+
+				delete [] outputBuffer;
+			}
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("MultiPartTigSng") == 0)
+	{
+		if (compressed)
+		{
+			TigDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x90000];
+			unsigned char* sngBinaryPre = new unsigned char[0x100000];
+			unsigned long  sngSize = 0;
+
+			int totalCompressedSize = 0;
+			unsigned long tempAddress = address;
+			while (totalCompressedSize < (size-1))
+			{
+				unsigned long compressedsize = Flip32Bit((((((gamebuffer[tempAddress] << 8) | gamebuffer[tempAddress+1]) << 8) | gamebuffer[tempAddress+2]) << 8) | gamebuffer[tempAddress+3]);
+				unsigned char type = gamebuffer[tempAddress+4];
+
+				if (type == 1)  // no compression
+				{
+					memcpy(&sngBinaryPre[sngSize], &gamebuffer[tempAddress+8], compressedsize-8);
+					sngSize += compressedsize-8;
+				}
+				else if (type == 0)
+				{
+					int fileSize = decode.dec(&gamebuffer[tempAddress+8], compressedsize, outputDecompressed);
+					if (fileSize > 0x1000)
+						fileSize = 0x1008;
+					memcpy(&sngBinaryPre[sngSize], outputDecompressed, fileSize-8);
+					sngSize += fileSize-8;
+				}
+				
+				tempAddress += compressedsize;
+				totalCompressedSize += compressedsize;
+
+				if ((gamebuffer[tempAddress] == 0x00) || ((Flip32Bit(CharArrayToLong(&gamebuffer[tempAddress]))) > 0x1010))
+				{
+					tempAddress++;
+					totalCompressedSize++;
+				}
+			}
+
+			SngToMidi(sngBinaryPre, sngSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, sngSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+			delete [] sngBinaryPre;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("LZSS_0BSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address+4], fileSizeCompressed, outputDecompressed, "LZSS_0");
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("AVL_0Sng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed, "LZSS");
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("VigilanteSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CVigilanteDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("RugratsSng") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CRugratsDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed);
+			
+			SngToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+			if (generateDebugTextFile)
+				SngToDebugTextFile(gameName, address, outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extra);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("MidiLZSSWilliams") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = size;
+			CMidwayDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.dec(&gamebuffer[address], fileSizeCompressed, outputDecompressed, "WILLIAMS");
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+	}
+	else if (gameType.CompareNoCase("Midi") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < size; x++)
+			{
+				fwrite(&gamebuffer[address+x], 1, 1, outFile);
+			}
+			fclose(outFile);
+		}
+	}
+	else if (gameType.CompareNoCase("Seq64") == 0)
+	{
+		CString tempROMStr = mainFolder + "TempASEQ64ROM.rom";
+		FILE* outTempROM = fopen(tempROMStr, "wb");
+		if (outTempROM == NULL)
+		{
+			MessageBox(NULL, "Cannot Write temp ROM File", "Error", NULL);
+			return;
+		}
+
+		fwrite(gamebuffer, 1, gamebufferSize, outTempROM);
+		fclose(outTempROM);
+
+		CString tempStr;
+		::DeleteFile(fileName);
+		tempStr.Format("seq64.exe --rom=\"%s\" --romdesc=\"%s\" --export_midi=%d --output=\"%s\"", tempROMStr, mainFolder + "romdesc\\" + gameName + ".xml", address, fileName);
+		hiddenExec(_T(tempStr.GetBuffer()), (mainFolder));
+
+		::DeleteFile(tempROMStr);
+	}
+	else if (gameType.CompareNoCase("ZipSng") == 0)
+	{
+		CString tempROMStr = mainFolder + "TempASEQ64ROM.rom";
+		FILE* outTempROM = fopen(tempROMStr, "wb");
+		if (outTempROM == NULL)
+		{
+			MessageBox(NULL, "Cannot Write temp ROM File", "Error", NULL);
+			return;
+		}
+
+		fwrite(gamebuffer, 1, gamebufferSize, outTempROM);
+		fclose(outTempROM);
+
+		SECURITY_ATTRIBUTES sa;
+		sa.nLength = sizeof(sa);
+		sa.lpSecurityDescriptor = NULL;
+		sa.bInheritHandle = TRUE;  
+
+		::SetCurrentDirectory(mainFolder);
+		HANDLE h = CreateFile(_T(mainFolder + "templist.txt"),
+			GENERIC_WRITE,
+			FILE_SHARE_WRITE,
+			&sa,
+			OPEN_ALWAYS,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL );
+
+		CString tempStr;
+		::DeleteFile(fileName);
+		tempStr.Format("7z.exe l \"%s\" -o\"%s\" *.bin -r -y", tempROMStr, mainFolder);
+		if (!hiddenExec(_T(tempStr.GetBuffer()), mainFolder, h))
+		{
+			CloseHandle(h);
+
+			return;
+		}
+
+		CloseHandle(h);
+
+
+		FILE* inFile = fopen(mainFolder + "templist.txt", "r");
+
+		if (inFile == NULL)
+		{
+			return;
+		}
+
+		std::vector<CString> lines;
+		while (!feof(inFile))
+		{
+			char currentLine[1000];
+			fgets(currentLine, 1000, inFile);
+			lines.push_back(currentLine);
+		}
+		fclose(inFile);
+
+		int counter = 0;
+		for (int x = 0; x < lines.size(); x++)
+		{
+			if (lines[x].Find("Sound\\") != -1)
+			{
+				if (counter == address)
+				{
+					int fileNameSpot = lines[x].Find("Sound\\") + 6;
+					CString fileNamePull = lines[x].Mid(fileNameSpot);
+					fileNamePull.Trim();
+
+					tempStr.Format("7z.exe e \"%s\" -o\"%s\" %s -r -y", tempROMStr, mainFolder, fileNamePull);
+					if (!hiddenExec(_T(tempStr.GetBuffer()), (mainFolder)))
+						return;
+
+					FILE* inFileSng = fopen(mainFolder + fileNamePull, "rb");
+					if (inFileSng == NULL)
+						return;
+
+			
+					fseek(inFile, 0, SEEK_END);
+					int inputSize = ftell(inFile);
+					rewind(inFile);
+
+					unsigned char* inputMID = new unsigned char[inputSize];
+
+					fread(inputMID, 1, inputSize, inFile);
+					fclose(inFile);
+
+					fclose(inFileSng);
+
+					SngToMidi(inputMID, inputSize, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra);
+					if (generateDebugTextFile)
+						SngToDebugTextFile(gameName, address, &gamebuffer[address], inputSize, fileName + " TrackParseDebug.txt", extra);
+
+					delete [] inputMID;
+					::DeleteFile(mainFolder + fileNamePull);
+				}
+				counter++;
+			}
+		}
+
+		::DeleteFile("templist.txt");
+
+		::DeleteFile(tempROMStr);
+	}
+	else if (gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
+	{
+		if (compressed)
+		{
+			compress->SetGame(STUNTRACER64);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+
+			unsigned long compressedMainSize = CharArrayToLong(&gamebuffer[address]);
+			unsigned long uncompressedMainSize = CharArrayToLong(&gamebuffer[address+4]);
+			unsigned long step = CharArrayToLong(&gamebuffer[address+0x8]);
+
+			int readSize = 0;
+			while ((readSize < compressedMainSize) && (CharArrayToLong(&gamebuffer[address+0xC+readSize]) != 0))
+			{
+				int decompressedSize = 0;
+				int compressedSize = -1;
+				byte* outputBuffer = Decompress(&gamebuffer[address+0xC+readSize], size, decompressedSize, compressedSize);
+
+				for (int x = 0; x < decompressedSize; x++)
+				{
+					fwrite(&outputBuffer[x], 1, 1, outFile);
+				}
+
+				readSize += step;
+
+				if (((address+0xC+readSize) % 2) != 0)
+				{
+					readSize += (2-((address+0xC+readSize) % 2));
+				}
+
+				step = CharArrayToLong(&gamebuffer[address+0xC+readSize]);
+
+				readSize += 4;
+
+				delete [] outputBuffer;
+			}
+			fclose(outFile);
+
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("DCM") == 0)
+	{
+		if (compressed)
+		{
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+
+			CH20Decoder h20dec;
+			int compressedSize = -1;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			unsigned char* cleanDecompressed = new unsigned char[0x50000];
+
+			int decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, outputDecompressed);
+			decSize = h20dec.decPolaris(&gamebuffer[address], compressedSize, cleanDecompressed);
+
+			for (int x = 14; x < (14 + (outputDecompressed[5] * 0x10)); x+=0x10)
+			{
+				unsigned char tempValue1 = outputDecompressed[x];
+				unsigned char tempValue2 = outputDecompressed[x+1];
+
+				outputDecompressed[x] = outputDecompressed[x+3];
+				outputDecompressed[x+1] = outputDecompressed[x+2];
+				outputDecompressed[x+2] = tempValue2;
+				outputDecompressed[x+3] = tempValue1;
+
+				tempValue1 = outputDecompressed[x+4];
+				tempValue2 = outputDecompressed[x+5];
+
+				outputDecompressed[x+4] = outputDecompressed[x+7];
+				outputDecompressed[x+5] = outputDecompressed[x+6];
+				outputDecompressed[x+6] = tempValue2;
+				outputDecompressed[x+7] = tempValue1;
+
+				tempValue1 = outputDecompressed[x+8];
+				tempValue2 = outputDecompressed[x+9];
+
+				outputDecompressed[x+8] = outputDecompressed[x+11];
+				outputDecompressed[x+9] = outputDecompressed[x+10];
+				outputDecompressed[x+10] = tempValue2;
+				outputDecompressed[x+11] = tempValue1;
+
+				unsigned char tempValue = outputDecompressed[x+12];
+				outputDecompressed[x+12] = outputDecompressed[x+13];
+				outputDecompressed[x+13] = tempValue;
+
+				tempValue = outputDecompressed[x+14];
+				outputDecompressed[x+14] = outputDecompressed[x+15];
+				outputDecompressed[x+15] = tempValue;
+			}
+
+			int position = (14 + (outputDecompressed[5] * 0x10));
+
+			if (cleanDecompressed[position] == 0x00)
+			{
+				unsigned long length = CharArrayToLong(&cleanDecompressed[position]);
+				if (length > decSize)
+				{
+					cleanDecompressed[6] = (length & 0xFF);
+					cleanDecompressed[7] = ((length >> 8) & 0xFF);
+					cleanDecompressed[8] = ((length >> 16) & 0xFF);
+					cleanDecompressed[9] = ((length >> 24) & 0xFF);
+
+					fwrite(cleanDecompressed, 1, position, outFile);
+
+					CTetrisphereDecoder tetDec;
+					unsigned char* outputLz = new unsigned char[0x100000];
+					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], length, outputLz, true);
+					returnSize = returnSize;
+
+					fwrite(outputLz, 1, length, outFile);
+
+					delete [] outputLz;
+				}
+				else
+				{
+					cleanDecompressed[6] = (length & 0xFF);
+					cleanDecompressed[7] = ((length >> 8) & 0xFF);
+					cleanDecompressed[8] = ((length >> 16) & 0xFF);
+					cleanDecompressed[9] = ((length >> 24) & 0xFF);
+
+					fwrite(cleanDecompressed, 1, position, outFile);
+
+					length = (decSize - (position + 4));
+					fwrite(&cleanDecompressed[position+4], 1, length, outFile);
+				}
+			}
+			else
+			{
+				fwrite(cleanDecompressed, 1, position, outFile);
+
+				int length = (decSize - (position));
+				fwrite(&cleanDecompressed[position], 1, length, outFile);
+			}
+
+			for (int x = 0; x < outputDecompressed[5]; x++)
+			{
+				unsigned short instrumentNumber = CharArrayToShort(&outputDecompressed[14+(16*(x))+14]);
+
+				unsigned long sampleSize = CharArrayToLong(&outputDecompressed[14+(16*(x))]);
+				unsigned short flags = CharArrayToShort(&outputDecompressed[14+(16*(x))+12]);
+
+				if (flags & 1)
+				{
+					sampleSize = sampleSize * 2;
+				}
+				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
+
+				unsigned char* outputDecompressedInstrument = new unsigned char[0x50000];
+
+				int decSizeInstrument = h20dec.decPolaris(&gamebuffer[location], compressedSize, outputDecompressedInstrument);
+				fwrite(outputDecompressedInstrument, 1, sampleSize, outFile);
+
+				delete [] outputDecompressedInstrument;
+			}
+
+			delete [] outputDecompressed;
+			delete [] cleanDecompressed;
+
+			fclose(outFile);
+		}
+		else
+		{
+
+		}
+	}
+	else if (gameType.CompareNoCase("LZSamplesDCM") == 0)
+	{
+		if (compressed)
+		{
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+
+			unsigned long decSize = ((((((gamebuffer[address+0x9] << 8) | gamebuffer[address+0x8]) << 8) | gamebuffer[address+0x7]) << 8) | gamebuffer[address+0x6]);
+			
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			unsigned char* cleanDecompressed = new unsigned char[0x50000];
+			memcpy(outputDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
+			memcpy(cleanDecompressed, &gamebuffer[address], decSize + 4 + (14 + (outputDecompressed[5] * 0x10)));
+
+			for (int x = 14; x < (14 + (outputDecompressed[5] * 0x10)); x+=0x10)
+			{
+				unsigned char tempValue1 = outputDecompressed[x];
+				unsigned char tempValue2 = outputDecompressed[x+1];
+
+				outputDecompressed[x] = outputDecompressed[x+3];
+				outputDecompressed[x+1] = outputDecompressed[x+2];
+				outputDecompressed[x+2] = tempValue2;
+				outputDecompressed[x+3] = tempValue1;
+
+				tempValue1 = outputDecompressed[x+4];
+				tempValue2 = outputDecompressed[x+5];
+
+				outputDecompressed[x+4] = outputDecompressed[x+7];
+				outputDecompressed[x+5] = outputDecompressed[x+6];
+				outputDecompressed[x+6] = tempValue2;
+				outputDecompressed[x+7] = tempValue1;
+
+				tempValue1 = outputDecompressed[x+8];
+				tempValue2 = outputDecompressed[x+9];
+
+				outputDecompressed[x+8] = outputDecompressed[x+11];
+				outputDecompressed[x+9] = outputDecompressed[x+10];
+				outputDecompressed[x+10] = tempValue2;
+				outputDecompressed[x+11] = tempValue1;
+
+				unsigned char tempValue = outputDecompressed[x+12];
+				outputDecompressed[x+12] = outputDecompressed[x+13];
+				outputDecompressed[x+13] = tempValue;
+
+				tempValue = outputDecompressed[x+14];
+				outputDecompressed[x+14] = outputDecompressed[x+15];
+				outputDecompressed[x+15] = tempValue;
+			}
+
+			int position = (14 + (outputDecompressed[5] * 0x10));
+
+			if (cleanDecompressed[position] == 0x00)
+			{
+				unsigned long length = CharArrayToLong(&cleanDecompressed[position]);
+				if (length > decSize)
+				{
+					cleanDecompressed[6] = (length & 0xFF);
+					cleanDecompressed[7] = ((length >> 8) & 0xFF);
+					cleanDecompressed[8] = ((length >> 16) & 0xFF);
+					cleanDecompressed[9] = ((length >> 24) & 0xFF);
+
+					fwrite(cleanDecompressed, 1, position, outFile);
+
+					CTetrisphereDecoder tetDec;
+					unsigned char* outputLz = new unsigned char[0x100000];
+					int returnSize = tetDec.decompressLZ(&cleanDecompressed[position+4], (decSize - 4), outputLz, true);
+					returnSize = returnSize;
+
+					fwrite(outputLz, 1, length, outFile);
+
+					delete [] outputLz;
+
+					position += returnSize;
+				}
+				else
+				{
+					cleanDecompressed[6] = (length & 0xFF);
+					cleanDecompressed[7] = ((length >> 8) & 0xFF);
+					cleanDecompressed[8] = ((length >> 16) & 0xFF);
+					cleanDecompressed[9] = ((length >> 24) & 0xFF);
+
+					fwrite(cleanDecompressed, 1, position, outFile);
+
+					length = (decSize - (position + 4));
+					fwrite(&cleanDecompressed[position+4], 1, length, outFile);
+
+					position += length;
+				}
+			}
+			else
+			{
+				fwrite(cleanDecompressed, 1, position, outFile);
+
+				int length = decSize;
+				fwrite(&cleanDecompressed[position], 1, length, outFile);
+
+				position += length;
+			}
+
+			for (int x = 0; x < outputDecompressed[5]; x++)
+			{
+				unsigned short instrumentNumber = CharArrayToShort(&outputDecompressed[14+(16*(x))+14]);
+
+				unsigned long sampleSize = CharArrayToLong(&outputDecompressed[14+(16*(x))]);
+				unsigned short flags = CharArrayToShort(&outputDecompressed[14+(16*(x))+12]);
+
+				if (flags & 1)
+				{
+					sampleSize = sampleSize * 2;
+				}
+				unsigned long location = address + size + CharArrayToLong(&gamebuffer[address + size + (instrumentNumber * 4) + 2]);
+
+				unsigned char* outputDecompressedInstrument = new unsigned char[0x50000];
+
+				CTetrisphereDecoder tetDec;
+				tetDec.sphereDecompress(&gamebuffer[location], outputDecompressedInstrument);
+				fwrite(outputDecompressedInstrument, 1, sampleSize, outFile);
+
+				position += sampleSize;
+
+				delete [] outputDecompressedInstrument;
+			}
+
+			delete [] outputDecompressed;
+			delete [] cleanDecompressed;
+
+			fclose(outFile);
+		}
+		else
+		{
+
+		}
+	}
+	else if (gameType.CompareNoCase("TitusMidi") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			SupermanDecoder decode;
+			int expectedSize = decode.header(&gamebuffer[address], fileSizeCompressed);
+			unsigned char* outputDecompressed = new unsigned char[expectedSize];
+			
+			decode.dec(&gamebuffer[address+0x11], fileSizeCompressed, expectedSize, outputDecompressed);
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < size; x++)
+			{
+				fwrite(&gamebuffer[address+x], 1, 1, outFile);
+			}
+			fclose(outFile);
+		}
+	}
+	else if (gameType.CompareNoCase("RNCMidi") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x50000];
+			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+			
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = 0; x < expectedSize; x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			GEMidiToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			if (generateDebugTextFile)
+				GEMidiToDebugTextFile(outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
+
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else if (gameType.CompareNoCase("RNCSeq") == 0)
+	{
+		if (compressed)
+		{
+			int realSpot = size;
+
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x100000];
+			int expectedSize = decode.unpackM1(&gamebuffer[address], outputDecompressed, 0x0000, fileSizeCompressed);
+			
+			unsigned long realStart = CharArrayToLong(&outputDecompressed[0x8]) + CharArrayToLong(&outputDecompressed[realSpot]);
+			unsigned long realSize = CharArrayToLong(&outputDecompressed[realSpot + 4]) - CharArrayToLong(&outputDecompressed[realSpot]);
+
+			FILE* outFile = fopen(fileName, "wb");
+			if (outFile == NULL)
+			{
+				MessageBox(NULL, "Cannot Write File", "Error", NULL);
+				return;
+			}
+			for (int x = realStart; x < (realStart + realSize); x++)
+			{
+				fwrite(&outputDecompressed[x], 1, 1, outFile);
+			}
+			fclose(outFile);
+
+			unsigned char* tempDecompressed = new unsigned char[realSize];
+			memcpy(tempDecompressed, &outputDecompressed[realStart], realSize);
+
+			GEMidiToMidi(tempDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			if (generateDebugTextFile)
+				GEMidiToDebugTextFile(tempDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
+
+			delete [] tempDecompressed;
+			delete [] outputDecompressed;
+		}
+		else
+		{
+			
+		}
+	}
+	else
+	{
+		if (compressed)
+		{
+			if (gameType.CompareNoCase("GoldenEye") == 0)
+			{
+				compress->SetGame(GOLDENEYE);
+			}
+			else if (gameType.CompareNoCase("PerfectDark") == 0)
+			{
+				compress->SetGame(PD);
+			}
+			else if (gameType.CompareNoCase("BanjoKazooie") == 0)
+			{
+				compress->SetGame(BANJOKAZOOIE);
+			}
+			else if (gameType.CompareNoCase("BanjoTooie") == 0)
+			{
+				compress->SetGame(BANJOTOOIE);
+			}
+			else if (gameType.CompareNoCase("DonkeyKong") == 0)
+			{
+				compress->SetGame(DONKEYKONG64);
+			}
+
+			int decompressedSize = 0;
+			int compressedSize = -1;
+			byte* outputBuffer = Decompress(&gamebuffer[address], (size + 20000), decompressedSize, compressedSize);
+			if (outputBuffer != NULL)
+			{
+				if ((outputBuffer[0] == 0x0) && (outputBuffer[1] == 0x0)
+					&& (outputBuffer[2] == 0x0) && (outputBuffer[3] == 0x44))
+				{
+					GEMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+					if (generateDebugTextFile)
+						GEMidiToDebugTextFile(outputBuffer, decompressedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
+				}
+				delete [] outputBuffer;
+			}
+		}
+		else
+		{
+			GEMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			if (generateDebugTextFile)
+				GEMidiToDebugTextFile(&gamebuffer[address], size, fileName + " TrackParseDebug.txt", extendTracksToHighest);
+		}
+	}
+}
+
+byte* CMidiParse::Decompress(unsigned char* Buffer, unsigned long size, int& fileSize, int& compressedSize)
+{
+	compress->SetCompressedBuffer(Buffer, size);
+	
+	fileSize = 0; // is by reference, overwritten
+	byte* outputDecompressed = compress->OutputDecompressedBuffer(fileSize, compressedSize);
+
+	if (outputDecompressed == NULL)
+	{
+		MessageBox(NULL, "Error Decompressing", "Error", NULL);
+		return NULL;
+	}
+
+	return outputDecompressed;
+}
+
+bool CMidiParse::DecompressToFile(unsigned char* Buffer, unsigned long size, CString outputFile)
+{
+	int fileSize = 0; // is by reference, overwritten
+	int compressedSize = -1;
+	byte* outputDecompressed = Decompress(Buffer, size, fileSize, compressedSize);
+
+	if (outputDecompressed == NULL)
+	{
+		MessageBox(NULL, "Error Decompressing", "Error", NULL);
+		return false;
+	}
+
+	FILE* outFile = fopen(outputFile, "wb");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL, "Cannot Write File", "Error", NULL);
+		return false;
+	}
+	for (int x = 0; x < fileSize; x++)
+	{
+		fwrite(&outputDecompressed[x], 1, 1, outFile);
+	}
+	fclose(outFile);
+	
+	delete [] outputDecompressed;
+	return false;
+}
+
+
+void CMidiParse::ParseKonamiTrack(int trackNumber, int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes, unsigned char* buffer, unsigned long offset, unsigned long end, int& noteUniqueId, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, int highestTrackLength)
+{
+	std::vector<SngNoteInfo> trackOutputNotes;
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+
+	unsigned long absoluteTime = 0;
+
+	unsigned char currentPan = 0x40;
+	unsigned long currentInstrument = 0x00;
+	unsigned char currentVolume = 0x7F;
+
+	unsigned char currentBank = 0x00;
+
+	int currentEffect = 0;
+
+	unsigned char lastDuration = 0xFF;
+	unsigned char lastLength = 0xFF;
+
+	unsigned long currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+	signed long currentCoarseTune = 0x00;
+
+	unsigned char loopAmountsLeft = 0x00;
+	unsigned long loopSpot = 0;
+	unsigned long loopEndSpot = 0;
+
+	unsigned char loopNestedAmountsLeft = 0x00;
+	unsigned long loopNestedSpot = 0;
+	unsigned long loopNestedEndSpot = 0;
+
+	unsigned char lastNoteValue = 0x00;
+
+	unsigned long masterLoopMarkerStartOffset;
+	unsigned long masterLoopMarkerEndOffset;
+
+	int totalLoopsToOutputLeft = 0;
+	if (writeOutLoops)
+		totalLoopsToOutputLeft = loopWriteCount;
+
+	int currentEDOffset = 0;
+	int currentEEEndOffset = 0;
+	int eeCountOverall = 0;
+	
+	bool lastNote00Length = false;
+	unsigned char lastNote = 0xFF;
+	unsigned char lastVelocity = 0xFF;
+
+	int previousCmd = -1;
+	
+	unsigned char sectionNoteHold = 0x00;
+
+	while ((command != 0xFF) && (spot < end))
+	{
+		if (extendTracksToHighest)
+		{
+			if (absoluteTime >= highestTrackLength)
+				break;
+		}
+
+		if (trackNumber >= 0)
+		{
+			currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+			if (trackNumber > 0)
+			{
+				for (int y = 0; y < tempoPositions.size(); y++)
+				{
+					if (tempoPositions[y].absoluteTime <= absoluteTime)
+					{
+						currentTempo = tempoPositions[y].value;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+
+		command = buffer[spot];
+		
+		spot++;
+
+		if (command < 0xD0) // Note or Rest
+		{
+			unsigned char note = command;
+
+			unsigned char drumInstrumentValue = 0x00;
+			if ((command == 0x67) || (command == (0x67 + 0x68))) // Rest?
+			{
+				drumInstrumentValue = buffer[spot];
+				spot++;
+			}
+
+			if (note >= 0x68)
+			{
+				note -= 0x68;
+			}
+			else
+			{
+				lastDuration = buffer[spot];
+				spot++;
+			}
+
+			bool firstSetNote00Length = false;
+
+			if (buffer[spot] < 0x80)
+			{
+				lastLength = buffer[spot];
+				spot++;
+
+				if (lastLength == 0)
+					lastNote00Length = true;
+				else
+					lastNote00Length = false;
+
+				firstSetNote00Length = true;
+			}
+			else
+			{
+				if (lastLength == 0)
+					lastNote00Length = true;
+				else
+					lastNote00Length = false;
+
+				if ((lastLength == 0) && (previousCmd == 0xF2))
+				{
+					firstSetNote00Length = true;
+				}
+				else
+				{
+					firstSetNote00Length = false;
+				}
+			}
+
+			unsigned char velocity = buffer[spot] & 0x7F;
+			spot++;
+
+			unsigned long noteDuration = lastDuration;
+			unsigned long noteLength = lastLength;
+
+			if (noteLength == 0)
+				noteLength = noteDuration;
+			else if (noteLength > noteDuration)
+				noteLength = noteDuration;
+			else if (noteLength <= noteDuration)
+			{
+				if (noteLength == 0x7F)
+					noteLength = noteDuration;
+				//else if ((noteLength == 0x01) && (sectionNoteHold != 0x00) && (sectionNoteHold < noteDuration))
+					//noteLength = sectionNoteHold;
+				else
+					noteLength = noteLength;
+			}
+
+			if (!firstSetNote00Length && lastNote00Length && (lastLength == 0x00))
+			{
+				// Set to same as previous, this is an extension
+				noteUniqueId--;
+			}
+			
+			if (note < 0x48)
+			{
+				SngNoteInfo songNoteInfo;
+				songNoteInfo.originalTrack = trackNumber;
+				songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+				songNoteInfo.startAbsoluteTime = absoluteTime;
+				songNoteInfo.noteNumber = note + currentCoarseTune;
+
+				lastNoteValue = note;
+				
+				songNoteInfo.instrument = currentInstrument + (currentBank * 0x100);
+
+				songNoteInfo.velocity = velocity;
+
+				songNoteInfo.effect = currentEffect;
+				songNoteInfo.tempo = currentTempo;
+				songNoteInfo.pan = currentPan & 0x7F;
+
+				songNoteInfo.pitchBend = 0x40;
+				songNoteInfo.volume = ((currentVolume >> 1) & 0x7F);
+
+
+				songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+				trackOutputNotes.push_back(songNoteInfo);
+			}
+			else if (note < 0x67)
+			{
+				// Drums
+				SngNoteInfo songNoteInfo;
+				songNoteInfo.originalTrack = trackNumber;
+				songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+				songNoteInfo.startAbsoluteTime = absoluteTime;
+				songNoteInfo.noteNumber = 0x3C + currentCoarseTune;
+				songNoteInfo.velocity = velocity;
+
+				lastNoteValue = 0x3C;
+
+				songNoteInfo.effect = currentEffect;
+				songNoteInfo.tempo = currentTempo;
+
+				unsigned long drumInstrumentLookedUp = (note - 0x48);
+				songNoteInfo.instrument = drumInstrumentLookedUp + 0x8000;
+
+				songNoteInfo.pan = currentPan & 0x7F;
+
+				songNoteInfo.pitchBend = 0x40;
+				songNoteInfo.volume = ((currentVolume >> 1) & 0x7F);
+
+
+				songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+				trackOutputNotes.push_back(songNoteInfo);
+			}
+			else if (note == 0x67)
+			{
+				// Drum Instrument
+				SngNoteInfo songNoteInfo;
+				songNoteInfo.originalTrack = trackNumber;
+				songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+				songNoteInfo.startAbsoluteTime = absoluteTime;
+				songNoteInfo.noteNumber = 0x3C + currentCoarseTune;
+				songNoteInfo.velocity = velocity;
+
+				lastNoteValue = 0x3C;
+
+				songNoteInfo.effect = currentEffect;
+				songNoteInfo.tempo = currentTempo;
+
+				unsigned long drumInstrumentLookedUp = (drumInstrumentValue - 0x48);
+
+				songNoteInfo.instrument = drumInstrumentLookedUp + 0x8000;
+				songNoteInfo.pan = currentPan & 0x7F;
+				songNoteInfo.pitchBend = 0x40;
+				songNoteInfo.volume = ((currentVolume >> 1) & 0x7F);
+
+
+				songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+				trackOutputNotes.push_back(songNoteInfo);
+			}
+
+			lastVelocity = velocity;
+			lastNote = note;
+
+			absoluteTime += noteDuration;
+		}
+		else
+		{
+			if (command == 0xD0)
+			{
+				//fprintf(outFile, " ((Tempo))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				unsigned char tempo = buffer[spot];
+
+				currentTempo = (unsigned long)(60000000.0 / (float)tempo);
+
+				if (trackNumber == 0)
+				{
+					tempoPositions.push_back(TimeAndValue(absoluteTime, currentTempo));
+				}
+
+				spot++;
+			}
+			else if (command == 0xD1)
+			{
+				//fprintf(outFile, " ((Tempo Change Fade))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				unsigned char tempo = buffer[spot+1];
+
+				currentTempo = (unsigned long)(60000000.0 / (float)tempo);
+
+				if (trackNumber == 0)
+				{
+					tempoPositions.push_back(TimeAndValue(absoluteTime, currentTempo));
+				}
+
+				spot += 2;
+			}
+			else if (command == 0xD2)
+			{
+				//fprintf(outFile, " ((Instrument Change))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				currentInstrument = buffer[spot];
+
+				if (currentInstrument >= numberInstruments)
+					numberInstruments = currentInstrument + 1;
+				spot++;
+			}
+			else if (command == 0xD3)
+			{
+				//fprintf(outFile, " ((Instrument/Volume Change))");
+				//fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				currentVolume = buffer[spot];
+				currentInstrument = buffer[spot+1];
+
+				if (currentInstrument >= numberInstruments)
+					numberInstruments = currentInstrument + 1;
+
+				spot += 2;
+			}
+			else if (command == 0xD4)
+			{
+				//fprintf(outFile, " ((Instrument/Volume/Pan Initial))");
+				//fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d) Pan %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+
+				currentVolume = buffer[spot];
+				currentInstrument = buffer[spot+1];
+
+				if (currentInstrument >= numberInstruments)
+					numberInstruments = currentInstrument + 1;
+
+				currentPan = buffer[spot+2];
+				spot += 3;
+			}
+			else if (command == 0xD5)
+			{
+				//fprintf(outFile, " ((Volume))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				currentVolume = buffer[spot];
+				spot++;
+			}
+			else if (command == 0xD6)
+			{
+				//fprintf(outFile, " ((Fade In/Out))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				currentVolume = buffer[spot + 1];
+
+				spot += 2;
+			}
+			else if (command == 0xD7)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD8)
+			{
+				//fprintf(outFile, " ((Release Time))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xD9)
+			{
+				//fprintf(outFile, " ((Section Hold Note))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				sectionNoteHold = buffer[spot];
+
+				spot++;
+			}
+			else if (command == 0xDA)
+			{
+				//fprintf(outFile, " ((Reverb))");
+				//fprintf(outFile, " Type/Separation %02X (%d) Amount %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				spot += 2;
+			}
+			else if (command == 0xDB)
+			{
+				//fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDC)
+			{
+				//fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDD)
+			{
+				//fprintf(outFile, " ((Pan))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				currentPan = buffer[spot];
+				spot++;
+			}
+			else if (command == 0xDE)
+			{
+				//fprintf(outFile, " Stereo Pan");
+				//fprintf(outFile, " Left %02X (%d) to Right %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xDF)
+			{
+				//fprintf(outFile, " ((Coarse Tune))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				currentCoarseTune = (signed char)buffer[spot];
+				spot++;
+			}
+			else if (command == 0xE0)
+			{
+				//fprintf(outFile, " ((Fine Tune))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE1)
+			{
+				//fprintf(outFile, " ((Tremolo))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE2) // Jikkyou Powerful Pro Yakyuu 2000 (J) (V1.0) [!]
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE3) // Start new game and let go to hit
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			// E4??
+			else if (command == 0xE4) // Something weird about this, seems like a followup to a note, trying this for now
+			{
+				//fprintf(outFile, " ((Pitch Bend Previous Note))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+
+				/*if (trackOutputNotes.size() > 0)
+				{
+					unsigned char endPitchBend = buffer[spot+2];
+
+					int pitchBendChange = endPitchBend - lastNoteValue;
+
+					if (pitchBendChange >= 2)
+						trackOutputNotes.back().pitchBend = 0x7F;
+					else if (pitchBendChange >= 1)
+						trackOutputNotes.back().pitchBend = 0x60;
+					else if (pitchBendChange <= -2)
+						trackOutputNotes.back().pitchBend = 0x00;
+					else if (pitchBendChange <= -1)
+						trackOutputNotes.back().pitchBend = 0x20;
+					else
+						trackOutputNotes.back().pitchBend = 0x40;
+				}*/
+
+				spot += 3;
+			}
+			else if (command == 0xE5) // No. 47 music
+			{
+				//fprintf(outFile, " ((Pitch Ascend Next Note))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE6)
+			{
+				//fprintf(outFile, " ((Slide Notes in Section))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE7)
+			{
+				//fprintf(outFile, " ((Marker))");
+				loopSpot = spot - 1;
+			}
+			else if (command == 0xE8)
+			{
+				//fprintf(outFile, " ((Loop from Marker))");
+				//fprintf(outFile, " %02X (%d) Times %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				unsigned char readAmount = buffer[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopEndSpot != spot)
+					{
+						loopEndSpot = spot;
+						spot = loopSpot;
+
+						loopAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopAmountsLeft--;
+
+						if (loopAmountsLeft > 0)
+						{
+							spot = loopSpot;
+						}
+						else
+						{
+							// Reset
+							loopEndSpot = 0;
+						}
+					}
+				}
+				else if (readAmount == 0x00)
+				{
+					// Similar to master loop
+
+					if (extendTracksToHighest)
+					{
+						spot = loopSpot;
+					}
+					else if (totalLoopsToOutputLeft > 0)
+					{
+						spot = loopSpot;
+						totalLoopsToOutputLeft--;
+					}
+				}
+			}
+			else if (command == 0xE9)
+			{
+				//fprintf(outFile, " ((Nested Loop Marker))");
+				loopNestedSpot = spot - 1;
+			}
+			else if (command == 0xEA)
+			{
+				//fprintf(outFile, " ((Nested Loop from Marker))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				unsigned char readAmount = buffer[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopNestedEndSpot != spot)
+					{
+						loopNestedEndSpot = spot;
+						spot = loopNestedSpot;
+
+						loopNestedAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopNestedAmountsLeft--;
+
+						if (loopNestedAmountsLeft > 0)
+						{
+							spot = loopNestedSpot;
+						}
+						else
+						{
+							// Reset
+							loopNestedEndSpot = 0;
+						}
+					}
+				}
+				else if (readAmount == 0x00)
+				{
+					// Similar to master loop
+
+					if (extendTracksToHighest)
+					{
+						spot = loopNestedSpot;
+					}
+					else if (totalLoopsToOutputLeft > 0)
+					{
+						spot = loopNestedSpot;
+						totalLoopsToOutputLeft--;
+					}
+				}
+			}
+			else if (command == 0xEB)
+			{
+				//fprintf(outFile, " ((Master Loop Start))");
+
+				masterLoopMarkerStartOffset = spot;
+			}
+			else if (command == 0xEC)
+			{
+				//fprintf(outFile, " ((Master Loop End))");
+
+				masterLoopMarkerEndOffset = spot - 1;
+
+				if (extendTracksToHighest)
+				{
+					spot = masterLoopMarkerStartOffset;
+				}
+				else if (totalLoopsToOutputLeft > 0)
+				{
+					spot = masterLoopMarkerStartOffset;
+					totalLoopsToOutputLeft--;
+				}
+			}
+			else if (command == 0xED)
+			{
+				//fprintf(outFile, " ((Loop Skip Start))");
+				currentEDOffset = spot;
+				currentEEEndOffset = 0;
+
+				eeCountOverall = 0;
+			}
+			else if (command == 0xEE)
+			{
+				//fprintf(outFile, " ((Loop Skip Middle))");
+
+				if (eeCountOverall == 0)
+				{
+					if (currentEEEndOffset != 0x00000000)
+					{
+						spot = currentEEEndOffset;
+					}
+					
+					eeCountOverall = 1;
+				}
+				else if (eeCountOverall == 1)
+				{
+					currentEEEndOffset = spot;
+
+					spot = currentEDOffset;
+
+					eeCountOverall = 0;
+				}
+			}
+			else if (command == 0xEF)
+			{
+				//fprintf(outFile, " ((Effect Delay))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				currentEffect = buffer[spot];
+
+				spot++;
+			}
+			else if (command == 0xF0)
+			{
+				currentBank = buffer[spot];
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xF1)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xF2)
+			{
+				//fprintf(outFile, " ((Delay Note))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				absoluteTime += buffer[spot];
+
+				lastNote00Length = false;
+
+				spot++;
+			}
+			else if (command == 0xF3)
+			{
+				//fprintf(outFile, " ((Previous Note Hold))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				lastNote00Length = false;
+
+				unsigned long noteDuration = buffer[spot];;
+				unsigned long noteLength = buffer[spot+1];
+				if (noteLength == 0)
+					noteLength = noteDuration;
+				else if (noteLength > noteDuration)
+					noteLength = noteDuration;
+				else if (noteLength <= noteDuration)
+				{
+					if (noteLength == 0x7F)
+						noteLength = noteDuration;
+					else
+						noteLength = noteLength;
+				}
+
+				if (trackOutputNotes.size() > 0)
+				{
+					trackOutputNotes.back().endAbsoluteTime += noteLength;
+				}
+
+				absoluteTime += noteDuration;
+
+				spot += 2;
+			}
+			// FA/FB Goemon's Great Adventure (U) - 0053D780, not sure if legit 
+			else if (command == 0xFA)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xFB)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command >= 0xF4)
+			{
+				//fprintf(outFile, " End");
+				break;
+			}
+			else
+			{
+				CString tempStr;
+				tempStr.Format("Unknown Command %02X at Spot %04X", command, spot);
+				MessageBox(NULL, tempStr, "Error", NULL);
+				return;
+			}
+		}
+
+		previousCmd = command;
+	}
+
+	// Add to end
+	for (int x = 0; x < trackOutputNotes.size(); x++)
+	{
+		outputNotes.push_back(trackOutputNotes[x]);
+	}
+}
+
+void CMidiParse::WriteSngList(std::vector<SngNoteInfo> sngNoteList, std::vector<TimeAndValue> tempoPositions, CString outFileName, bool separateByInstrument, unsigned short division)
+{
+	// Convert SngList to Tracks, hopefully
+	int numChannels = 0;
+	std::vector<SngNoteInfo> channels[MAXCHANNELS];
+
+	// Combine Controllers
+	/*for (int x = 0; x < sngNoteList.size(); x++)
+	{
+		SngNoteInfo tempNoteInfo = sngNoteList[x];
+
+		int appliedChannel = -1;
+		for (int channel = 0; channel < MAXCHANNELS; channel++)
+		{
+			bool allowOnChannel = true;
+
+			for (int y = 0; y < channels[channel].size(); y++)
+			{
+				// Check if is valid
+				SngNoteInfo matchNoteInfo = channels[channel][y];
+
+				// Any overlap
+				if (IsOverlap(tempNoteInfo.startAbsoluteTime, tempNoteInfo.endAbsoluteTime, matchNoteInfo.startAbsoluteTime, matchNoteInfo.endAbsoluteTime))
+				{
+					if (
+						(tempNoteInfo.instrument != matchNoteInfo.instrument)
+						|| (tempNoteInfo.pan != matchNoteInfo.pan)
+						|| (tempNoteInfo.pitchBend != matchNoteInfo.pitchBend)
+						|| (tempNoteInfo.tempo != matchNoteInfo.tempo)
+						|| (tempNoteInfo.volume != matchNoteInfo.volume)
+						|| (tempNoteInfo.effect != matchNoteInfo.effect)
+						|| (tempNoteInfo.noteNumber == matchNoteInfo.noteNumber)
+						)
+					{
+						allowOnChannel = false;
+						break;
+					}
+				}
+
+			}
+
+			if (allowOnChannel)
+			{
+				appliedChannel = channel;
+				break;
+			}
+		}
+
+		if (appliedChannel == -1)
+		{
+			MessageBox(NULL, "Error, too many channels for midi", "Error", NULL);
+			delete [] instrumentLookup;
+			return;
+		}
+		else
+		{
+			if ((appliedChannel + 1) > numChannels)
+				numChannels = (appliedChannel + 1);
+			channels[appliedChannel].push_back(tempNoteInfo);
+		}
+	}*/
+
+	// Fix Transpose issues
+	for (int x = 0; x < sngNoteList.size(); x++)
+	{
+		if (sngNoteList[x].noteNumber < 0)
+			sngNoteList[x].noteNumber = 0x00;
+		else if (sngNoteList[x].noteNumber > 0x7F)
+			sngNoteList[x].noteNumber = 0x7F;
+
+		if (sngNoteList[x].pan > 0x7F)
+			sngNoteList[x].pan = 0x7F;
+		else if (sngNoteList[x].pan < 0)
+			sngNoteList[x].pan = 0x0;
+
+		if (sngNoteList[x].volume > 0x7F)
+			sngNoteList[x].volume = 0x7F;
+		else if (sngNoteList[x].volume < 0)
+			sngNoteList[x].volume = 0x0;
+
+		if (sngNoteList[x].effect > 0x7F)
+			sngNoteList[x].effect = 0x7F;
+
+		if (sngNoteList[x].pitchBend > 0x7F)
+			sngNoteList[x].pitchBend = 0x7F;
+	}
+	if (separateByInstrument)
+	{
+		for (int x = 0; x < sngNoteList.size(); x++)
+		{
+			SngNoteInfo tempNoteInfo = sngNoteList[x];
+
+			int appliedChannel = -1;
+
+			for (int channel = 0; channel < MAXCHANNELS; channel++)
+			{
+				for (int y = 0; y < channels[channel].size(); y++)
+				{
+					// Check if is valid
+					SngNoteInfo matchNoteInfo = channels[channel][y];
+
+					if (tempNoteInfo.instrument == matchNoteInfo.instrument)
+					{
+						appliedChannel = channel;
+						break;
+					}
+				}
+
+				if (appliedChannel != -1)
+				{
+					break;
+				}
+			}
+
+			if (appliedChannel == -1)
+			{
+				if (numChannels == (MAXCHANNELS - 1))
+				{
+					MessageBox(NULL, "Error, too many channels for midi", "Error", NULL);
+					return;
+				}
+
+				appliedChannel = numChannels;
+			}
+
+			channels[appliedChannel].push_back(tempNoteInfo);
+			if ((appliedChannel + 1) > numChannels)
+				numChannels = (appliedChannel + 1);
+		}
+	}
+	else
+	{
+		for (int x = 0; x < sngNoteList.size(); x++)
+		{
+			SngNoteInfo tempNoteInfo = sngNoteList[x];
+
+			int appliedChannel = tempNoteInfo.originalTrack;
+
+			if (appliedChannel == -1)
+				appliedChannel = 0;
+
+			if (appliedChannel > MAXCHANNELS)
+			{
+				MessageBox(NULL, "Error, too many channels for midi", "Error", NULL);
+				return;
+			}
+
+			channels[appliedChannel].push_back(tempNoteInfo);
+
+			if ((appliedChannel + 1) > numChannels)
+				numChannels = (appliedChannel + 1);
+		}
+	}
+
+	for (int x = 0; x < numChannels; x++)
+	{
+		std::sort(channels[x].begin(), channels[x].end(), sngSortByStartTime());
+	}
+
+
+	if (numChannels == 0)
+	{
+		// No Notes
+		::DeleteFile(outFileName);
+		return;
+	}
+
+	FILE* outFile = NULL;
+
+	for (int channel = 0; channel < numChannels; channel++)
+	{
+		FILE* outDebug = NULL; 
+		CString tempChannelStr;
+		tempChannelStr.Format("%02X", channel);
+		//FILE* outDebug = fopen("C:\\temp\\outDebug_" + tempChannelStr + ".txt", "w");
+
+		/*if (outDebug != NULL)
+		{
+			for (int x = 0; x < channels[channel].size(); x++)
+			{
+				fprintf(outDebug, "Note %02X Start %08X End %08X\n", channels[channel][x].noteNumber, channels[channel][x].startAbsoluteTime, channels[channel][x].endAbsoluteTime);
+			}
+		}*/
+
+		if ((channel % 0x10) == 0)
+		{
+			if (outFile != NULL)
+			{
+				// just one track
+				
+				fflush(outFile);	
+				fclose(outFile);
+
+				outFile = NULL;
+			}
+
+			int midiNumber = channel / 0x10;
+
+			if (midiNumber == 0)
+			{
+				outFile = fopen(outFileName, "wb");
+
+				if (outFile == NULL)
+				{
+					MessageBox(NULL, "Cannot open file for output midi " + outFileName, "Error", NULL);
+					return;
+				}
+			}
+			else
+			{
+				bool midiName = (outFileName.Find(".midi") != -1);
+				CString tempMidiNumber;
+				tempMidiNumber.Format("%s_AdditionalPart%d", outFileName, midiNumber);
+				tempMidiNumber.Replace(".midi", "");
+				tempMidiNumber.Replace(".mid", "");
+				if (midiName)
+					tempMidiNumber += ".midi";
+				else
+					tempMidiNumber += ".mid";
+				outFile = fopen(tempMidiNumber, "wb");
+
+				if (outFile == NULL)
+				{
+					MessageBox(NULL, "Cannot open file for output midi " + tempMidiNumber, "Error", NULL);
+					return;
+				}
+			}
+
+			
+			
+
+			// 1 For Tempo Positions
+			int numTracks = 0x11;
+			if ((numChannels - channel) < 0x10)
+			{
+				numTracks = (numChannels - channel) + 1;
+			}
+
+			unsigned long tempLong = Flip32Bit(0x4D546864);
+			fwrite(&tempLong, 1 ,4 , outFile);
+			tempLong = Flip32Bit(0x00000006);
+			fwrite(&tempLong, 1 ,4 , outFile);
+			tempLong = Flip32Bit(0x00010000 | numTracks); // num tracks
+			fwrite(&tempLong, 1 ,4 , outFile);
+
+			unsigned short tempShort = division;
+			tempShort = Flip16Bit(tempShort);
+			fwrite(&tempShort, 1 ,2 , outFile);
+
+			unsigned long absoluteTimeTempo = 0;
+
+
+			std::vector<TrackEvent> trackEventsTempo;
+
+			// Write tempo track
+			for (int tempoIndex = 0; tempoIndex < tempoPositions.size(); tempoIndex++)
+			{
+				TrackEvent trackEventNewTempo;
+
+				unsigned long deltaTimeTempo = tempoPositions[tempoIndex].absoluteTime - absoluteTimeTempo;
+
+				trackEventNewTempo.deltaTime = deltaTimeTempo;
+				absoluteTimeTempo += deltaTimeTempo;
+
+				trackEventNewTempo.obsoleteEvent = false;
+
+				trackEventNewTempo.absoluteTime = absoluteTimeTempo;
+
+				trackEventNewTempo.type = 0xFF;
+				trackEventNewTempo.contentSize = 5;
+				trackEventNewTempo.contents = new byte[trackEventNewTempo.contentSize];
+				
+				trackEventNewTempo.contents[0] = 0x51;
+				trackEventNewTempo.contents[1] = 0x3;
+				trackEventNewTempo.contents[2] = ((tempoPositions[tempoIndex].value >> 16) & 0xFF);
+				trackEventNewTempo.contents[3] = ((tempoPositions[tempoIndex].value >> 8) & 0xFF);
+				trackEventNewTempo.contents[4] = ((tempoPositions[tempoIndex].value >> 0) & 0xFF);
+
+				trackEventsTempo.push_back(trackEventNewTempo);
+			}
+
+
+
+			TrackEvent trackEventEndTempo;
+			trackEventEndTempo.deltaTime = 0;
+			trackEventEndTempo.obsoleteEvent = false;
+			trackEventEndTempo.absoluteTime = absoluteTimeTempo;
+
+			trackEventEndTempo.type = 0xFF;
+			trackEventEndTempo.contentSize = 2;
+			trackEventEndTempo.contents = new byte[trackEventEndTempo.contentSize];
+			
+			trackEventEndTempo.contents[0] = 0x2F;
+			trackEventEndTempo.contents[1] = 0x0;
+
+			trackEventsTempo.push_back(trackEventEndTempo);
+
+			WriteSngToMidiTrack(outFile, outDebug, trackEventsTempo);
+
+			for (int eventCount = 0; eventCount < trackEventsTempo.size(); eventCount++)
+			{
+				if (trackEventsTempo[eventCount].contents != NULL)
+				{
+					delete [] trackEventsTempo[eventCount].contents;
+					trackEventsTempo[eventCount].contents = NULL;
+				}
+			}
+		}
+
+		unsigned long absoluteTime = 0;
+		std::vector<TrackEvent> trackEvents;
+		
+		// MTrk
+
+		unsigned char currentPan = 0x40;
+		unsigned long currentInstrument = 0xFF;
+		unsigned char currentVolume = 0x7F;
+		unsigned char currentPitchBend = 0x40;
+		int currentEffect = 0;
+
+		int controller = channel % 0x10;
+
+		std::vector<SngNoteInfo> pendingShutOffNotes;
+		for (int x = 0; x < channels[channel].size(); x++)
+		{
+			SngNoteInfo songNoteInfo = channels[channel][x];
+			bool errorStartEnd = (songNoteInfo.endAbsoluteTime <= songNoteInfo.startAbsoluteTime);
+			if (outDebug != NULL)
+				fprintf(outDebug, "Time: %08X ON %02X %04X: Start %08X End %08X Error %d\n", absoluteTime, songNoteInfo.noteNumber, x, songNoteInfo.startAbsoluteTime, songNoteInfo.endAbsoluteTime, errorStartEnd);
+
+			while (pendingShutOffNotes.size() > 0)
+			{
+				std::sort(pendingShutOffNotes.begin(), pendingShutOffNotes.end(), sngSortByEndTime());
+
+				if (pendingShutOffNotes[0].endAbsoluteTime < songNoteInfo.startAbsoluteTime)
+				{
+					if (outDebug != NULL)
+						fprintf(outDebug, "Time: %08X Note %02X Shut off: Start %08X End %08X Error %d\n", absoluteTime, pendingShutOffNotes[0].noteNumber, pendingShutOffNotes[0].startAbsoluteTime, pendingShutOffNotes[0].endAbsoluteTime, errorStartEnd);
+
+					unsigned long deltaTime = pendingShutOffNotes[0].endAbsoluteTime - absoluteTime;
+
+					TrackEvent trackEventNewNoteOff;
+					trackEventNewNoteOff.deltaTime = deltaTime;
+					trackEventNewNoteOff.obsoleteEvent = false;
+					trackEventNewNoteOff.absoluteTime = absoluteTime;
+					trackEventNewNoteOff.type = 0x80 | controller;
+
+					trackEventNewNoteOff.durationTime = 0; // to be filled in
+					trackEventNewNoteOff.contentSize = 2;
+					trackEventNewNoteOff.contents = new byte[trackEventNewNoteOff.contentSize];
+					trackEventNewNoteOff.contents[0] = pendingShutOffNotes[0].noteNumber;
+					trackEventNewNoteOff.contents[1] = pendingShutOffNotes[0].velocity;
+					trackEvents.push_back(trackEventNewNoteOff);
+
+					absoluteTime += deltaTime;
+
+					pendingShutOffNotes.erase(pendingShutOffNotes.begin());
+				}
+				else if (pendingShutOffNotes[0].endAbsoluteTime == songNoteInfo.startAbsoluteTime)
+				{
+					bool skipOff = false;
+
+					for (int y = x; y < channels[channel].size(); y++)
+					{
+						SngNoteInfo tempSongNoteInfo = channels[channel][y];
+						if (
+							(pendingShutOffNotes[0].endAbsoluteTime == tempSongNoteInfo.startAbsoluteTime)
+							&& (pendingShutOffNotes[0].noteNumber == tempSongNoteInfo.noteNumber)
+							&& (pendingShutOffNotes[0].instrument == tempSongNoteInfo.instrument)
+							&& (pendingShutOffNotes[0].originalTrack == tempSongNoteInfo.originalTrack)
+							&& (pendingShutOffNotes[0].originalNoteUniqueId == tempSongNoteInfo.originalNoteUniqueId)
+							)
+						{
+							if (outDebug != NULL)
+								fprintf(outDebug, "Time: %08X Merged Note %02X : Start %08X End %08X Start %08X End %08X Error %d\n", absoluteTime, pendingShutOffNotes[0].noteNumber, pendingShutOffNotes[0].startAbsoluteTime, pendingShutOffNotes[0].endAbsoluteTime, tempSongNoteInfo.startAbsoluteTime, tempSongNoteInfo.endAbsoluteTime, errorStartEnd);
+
+							pendingShutOffNotes[0] = tempSongNoteInfo;
+							channels[channel][y].ignoreNoteOn = true;
+
+							if (y == x)
+								songNoteInfo.ignoreNoteOn = true;
+
+							skipOff = true;
+							break;
+						}
+						else if (pendingShutOffNotes[0].endAbsoluteTime < tempSongNoteInfo.startAbsoluteTime)
+						{
+							break;
+						}
+					}
+
+					if (!skipOff)
+					{
+						unsigned long deltaTime = pendingShutOffNotes[0].endAbsoluteTime - absoluteTime;
+
+						TrackEvent trackEventNewNoteOff;
+						trackEventNewNoteOff.deltaTime = deltaTime;
+						trackEventNewNoteOff.obsoleteEvent = false;
+						trackEventNewNoteOff.absoluteTime = absoluteTime;
+						trackEventNewNoteOff.type = 0x80 | controller;
+
+						trackEventNewNoteOff.durationTime = 0; // to be filled in
+						trackEventNewNoteOff.contentSize = 2;
+						trackEventNewNoteOff.contents = new byte[trackEventNewNoteOff.contentSize];
+						trackEventNewNoteOff.contents[0] = pendingShutOffNotes[0].noteNumber;
+						trackEventNewNoteOff.contents[1] = pendingShutOffNotes[0].velocity;
+						trackEvents.push_back(trackEventNewNoteOff);
+
+						absoluteTime += deltaTime;
+
+						if (outDebug != NULL)
+							fprintf(outDebug, "Time: %08X Note %02X Shut off Couldn't Skip: Start %08X End %08X Error %d\n", absoluteTime, pendingShutOffNotes[0].noteNumber, pendingShutOffNotes[0].startAbsoluteTime, pendingShutOffNotes[0].endAbsoluteTime, errorStartEnd);
+
+						pendingShutOffNotes.erase(pendingShutOffNotes.begin());
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+
+			unsigned long deltaTime = songNoteInfo.startAbsoluteTime - absoluteTime;
+
+			// Changed to master track
+			/*if (songNoteInfo.tempo != currentTempo)
+			{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xFF;
+				trackEventNew.contentSize = 5;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				
+				trackEventNew.contents[0] = 0x51;
+				trackEventNew.contents[1] = 0x3;
+				trackEventNew.contents[2] = ((songNoteInfo.tempo >> 16) & 0xFF);
+				trackEventNew.contents[3] = ((songNoteInfo.tempo >> 8) & 0xFF);
+				trackEventNew.contents[4] = ((songNoteInfo.tempo >> 0) & 0xFF);
+
+				trackEvents.push_back(trackEventNew);
+
+				currentTempo = songNoteInfo.tempo;
+			}*/
+
+			if (songNoteInfo.effect != currentEffect)
+			{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 91; // reverb
+				trackEventNew.contents[1] = songNoteInfo.effect;
+
+				trackEvents.push_back(trackEventNew);
+
+				currentEffect = songNoteInfo.effect;
+			}
+
+			if (songNoteInfo.instrument != currentInstrument)
+			{
+				TrackEvent trackEventNewMSB;
+
+				trackEventNewMSB.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNewMSB.obsoleteEvent = false;
+
+				trackEventNewMSB.absoluteTime = absoluteTime;
+
+				trackEventNewMSB.type = 0xB0 | controller;
+				trackEventNewMSB.contentSize = 2;
+				trackEventNewMSB.contents = new byte[trackEventNewMSB.contentSize];
+				trackEventNewMSB.contents[0] = 00;
+				trackEventNewMSB.contents[1] = songNoteInfo.instrument / 0x8000;
+
+				trackEvents.push_back(trackEventNewMSB);
+
+
+
+
+
+
+				
+				TrackEvent trackEventNewLSB;
+
+				trackEventNewLSB.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNewLSB.obsoleteEvent = false;
+
+				trackEventNewLSB.absoluteTime = absoluteTime;
+
+				trackEventNewLSB.type = 0xB0 | controller;
+				trackEventNewLSB.contentSize = 2;
+				trackEventNewLSB.contents = new byte[trackEventNewLSB.contentSize];
+				trackEventNewLSB.contents[0] = 32;
+				trackEventNewLSB.contents[1] = songNoteInfo.instrument / 0x80;
+
+				trackEvents.push_back(trackEventNewLSB);
+
+
+
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xC0 | controller;
+				trackEventNew.contentSize = 1;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = songNoteInfo.instrument & 0x7F;
+
+				trackEvents.push_back(trackEventNew);
+
+				currentInstrument = songNoteInfo.instrument;
+			}
+
+			if (songNoteInfo.pan != currentPan)
+			{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 10;
+				trackEventNew.contents[1] = songNoteInfo.pan;
+
+				trackEvents.push_back(trackEventNew);
+
+				currentPan = songNoteInfo.pan;
+			}
+
+			if (songNoteInfo.volume != currentVolume)
+			{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 0x07;
+				trackEventNew.contents[1] = songNoteInfo.volume;
+
+				trackEvents.push_back(trackEventNew);
+
+				currentVolume = songNoteInfo.volume;
+			}
+
+			if (songNoteInfo.pitchBend != currentPitchBend)
+			{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNew.obsoleteEvent = false;
+
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xE0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 0x00; // LSB
+				trackEventNew.contents[1] = songNoteInfo.pitchBend; // MSB
+
+				trackEvents.push_back(trackEventNew);
+
+				currentPitchBend = songNoteInfo.pitchBend;
+			}
+
+			if (!songNoteInfo.ignoreNoteOn)
+			{
+				// Note On
+				TrackEvent trackEventNewNoteOn;
+
+				trackEventNewNoteOn.deltaTime = deltaTime;
+				absoluteTime += deltaTime;
+				deltaTime = 0;
+
+				trackEventNewNoteOn.obsoleteEvent = false;
+
+				trackEventNewNoteOn.absoluteTime = absoluteTime;
+
+				trackEventNewNoteOn.type = 0x90 | controller;
+
+				trackEventNewNoteOn.contentSize = 2;
+				trackEventNewNoteOn.contents = new byte[trackEventNewNoteOn.contentSize];
+				trackEventNewNoteOn.contents[0] = songNoteInfo.noteNumber;
+				trackEventNewNoteOn.contents[1] = songNoteInfo.velocity;
+
+				trackEvents.push_back(trackEventNewNoteOn);
+
+				pendingShutOffNotes.push_back(songNoteInfo);
+			}
+		}
+
+		if (pendingShutOffNotes.size() > 0)
+		{
+			std::sort(pendingShutOffNotes.begin(), pendingShutOffNotes.end(), sngSortByEndTime());
+			while (pendingShutOffNotes.size() > 0)
+			{
+				unsigned long deltaTime = pendingShutOffNotes[0].endAbsoluteTime - absoluteTime;
+
+
+				TrackEvent trackEventNewNoteOff;
+				trackEventNewNoteOff.deltaTime = deltaTime;
+				trackEventNewNoteOff.obsoleteEvent = false;
+				trackEventNewNoteOff.absoluteTime = absoluteTime;
+				trackEventNewNoteOff.type = 0x80 | controller;
+
+				trackEventNewNoteOff.durationTime = 0; // to be filled in
+				trackEventNewNoteOff.contentSize = 2;
+				trackEventNewNoteOff.contents = new byte[trackEventNewNoteOff.contentSize];
+				trackEventNewNoteOff.contents[0] = pendingShutOffNotes[0].noteNumber;
+				trackEventNewNoteOff.contents[1] = pendingShutOffNotes[0].velocity;
+				trackEvents.push_back(trackEventNewNoteOff);
+
+				absoluteTime += deltaTime;
+
+				pendingShutOffNotes.erase(pendingShutOffNotes.begin());
+			}
+		}
+
+		TrackEvent trackEventEnd;
+		trackEventEnd.deltaTime = 0;
+		trackEventEnd.obsoleteEvent = false;
+		trackEventEnd.absoluteTime = absoluteTime;
+
+		trackEventEnd.type = 0xFF;
+		trackEventEnd.contentSize = 2;
+		trackEventEnd.contents = new byte[trackEventEnd.contentSize];
+		
+		trackEventEnd.contents[0] = 0x2F;
+		trackEventEnd.contents[1] = 0x0;
+
+		trackEvents.push_back(trackEventEnd);
+
+
+
+		WriteSngToMidiTrack(outFile, outDebug, trackEvents);
+
+		if (outDebug != NULL)
+			fclose(outDebug);
+
+		for (int eventCount = 0; eventCount < trackEvents.size(); eventCount++)
+		{
+			if (trackEvents[eventCount].contents != NULL)
+			{
+				delete [] trackEvents[eventCount].contents;
+				trackEvents[eventCount].contents = NULL;
+			}
+		}
+	}
+
+	// just one track
+	
+	if (outFile != NULL)
+	{
+		fflush(outFile);	
+		fclose(outFile);
+
+		outFile = NULL;
+	}
+}
+
+int CMidiParse::FindHighestKonamiLengthTrack(int trackNumber, unsigned char* buffer, unsigned long offset, unsigned long end)
+{
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+
+	unsigned long absoluteTime = 0;
+
+	unsigned char lastDuration = 0xFF;
+	unsigned char lastLength = 0xFF;
+
+	unsigned char loopAmountsLeft = 0x00;
+	unsigned long loopSpot = 0;
+	unsigned long loopEndSpot = 0;
+
+	unsigned char loopNestedAmountsLeft = 0x00;
+	unsigned long loopNestedSpot = 0;
+	unsigned long loopNestedEndSpot = 0;
+
+	unsigned char lastNoteValue = 0x00;
+
+	int currentEDOffset = 0;
+	int currentEEEndOffset = 0;
+	int eeCountOverall = 0;
+	
+	bool lastNote00Length = false;
+	unsigned char lastNote = 0xFF;
+	unsigned char lastVelocity = 0xFF;
+
+	int previousCmd = -1;
+	
+
+	while ((command != 0xFF) && (spot < end))
+	{
+		command = buffer[spot];
+		
+		spot++;
+
+		if (command < 0xD0) // Note or Rest
+		{
+			unsigned char note = command;
+
+			unsigned char drumInstrumentValue = 0x00;
+			if ((command == 0x67) || (command == (0x67 + 0x68))) // Rest?
+			{
+				drumInstrumentValue = buffer[spot];
+				spot++;
+			}
+
+			if (note >= 0x68)
+			{
+				note -= 0x68;
+			}
+			else
+			{
+				lastDuration = buffer[spot];
+				spot++;
+			}
+
+			bool firstSetNote00Length = false;
+
+			if (buffer[spot] < 0x80)
+			{
+				lastLength = buffer[spot];
+				spot++;
+
+				if (lastLength == 0)
+					lastNote00Length = true;
+				else
+					lastNote00Length = false;
+
+				firstSetNote00Length = true;
+			}
+			else
+			{
+				if (lastLength == 0)
+					lastNote00Length = true;
+				else
+					lastNote00Length = false;
+
+				if ((lastLength == 0) && (previousCmd == 0xF2))
+				{
+					firstSetNote00Length = true;
+				}
+				else
+				{
+					firstSetNote00Length = false;
+				}
+			}
+
+			unsigned char velocity = buffer[spot] & 0x7F;
+			spot++;
+
+			unsigned long noteDuration = lastDuration;
+			unsigned long noteLength = lastLength;
+
+			if (noteLength == 0)
+				noteLength = noteDuration;
+			else if (noteLength > noteDuration)
+				noteLength = noteDuration;
+			else if (noteLength <= noteDuration)
+			{
+				if (noteLength == 0x7F)
+					noteLength = noteDuration;
+				else
+					noteLength = noteLength;
+			}
+
+			lastVelocity = velocity;
+			lastNote = note;
+
+			absoluteTime += noteDuration;
+		}
+		else
+		{
+			if (command == 0xD0)
+			{
+				//fprintf(outFile, " ((Tempo))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				spot++;
+			}
+			else if (command == 0xD1)
+			{
+				//fprintf(outFile, " ((Tempo Change Fade))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				spot += 2;
+			}
+			else if (command == 0xD2)
+			{
+				//fprintf(outFile, " ((Instrument Change))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xD3)
+			{
+				//fprintf(outFile, " ((Instrument/Volume Change))");
+				//fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+		
+				spot += 2;
+			}
+			else if (command == 0xD4)
+			{
+				//fprintf(outFile, " ((Instrument/Volume/Pan Initial))");
+				//fprintf(outFile, " Volume %02X (%d) Instrument %02X (%d) Pan %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+
+				spot += 3;
+			}
+			else if (command == 0xD5)
+			{
+				//fprintf(outFile, " ((Volume))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xD6)
+			{
+				//fprintf(outFile, " ((Fade In/Out))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				spot += 2;
+			}
+			else if (command == 0xD7)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xD8)
+			{
+				//fprintf(outFile, " ((Release Time))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xD9)
+			{
+				//fprintf(outFile, " ((Section Hold Note))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xDA)
+			{
+				//fprintf(outFile, " ((Reverb))");
+				//fprintf(outFile, " Type/Separation %02X (%d) Amount %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				spot += 2;
+			}
+			else if (command == 0xDB)
+			{
+				//fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDC)
+			{
+				//fprintf(outFile, " UNKNOWN (Invalid)");
+				break;
+			}
+			else if (command == 0xDD)
+			{
+				//fprintf(outFile, " ((Pan))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				spot++;
+			}
+			else if (command == 0xDE)
+			{
+				//fprintf(outFile, " Stereo Pan");
+				//fprintf(outFile, " Left %02X (%d) to Right %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+				spot += 2;
+			}
+			else if (command == 0xDF)
+			{
+				//fprintf(outFile, " ((Coarse Tune))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				spot++;
+			}
+			else if (command == 0xE0)
+			{
+				//fprintf(outFile, " ((Fine Tune))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE1)
+			{
+				//fprintf(outFile, " ((Tremolo))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE2) // Jikkyou Powerful Pro Yakyuu 2000 (J) (V1.0) [!]
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE3) // Start new game and let go to hit
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			// E4??
+			else if (command == 0xE4) // Something weird about this, seems like a followup to a note, trying this for now
+			{
+				//fprintf(outFile, " ((Pitch Bend Previous Note))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+
+				/*if (trackOutputNotes.size() > 0)
+				{
+					unsigned char endPitchBend = buffer[spot+2];
+
+					int pitchBendChange = endPitchBend - lastNoteValue;
+
+					if (pitchBendChange >= 2)
+						trackOutputNotes.back().pitchBend = 0x7F;
+					else if (pitchBendChange >= 1)
+						trackOutputNotes.back().pitchBend = 0x60;
+					else if (pitchBendChange <= -2)
+						trackOutputNotes.back().pitchBend = 0x00;
+					else if (pitchBendChange <= -1)
+						trackOutputNotes.back().pitchBend = 0x20;
+					else
+						trackOutputNotes.back().pitchBend = 0x40;
+				}*/
+
+				spot += 3;
+			}
+			else if (command == 0xE5) // No. 47 music
+			{
+				//fprintf(outFile, " ((Pitch Ascend Next Note))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				spot += 3;
+			}
+			else if (command == 0xE6)
+			{
+				//fprintf(outFile, " ((Slide Notes in Section))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xE7)
+			{
+				//fprintf(outFile, " ((Marker))");
+				loopSpot = spot - 1;
+			}
+			else if (command == 0xE8)
+			{
+				//fprintf(outFile, " ((Loop from Marker))");
+				//fprintf(outFile, " %02X (%d) Times %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				unsigned char readAmount = buffer[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopEndSpot != spot)
+					{
+						loopEndSpot = spot;
+						spot = loopSpot;
+
+						loopAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopAmountsLeft--;
+
+						if (loopAmountsLeft > 0)
+						{
+							spot = loopSpot;
+						}
+						else
+						{
+							// Reset
+							loopEndSpot = 0;
+						}
+					}
+				}
+			}
+			else if (command == 0xE9)
+			{
+				//fprintf(outFile, " ((Nested Loop Marker))");
+				loopNestedSpot = spot - 1;
+			}
+			else if (command == 0xEA)
+			{
+				//fprintf(outFile, " ((Nested Loop from Marker))");
+				//fprintf(outFile, " %02X (%d) %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1], buffer[spot+2], buffer[spot+2]);
+				unsigned char readAmount = buffer[spot];
+				spot += 3;
+
+				if (readAmount > 0x01)
+				{
+					if (loopNestedEndSpot != spot)
+					{
+						loopNestedEndSpot = spot;
+						spot = loopNestedSpot;
+
+						loopNestedAmountsLeft = readAmount - 1;
+					}
+					else
+					{
+						loopNestedAmountsLeft--;
+
+						if (loopNestedAmountsLeft > 0)
+						{
+							spot = loopNestedSpot;
+						}
+						else
+						{
+							// Reset
+							loopNestedEndSpot = 0;
+						}
+					}
+				}
+			}
+			else if (command == 0xEB)
+			{
+				//fprintf(outFile, " ((Master Loop Start))");
+			}
+			else if (command == 0xEC)
+			{
+				//fprintf(outFile, " ((Master Loop End))");
+			}
+			else if (command == 0xED)
+			{
+				//fprintf(outFile, " ((Loop Skip Start))");
+				currentEDOffset = spot;
+				currentEEEndOffset = 0;
+
+				eeCountOverall = 0;
+			}
+			else if (command == 0xEE)
+			{
+				//fprintf(outFile, " ((Loop Skip Middle))");
+
+				if (eeCountOverall == 0)
+				{
+					if (currentEEEndOffset != 0x00000000)
+					{
+						spot = currentEEEndOffset;
+					}
+					
+					eeCountOverall = 1;
+				}
+				else if (eeCountOverall == 1)
+				{
+					currentEEEndOffset = spot;
+
+					spot = currentEDOffset;
+
+					eeCountOverall = 0;
+				}
+			}
+			else if (command == 0xEF)
+			{
+				//fprintf(outFile, " ((Effect Delay))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+
+				spot++;
+			}
+			else if (command == 0xF0)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xF1)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				spot++;
+			}
+			else if (command == 0xF2)
+			{
+				//fprintf(outFile, " ((Delay Note))");
+				//fprintf(outFile, " %02X (%d)", buffer[spot], buffer[spot]);
+				absoluteTime += buffer[spot];
+
+				lastNote00Length = false;
+
+				spot++;
+			}
+			else if (command == 0xF3)
+			{
+				//fprintf(outFile, " ((Previous Note Hold))");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+1]);
+
+				lastNote00Length = false;
+
+				unsigned long noteDuration = buffer[spot];;
+				unsigned long noteLength = buffer[spot+1];
+				if (noteLength == 0)
+					noteLength = noteDuration;
+				else if (noteLength > noteDuration)
+					noteLength = noteDuration;
+				else if (noteLength <= noteDuration)
+				{
+					if (noteLength == 0x7F)
+						noteLength = noteDuration;
+					else
+						noteLength = noteLength;
+				}
+
+				absoluteTime += noteDuration;
+
+				spot += 2;
+			}
+			// FA/FB Goemon's Great Adventure (U) - 0053D780, not sure if legit 
+			else if (command == 0xFA)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				spot++;
+			}
+			else if (command == 0xFB)
+			{
+				//fprintf(outFile, " ?");
+				//fprintf(outFile, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+				spot+=2;
+			}
+			else if (command >= 0xF4)
+			{
+				//fprintf(outFile, " End");
+				break;
+			}
+			else
+			{
+				CString tempStr;
+				tempStr.Format("Unknown Command %02X at Spot %04X", command, spot);
+				MessageBox(NULL, tempStr, "Error", NULL);
+				return 0;
+			}
+		}
+
+		previousCmd = command;
+	}
+
+	return absoluteTime;
+}
+
+void CMidiParse::KonamiToMidi(unsigned char* ROM, int romSize, byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long extra)
+{
+	int numberTracks = 0x0;
+	
+	/*int numberTracksCompare = 0x0;
+	if (!extraGameMidiInfo.naganoCompressed && !extraGameMidiInfo.zlbCompressed)
+	{
+		int trackCountOffset = extraGameMidiInfo.trackOffset + (extraGameMidiInfo.trackIncrement * extra);
+
+		numberTracksCompare = ROM[trackCountOffset];
+	}
+	else if (extraGameMidiInfo.naganoCompressed)
+	{
+		int fileSizeCompressed = extraGameMidiInfo.compressedFileEndOffset - extraGameMidiInfo.compressedFileOffset;
+		CNaganoDecoder decode;
+		unsigned char* outputDecompressed = new unsigned char[0x200000];
+		int expectedSize = decode.dec(&ROM[extraGameMidiInfo.compressedFileOffset], fileSizeCompressed, outputDecompressed);
+		
+		int trackCountOffset = extraGameMidiInfo.trackOffset + (extraGameMidiInfo.trackIncrement * extra);
+
+		numberTracksCompare = outputDecompressed[trackCountOffset];
+
+		delete [] outputDecompressed;
+	}
+	else if (extraGameMidiInfo.zlbCompressed)
+	{
+		compress->SetGame(STUNTRACER64);
+		int decompressedSize = 0;	
+		int compressedSize = -1;
+		byte* outputBuffer = Decompress(&ROM[extraGameMidiInfo.compressedFileOffset], romSize - extraGameMidiInfo.compressedFileOffset, decompressedSize, compressedSize);
+		if (outputBuffer != NULL)
+		{
+			int trackCountOffset = extraGameMidiInfo.trackOffset + (extraGameMidiInfo.trackIncrement * extra);
+
+			numberTracksCompare = outputBuffer[trackCountOffset];
+
+			delete [] outputBuffer;
+		}
+	}*/
+
+	if (numberTracks == 0x0)
+	{
+		numberTracks = CharArrayToShort(&inputMID[0]) / 2;
+	}
+
+	numberInstruments = 1;
+	int noteUniqueId = 0;
+	std::vector<TimeAndValue> tempoPositions;
+
+	
+	try
+	{
+		std::vector<SngNoteInfo> sngNoteList;
+
+		int trackRealLength = 0;
+		std::vector<int> tracksEDEE;
+
+		int loopStart = 0;
+		int loopEnd = 0;
+		int maxTrackLength = 0;
+
+		int highestTrackLength = 0;
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToShort(&inputMID[(x * 2)]);
+
+			if (trackDataPointer >= inputSize)
+			{
+				numberTracks = x;
+				break;
+			}
+
+			// Fake track
+			if ((x > 0) && (inputMID[trackDataPointer-1] != 0xFF))
+			{
+				break;
+			}
+
+			unsigned long trackEnd;
+
+			/*if (x < (numberTracks - 1))
+			{
+				trackEnd = CharArrayToShort(&inputMID[((x + 1) * 2)]);
+			}
+			else*/
+			{
+				trackEnd = inputSize;
+			}
+
+			int trackLength = FindHighestKonamiLengthTrack(x, inputMID, trackDataPointer, trackEnd);
+			if (trackLength > highestTrackLength)
+				highestTrackLength = trackLength;
+		}
+
+		/*if (numberTracks != numberTracksCompare)
+		{
+			FILE* temp = fopen("C:\\temp\\a.txt", "a");
+			fprintf(temp, "%s %08X Specified %02X Real %02X %s\n", &ROM[0x20], extraGameMidiInfo.compressedFileOffset, numberTracksCompare, numberTracks, outFileName);
+			fclose(temp);
+		}*/
+
+		for (int x = 0; x < numberTracks; x++)
+		{
+			unsigned long trackDataPointer = CharArrayToShort(&inputMID[(x * 2)]);
+
+			if (trackDataPointer >= inputSize)
+			{
+				numberTracks = x;
+				break;
+			}
+
+			// Fake track
+			if ((x > 0) && (inputMID[trackDataPointer-1] != 0xFF))
+			{
+				break;
+			}
+
+			unsigned long trackEnd;
+
+			/*if (x < (numberTracks - 1))
+			{
+				trackEnd = CharArrayToShort(&inputMID[((x + 1) * 2)]);
+			}
+			else*/
+			{
+				trackEnd = inputSize;
+			}
+
+			ParseKonamiTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, noteUniqueId, writeOutLoops, loopWriteCount, extendTracksToHighest, highestTrackLength);
+		}
+
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
+	}
+}
+
+BOOL CMidiParse::hiddenExec (PTSTR pCmdLine, CString currentDirectory)
+{
+   STARTUPINFO si;
+   PROCESS_INFORMATION processInfo;
+   ZeroMemory(&si, sizeof(si));
+   si.cb           = sizeof(si);
+   si.dwFlags      = STARTF_USESHOWWINDOW;
+   si.wShowWindow  = SW_HIDE;
+   ZeroMemory(&processInfo, sizeof(processInfo));
+   /*return */CreateProcess(0, pCmdLine, 0, 0, FALSE, 0, 0, currentDirectory, &si, &processInfo);
+   WaitForSingleObject(processInfo.hProcess, 20000);
+   DWORD exitCode;
+   if (GetExitCodeProcess(processInfo.hProcess, &exitCode))
+   {
+        if (exitCode == STILL_ACTIVE)
+		{
+			MessageBox(NULL, "For some reason GZip Failed", "Error", NULL);
+			TerminateProcess(processInfo.hProcess, exitCode);
+			return false;
+		}
+   }   
+   return true;
+}
+
+BOOL CMidiParse::hiddenExec (PTSTR pCmdLine, CString currentDirectory, HANDLE out)
+{
+	::SetCurrentDirectory(currentDirectory);
+   STARTUPINFO si;
+   PROCESS_INFORMATION processInfo;
+   ZeroMemory(&si, sizeof(si));
+   si.cb           = sizeof(si);
+   si.dwFlags      = STARTF_USESTDHANDLES;
+   //si.wShowWindow  = SW_HIDE;
+   si.hStdOutput = out;
+   //si.hStdInput = out;
+   //si.hStdError = out;
+
+   ZeroMemory(&processInfo, sizeof(processInfo));
+
+
+   if (currentDirectory.ReverseFind('\\') == (currentDirectory.GetLength()-1))
+   {
+		currentDirectory = currentDirectory.Mid(0, (currentDirectory.GetLength()-1));
+   }
+
+   /*return */CreateProcess(0, pCmdLine, 0, 0, TRUE, CREATE_DEFAULT_ERROR_MODE, 0, currentDirectory, &si, &processInfo);
+   WaitForSingleObject(processInfo.hProcess, 20000);
+   DWORD exitCode;
+   if (GetExitCodeProcess(processInfo.hProcess, &exitCode))
+   {
+        if (exitCode == STILL_ACTIVE)
+		{
+			MessageBox(NULL, "For some reason Zip Failed", "Error", NULL);
+			
+			TerminateProcess(processInfo.hProcess, exitCode);
+			return false;
+		}
+   }   
+   return true;
 }

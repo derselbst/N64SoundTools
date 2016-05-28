@@ -67,7 +67,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(OutDir)\N64MidiLibrary.lib"
+				AdditionalDependencies="$(OutDir)\N64MidiLibrary.lib $(OutDir)\N64MidiToolReader.lib vld.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="&quot;$(OutDir)&quot;"
 				GenerateDebugInformation="true"
@@ -149,7 +149,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="$(OutDir)\N64MidiLibrary.lib"
+				AdditionalDependencies="$(OutDir)\N64MidiLibrary.lib $(OutDir)\N64MidiToolReader.lib"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="&quot;$(OutDir)&quot;"
 				GenerateDebugInformation="true"
@@ -194,11 +194,8 @@
 				>
 			</File>
 			<File
-				RelativePath=".\GECompression.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\H20Decoder.cpp"
+				RelativePath="..\gameconfigmidi.ini"
+				DeploymentContent="true"
 				>
 			</File>
 			<File
@@ -207,14 +204,6 @@
 			</File>
 			<File
 				RelativePath=".\N64MidiToolDlg.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\rnc_deco.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\SharedFunctions.cpp"
 				>
 			</File>
 			<File
@@ -237,14 +226,6 @@
 					/>
 				</FileConfiguration>
 			</File>
-			<File
-				RelativePath="..\..\GEDecompressor\SupermanDecoder.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\TetrisphereDecoder.cpp"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -253,14 +234,6 @@
 			>
 			<File
 				RelativePath=".\FolderDialog.h"
-				>
-			</File>
-			<File
-				RelativePath=".\GECompression.h"
-				>
-			</File>
-			<File
-				RelativePath=".\H20Decoder.h"
 				>
 			</File>
 			<File
@@ -276,27 +249,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\rnc_deco.h"
-				>
-			</File>
-			<File
-				RelativePath=".\SharedFunctions.h"
-				>
-			</File>
-			<File
 				RelativePath=".\stdafx.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\GEDecompressor\SupermanDecoder.h"
-				>
-			</File>
-			<File
 				RelativePath=".\targetver.h"
-				>
-			</File>
-			<File
-				RelativePath=".\TetrisphereDecoder.h"
 				>
 			</File>
 		</Filter>
@@ -318,11 +275,6 @@
 				>
 			</File>
 		</Filter>
-		<File
-			RelativePath="..\gameconfig.ini"
-			DeploymentContent="true"
-			>
-		</File>
 		<File
 			RelativePath=".\ReadMe.txt"
 			>

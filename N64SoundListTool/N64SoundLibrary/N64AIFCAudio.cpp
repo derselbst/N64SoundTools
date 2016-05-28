@@ -5,7 +5,7 @@
 #include <math.h>
 #include <stdint.h>
 #include "..\N64SoundLibrary\flzh_rn.h"
-float CN64AIFCAudio::keyTable[0xFF];
+float CN64AIFCAudio::keyTable[0x100];
 
 CN64AIFCAudio::CN64AIFCAudio(void)
 {
@@ -14,6 +14,154 @@ CN64AIFCAudio::CN64AIFCAudio(void)
 
 CN64AIFCAudio::~CN64AIFCAudio(void)
 {
+}
+
+CString CN64AIFCAudio::CompareALInstrument(ALInst* alInst1, ALInst* alInst2)
+{
+	CString errors = "";
+
+	if (alInst1->volume != alInst2->volume)
+		errors += "Differing instr volume counts\r\n";
+	if (alInst1->pan != alInst2->pan)
+		errors += "Differing instr pan counts\r\n";
+	if (alInst1->priority != alInst2->priority)
+		errors += "Differing instr priority counts\r\n";
+	if (alInst1->flags != alInst2->flags)
+		errors += "Differing instr flags counts\r\n";
+	if (alInst1->tremType != alInst2->tremType)
+		errors += "Differing instr tremType counts\r\n";
+	if (alInst1->tremRate != alInst2->tremRate)
+		errors += "Differing instr tremRate counts\r\n";
+	if (alInst1->tremDepth != alInst2->tremDepth)
+		errors += "Differing instr tremDepth counts\r\n";
+	if (alInst1->tremDelay != alInst2->tremDelay)
+		errors += "Differing instr tremDelay counts\r\n";
+	if (alInst1->vibType != alInst2->vibType)
+		errors += "Differing instr vibType counts\r\n";
+	if (alInst1->vibRate != alInst2->vibRate)
+		errors += "Differing instr vibRate counts\r\n";
+	if (alInst1->vibDelay != alInst2->vibDelay)
+		errors += "Differing instr vibDelay counts\r\n";
+	if (alInst1->bendRange != alInst2->bendRange)
+		errors += "Differing instr bendRange counts\r\n";
+	if (alInst1->soundCount != alInst2->soundCount)
+	{
+		errors += "Differing instr soundCount counts\r\n";
+		return errors;
+	}
+
+	for (int y = 0; y < alInst1->soundCount; y++)
+	{
+		if (alInst1->sounds[y]->samplePan != alInst2->sounds[y]->samplePan)
+			errors += "Differing instr samplePan counts\r\n";
+		if (alInst1->sounds[y]->sampleVolume != alInst2->sounds[y]->sampleVolume)
+			errors += "Differing instr sampleVolume counts\r\n";
+		if (alInst1->sounds[y]->flags != alInst2->sounds[y]->flags)
+			errors += "Differing instr flags counts\r\n";
+
+		if (alInst1->sounds[y]->env.attackTime != alInst2->sounds[y]->env.attackTime)
+			errors += "Differing sound attackTime counts\r\n";
+		if (alInst1->sounds[y]->env.decayTime != alInst2->sounds[y]->env.decayTime)
+			errors += "Differing sound decayTime counts\r\n";
+		if (alInst1->sounds[y]->env.releaseTime != alInst2->sounds[y]->env.releaseTime)
+			errors += "Differing sound releaseTime counts\r\n";
+		if (alInst1->sounds[y]->env.attackVolume != alInst2->sounds[y]->env.attackVolume)
+			errors += "Differing sound attackVolume counts\r\n";
+		if (alInst1->sounds[y]->env.decayVolume != alInst2->sounds[y]->env.decayVolume)
+			errors += "Differing sound decayVolume counts\r\n";
+
+		if (alInst1->sounds[y]->key.velocitymin != alInst2->sounds[y]->key.velocitymin)
+			errors += "Differing sound velocitymin counts\r\n";
+		if (alInst1->sounds[y]->key.velocitymax != alInst2->sounds[y]->key.velocitymax)
+			errors += "Differing sound velocitymax counts\r\n";
+		if (alInst1->sounds[y]->key.keymin != alInst2->sounds[y]->key.keymin)
+			errors += "Differing sound keymin counts\r\n";
+		if (alInst1->sounds[y]->key.keymax != alInst2->sounds[y]->key.keymax)
+			errors += "Differing sound keymax counts\r\n";
+		if (alInst1->sounds[y]->key.keybase != alInst2->sounds[y]->key.keybase)
+			errors += "Differing sound keybase counts\r\n";
+		if (alInst1->sounds[y]->key.detune != alInst2->sounds[y]->key.detune)
+			errors += "Differing sound detune counts\r\n";
+
+		if (alInst1->sounds[y]->wav.len != alInst2->sounds[y]->wav.len)
+			errors += "Differing sound len\r\n";
+		if (alInst1->sounds[y]->wav.type != alInst2->sounds[y]->wav.type)
+			errors += "Differing sound len\r\n";
+		if (alInst1->sounds[y]->wav.flags != alInst2->sounds[y]->wav.flags)
+			errors += "Differing sound flags\r\n";
+
+		if ((alInst1->sounds[y]->wav.type == 0) && (alInst2->sounds[y]->wav.type == 0))
+		{
+			if ((alInst1->sounds[y]->wav.adpcmWave->loop != NULL) && (alInst2->sounds[y]->wav.adpcmWave->loop != NULL))
+			{
+				if (alInst1->sounds[y]->wav.adpcmWave->loop->start != alInst2->sounds[y]->wav.adpcmWave->loop->start)
+					errors += "Differing loop start flags\r\n";
+				if (alInst1->sounds[y]->wav.adpcmWave->loop->end != alInst2->sounds[y]->wav.adpcmWave->loop->end)
+					errors += "Differing loop end flags\r\n";
+				if (alInst1->sounds[y]->wav.adpcmWave->loop->count != alInst2->sounds[y]->wav.adpcmWave->loop->count)
+					errors += "Differing loop count flags\r\n";
+
+				for (int z = 0; z < 0x10; z++)
+				{
+					if (alInst1->sounds[y]->wav.adpcmWave->loop->state[z] != alInst2->sounds[y]->wav.adpcmWave->loop->state[z])
+						errors += "Differing loop state flags\r\n";
+				}
+			}
+			else if (((alInst1->sounds[y]->wav.adpcmWave->loop != NULL) && (alInst2->sounds[y]->wav.adpcmWave->loop == NULL)) || 
+				((alInst1->sounds[y]->wav.adpcmWave->loop == NULL) && (alInst2->sounds[y]->wav.adpcmWave->loop != NULL)))
+			{
+				errors += "Differing loop null\r\n";
+			}
+
+			if (alInst1->sounds[y]->wav.adpcmWave->book->order != alInst2->sounds[y]->wav.adpcmWave->book->order)
+			{
+					errors += "Differing book->order\r\n";
+					continue;
+			}
+			if (alInst1->sounds[y]->wav.adpcmWave->book->npredictors != alInst2->sounds[y]->wav.adpcmWave->book->npredictors)
+			{
+					errors += "Differing book->npredictors\r\n";
+					continue;
+			}
+
+			for (int z = 0; z < (alInst1->sounds[y]->wav.adpcmWave->book->order * alInst1->sounds[y]->wav.adpcmWave->book->npredictors * 8); z++)
+			{
+				if (alInst1->sounds[y]->wav.adpcmWave->book->predictors[z] != alInst2->sounds[y]->wav.adpcmWave->book->predictors[z])
+					errors += "Differing predictors \r\n";
+			}
+		}
+		else if ((alInst1->sounds[y]->wav.type == 1) && (alInst2->sounds[y]->wav.type == 1))
+		{
+			if ((alInst1->sounds[y]->wav.rawWave->loop != NULL) && (alInst2->sounds[y]->wav.rawWave->loop != NULL))
+			{
+				if (alInst1->sounds[y]->wav.rawWave->loop->start != alInst2->sounds[y]->wav.rawWave->loop->start)
+					errors += "Differing loop start flags\r\n";
+				if (alInst1->sounds[y]->wav.rawWave->loop->end != alInst2->sounds[y]->wav.rawWave->loop->end)
+					errors += "Differing loop end flags\r\n";
+				if (alInst1->sounds[y]->wav.rawWave->loop->count != alInst2->sounds[y]->wav.rawWave->loop->count)
+					errors += "Differing loop count flags\r\n";
+			}
+			else if (((alInst1->sounds[y]->wav.rawWave->loop != NULL) && (alInst2->sounds[y]->wav.rawWave->loop == NULL)) || 
+				((alInst1->sounds[y]->wav.rawWave->loop == NULL) && (alInst2->sounds[y]->wav.rawWave->loop != NULL)))
+			{
+				errors += "Differing loop null flags\r\n";
+			}
+		}
+
+		if (alInst1->sounds[y]->wav.len == alInst2->sounds[y]->wav.len)
+		{
+			for (int z = 0; z < alInst1->sounds[y]->wav.len; z++)
+			{
+				if (alInst1->sounds[y]->wav.wavData[z] != alInst2->sounds[y]->wav.wavData[z])
+				{
+					errors += "tbl mismatch\r\n";
+					break;
+				}
+			}
+		}
+	}
+
+	return errors;
 }
 
 CString CN64AIFCAudio::CompareALBanks(ALBank* alBank1, ALBank* alBank2)
@@ -25,158 +173,27 @@ CString CN64AIFCAudio::CompareALBanks(ALBank* alBank1, ALBank* alBank2)
 		errors += "Differing bank flags counts\r\n";
 	if (alBank1->samplerate != alBank2->samplerate)
 		errors += "Differing bank samplerate counts\r\n";
+
+	if ((alBank1->percussion == NULL) && (alBank2->percussion != NULL))
+		errors += "Differing percussion +1 -2";
+	else if ((alBank1->percussion != NULL) && (alBank2->percussion == NULL))
+		errors += "Differing percussion -1 +2";
+	else if ((alBank1->percussion != NULL) && (alBank2->percussion != NULL))
+		errors += CompareALInstrument(alBank1->percussion, alBank2->percussion);
+
 	for (int x = 0; x < alBank1->count; x++)
 	{
-		if (alBank1->inst[x]->volume != alBank2->inst[x]->volume)
-			errors += "Differing instr volume counts\r\n";
-		if (alBank1->inst[x]->pan != alBank2->inst[x]->pan)
-			errors += "Differing instr pan counts\r\n";
-		if (alBank1->inst[x]->priority != alBank2->inst[x]->priority)
-			errors += "Differing instr priority counts\r\n";
-		if (alBank1->inst[x]->flags != alBank2->inst[x]->flags)
-			errors += "Differing instr flags counts\r\n";
-		if (alBank1->inst[x]->tremType != alBank2->inst[x]->tremType)
-			errors += "Differing instr tremType counts\r\n";
-		if (alBank1->inst[x]->tremRate != alBank2->inst[x]->tremRate)
-			errors += "Differing instr tremRate counts\r\n";
-		if (alBank1->inst[x]->tremDepth != alBank2->inst[x]->tremDepth)
-			errors += "Differing instr tremDepth counts\r\n";
-		if (alBank1->inst[x]->tremDelay != alBank2->inst[x]->tremDelay)
-			errors += "Differing instr tremDelay counts\r\n";
-		if (alBank1->inst[x]->vibType != alBank2->inst[x]->vibType)
-			errors += "Differing instr vibType counts\r\n";
-		if (alBank1->inst[x]->vibRate != alBank2->inst[x]->vibRate)
-			errors += "Differing instr vibRate counts\r\n";
-		if (alBank1->inst[x]->vibDelay != alBank2->inst[x]->vibDelay)
-			errors += "Differing instr vibDelay counts\r\n";
-		if (alBank1->inst[x]->bendRange != alBank2->inst[x]->bendRange)
-			errors += "Differing instr bendRange counts\r\n";
-		if (alBank1->inst[x]->soundCount != alBank2->inst[x]->soundCount)
-		{
-			errors += "Differing instr soundCount counts\r\n";
-			continue;
-		}
-
-		for (int y = 0; y < alBank1->inst[x]->soundCount; y++)
-		{
-			if (alBank1->inst[x]->sounds[y]->samplePan != alBank2->inst[x]->sounds[y]->samplePan)
-				errors += "Differing instr samplePan counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->sampleVolume != alBank2->inst[x]->sounds[y]->sampleVolume)
-				errors += "Differing instr sampleVolume counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->flags != alBank2->inst[x]->sounds[y]->flags)
-				errors += "Differing instr flags counts\r\n";
-
-			if (alBank1->inst[x]->sounds[y]->env.attackTime != alBank2->inst[x]->sounds[y]->env.attackTime)
-				errors += "Differing sound attackTime counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->env.decayTime != alBank2->inst[x]->sounds[y]->env.decayTime)
-				errors += "Differing sound decayTime counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->env.releaseTime != alBank2->inst[x]->sounds[y]->env.releaseTime)
-				errors += "Differing sound releaseTime counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->env.attackVolume != alBank2->inst[x]->sounds[y]->env.attackVolume)
-				errors += "Differing sound attackVolume counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->env.decayVolume != alBank2->inst[x]->sounds[y]->env.decayVolume)
-				errors += "Differing sound decayVolume counts\r\n";
-
-			if (alBank1->inst[x]->sounds[y]->key.velocitymin != alBank2->inst[x]->sounds[y]->key.velocitymin)
-				errors += "Differing sound velocitymin counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->key.velocitymax != alBank2->inst[x]->sounds[y]->key.velocitymax)
-				errors += "Differing sound velocitymax counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->key.keymin != alBank2->inst[x]->sounds[y]->key.keymin)
-				errors += "Differing sound keymin counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->key.keymax != alBank2->inst[x]->sounds[y]->key.keymax)
-				errors += "Differing sound keymax counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->key.keybase != alBank2->inst[x]->sounds[y]->key.keybase)
-				errors += "Differing sound keybase counts\r\n";
-			if (alBank1->inst[x]->sounds[y]->key.detune != alBank2->inst[x]->sounds[y]->key.detune)
-				errors += "Differing sound detune counts\r\n";
-
-			if (alBank1->inst[x]->sounds[y]->wav.len != alBank2->inst[x]->sounds[y]->wav.len)
-				errors += "Differing sound len\r\n";
-			if (alBank1->inst[x]->sounds[y]->wav.type != alBank2->inst[x]->sounds[y]->wav.type)
-				errors += "Differing sound len\r\n";
-			if (alBank1->inst[x]->sounds[y]->wav.flags != alBank2->inst[x]->sounds[y]->wav.flags)
-				errors += "Differing sound flags\r\n";
-
-			if ((alBank1->inst[x]->sounds[y]->wav.type == 0) && (alBank2->inst[x]->sounds[y]->wav.type == 0))
-			{
-				if ((alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL) && (alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL))
-				{
-					if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop->start != alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop->start)
-						errors += "Differing loop start flags\r\n";
-					if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop->end != alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop->end)
-						errors += "Differing loop end flags\r\n";
-					if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop->count != alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop->count)
-						errors += "Differing loop count flags\r\n";
-
-					for (int z = 0; z < 0x10; z++)
-					{
-						if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] != alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z])
-							errors += "Differing loop state flags\r\n";
-					}
-				}
-				else if (((alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL) && (alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop == NULL)) || 
-					((alBank1->inst[x]->sounds[y]->wav.adpcmWave->loop == NULL) && (alBank2->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL)))
-				{
-					errors += "Differing loop null\r\n";
-				}
-
-				if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->book->order != alBank2->inst[x]->sounds[y]->wav.adpcmWave->book->order)
-				{
-						errors += "Differing book->order\r\n";
-						continue;
-				}
-				if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors != alBank2->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors)
-				{
-						errors += "Differing book->npredictors\r\n";
-						continue;
-				}
-
-				for (int z = 0; z < (alBank1->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank1->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8); z++)
-				{
-					if (alBank1->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] != alBank2->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z])
-						errors += "Differing predictors \r\n";
-				}
-			}
-			else if ((alBank1->inst[x]->sounds[y]->wav.type == 1) && (alBank2->inst[x]->sounds[y]->wav.type == 1))
-			{
-				if ((alBank1->inst[x]->sounds[y]->wav.rawWave->loop != NULL) && (alBank2->inst[x]->sounds[y]->wav.rawWave->loop != NULL))
-				{
-					if (alBank1->inst[x]->sounds[y]->wav.rawWave->loop->start != alBank2->inst[x]->sounds[y]->wav.rawWave->loop->start)
-						errors += "Differing loop start flags\r\n";
-					if (alBank1->inst[x]->sounds[y]->wav.rawWave->loop->end != alBank2->inst[x]->sounds[y]->wav.rawWave->loop->end)
-						errors += "Differing loop end flags\r\n";
-					if (alBank1->inst[x]->sounds[y]->wav.rawWave->loop->count != alBank2->inst[x]->sounds[y]->wav.rawWave->loop->count)
-						errors += "Differing loop count flags\r\n";
-				}
-				else if (((alBank1->inst[x]->sounds[y]->wav.rawWave->loop != NULL) && (alBank2->inst[x]->sounds[y]->wav.rawWave->loop == NULL)) || 
-					((alBank1->inst[x]->sounds[y]->wav.rawWave->loop == NULL) && (alBank2->inst[x]->sounds[y]->wav.rawWave->loop != NULL)))
-				{
-					errors += "Differing loop null flags\r\n";
-				}
-			}
-
-			if (alBank1->inst[x]->sounds[y]->wav.len == alBank2->inst[x]->sounds[y]->wav.len)
-			{
-				for (int z = 0; z < alBank1->inst[x]->sounds[y]->wav.len; z++)
-				{
-					if (alBank1->inst[x]->sounds[y]->wav.wavData[z] != alBank2->inst[x]->sounds[y]->wav.wavData[z])
-					{
-						errors += "tbl mismatch\r\n";
-						break;
-					}
-				}
-			}
-		}
+		errors += CompareALInstrument(alBank1->inst[x], alBank2->inst[x]);
 	}
 
 	return errors;
 }
 
-bool CN64AIFCAudio::ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile)
+bool CN64AIFCAudio::ExtractEADPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile)
 {
-	if (alBank->countPercussion > 0)
+	if (alBank->countEADPercussion > 0)
 	{
-		if (alBank->alPercussion[sound].wav.type == AL_RAW16_WAVE)
+		if (alBank->eadPercussion[sound].wav.type == AL_RAW16_WAVE)
 		{
 			FILE* outFileTempRaw = fopen(outputFile, "wb");
 			if (outFileTempRaw == NULL)
@@ -185,7 +202,7 @@ bool CN64AIFCAudio::ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBa
 				return false;
 			}
 
-			fwrite(&alBank->alPercussion[sound].wav.wavData[1], 1, (alBank->alPercussion[sound].wav.len-2), outFileTempRaw);
+			fwrite(&alBank->eadPercussion[sound].wav.wavData[1], 1, (alBank->eadPercussion[sound].wav.len-2), outFileTempRaw);
 			fclose(outFileTempRaw);
 
 			return true;
@@ -193,11 +210,11 @@ bool CN64AIFCAudio::ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBa
 		else
 		{
 			// hack for mario kart
-			if ((alBank->alPercussion[sound].wav.adpcmWave == NULL) || (alBank->alPercussion[sound].wav.adpcmWave->book == NULL))
+			if ((alBank->eadPercussion[sound].wav.adpcmWave == NULL) || (alBank->eadPercussion[sound].wav.adpcmWave->book == NULL))
 				return false;
 
-			signed short* outRawData = new signed short[alBank->alPercussion[sound].wav.len * 4];
-			int nSamples = decode(alBank->alPercussion[sound].wav.wavData, outRawData, alBank->alPercussion[sound].wav.len, alBank->alPercussion[sound].wav.adpcmWave->book);
+			signed short* outRawData = new signed short[alBank->eadPercussion[sound].wav.len * 4];
+			int nSamples = decode(alBank->eadPercussion[sound].wav.wavData, outRawData, alBank->eadPercussion[sound].wav.len, alBank->eadPercussion[sound].wav.adpcmWave->book, alBank->eadPercussion[sound].wav.decode8Only);
 			
 			FILE* outFileTempRaw = fopen(outputFile, "wb");
 			if (outFileTempRaw == NULL)
@@ -245,7 +262,7 @@ bool CN64AIFCAudio::ExtractSfxRawPCMData(CString mainFolder, ALBank* alBank, int
 				return false;
 
 			signed short* outRawData = new signed short[alBank->alSfx[sound]->len * 4];
-			int nSamples = decode(alBank->alSfx[sound]->wavData, outRawData, alBank->alSfx[sound]->len, alBank->alSfx[sound]->adpcmWave->book);
+			int nSamples = decode(alBank->alSfx[sound]->wavData, outRawData, alBank->alSfx[sound]->len, alBank->alSfx[sound]->adpcmWave->book, alBank->alSfx[sound]->decode8Only);
 			
 			FILE* outFileTempRaw = fopen(outputFile, "wb");
 			if (outFileTempRaw == NULL)
@@ -268,9 +285,9 @@ bool CN64AIFCAudio::ExtractSfxRawPCMData(CString mainFolder, ALBank* alBank, int
 	return false;
 }
 
-bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate)
+bool CN64AIFCAudio::ExtractEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate)
 {
-	if (alBank->countPercussion > 0)
+	if (alBank->countEADPercussion > 0)
 	{
 		float samplingRateFloat = (float)samplingRate;
 
@@ -294,7 +311,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 		}
 
 
-		if (alBank->alPercussion[sound].wav.type == AL_RAW16_WAVE)
+		if (alBank->eadPercussion[sound].wav.type == AL_RAW16_WAVE)
 		{
 			FILE* outFileTempRaw = fopen(outputFile, "wb");
 			if (outFileTempRaw == NULL)
@@ -310,7 +327,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 			wavHeader[0x1] = 0x49;
 			wavHeader[0x2] = 0x46;
 			wavHeader[0x3] = 0x46;
-			unsigned long chunkSize = 0x28 + (alBank->alPercussion[sound].wav.len-2) + 0x44 - 0x8;
+			unsigned long chunkSize = 0x28 + (alBank->eadPercussion[sound].wav.len-2) + 0x44 - 0x8;
 			wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
 			wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
 			wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
@@ -352,13 +369,13 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 
 			delete [] wavHeader;
 
-			unsigned long length = (alBank->alPercussion[sound].wav.len-2);
+			unsigned long length = (alBank->eadPercussion[sound].wav.len-2);
 			fwrite(&length, 1, 4, outFileTempRaw);
 
-			fwrite(&alBank->alPercussion[sound].wav.wavData[1], 1, (alBank->alPercussion[sound].wav.len-2), outFileTempRaw);
+			fwrite(&alBank->eadPercussion[sound].wav.wavData[1], 1, (alBank->eadPercussion[sound].wav.len-2), outFileTempRaw);
 
 			
-			if (alBank->alPercussion[sound].wav.rawWave->loop != NULL)
+			if (alBank->eadPercussion[sound].wav.rawWave->loop != NULL)
 			{
 				unsigned char* wavHeader = new unsigned char[0x44];
 				for (int x = 0; x < 0x44; x++)
@@ -381,7 +398,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 						|| (alBank->soundBankFormat == FZEROFORMAT)
 					)
 				{
-					float keybaseFloat = *reinterpret_cast<float*> (&alBank->alPercussion[sound].keyBase);
+					float keybaseFloat = *reinterpret_cast<float*> (&alBank->eadPercussion[sound].keyBase);
 					wavHeader[0x14] = ConvertEADGameValueToKeyBase(keybaseFloat);
 				}
 				else
@@ -395,14 +412,32 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 				wavHeader[0x26] = 0x00;
 				wavHeader[0x27] = 0x00;
 
-				wavHeader[0x34] = ((alBank->alPercussion[sound].wav.rawWave->loop->start >> 0) & 0xFF);
-				wavHeader[0x35] = ((alBank->alPercussion[sound].wav.rawWave->loop->start >> 8) & 0xFF);
-				wavHeader[0x36] = ((alBank->alPercussion[sound].wav.rawWave->loop->start >> 16) & 0xFF);
-				wavHeader[0x37] = ((alBank->alPercussion[sound].wav.rawWave->loop->start >> 24) & 0xFF);
-				wavHeader[0x38] = (((alBank->alPercussion[sound].wav.rawWave->loop->end) >> 0) & 0xFF);
-				wavHeader[0x39] = (((alBank->alPercussion[sound].wav.rawWave->loop->end) >> 8) & 0xFF);
-				wavHeader[0x3A] = (((alBank->alPercussion[sound].wav.rawWave->loop->end) >> 16) & 0xFF);
-				wavHeader[0x3B] = (((alBank->alPercussion[sound].wav.rawWave->loop->end) >> 24) & 0xFF);
+				if (alBank->eadPercussion[sound].wav.rawWave->loop->count > 0)
+				{
+					wavHeader[0x34] = ((alBank->eadPercussion[sound].wav.rawWave->loop->start >> 0) & 0xFF);
+					wavHeader[0x35] = ((alBank->eadPercussion[sound].wav.rawWave->loop->start >> 8) & 0xFF);
+					wavHeader[0x36] = ((alBank->eadPercussion[sound].wav.rawWave->loop->start >> 16) & 0xFF);
+					wavHeader[0x37] = ((alBank->eadPercussion[sound].wav.rawWave->loop->start >> 24) & 0xFF);
+					wavHeader[0x38] = (((alBank->eadPercussion[sound].wav.rawWave->loop->end) >> 0) & 0xFF);
+					wavHeader[0x39] = (((alBank->eadPercussion[sound].wav.rawWave->loop->end) >> 8) & 0xFF);
+					wavHeader[0x3A] = (((alBank->eadPercussion[sound].wav.rawWave->loop->end) >> 16) & 0xFF);
+					wavHeader[0x3B] = (((alBank->eadPercussion[sound].wav.rawWave->loop->end) >> 24) & 0xFF);
+
+					if (alBank->eadPercussion[sound].wav.rawWave->loop->count == 0xFFFFFFFF)
+					{
+						wavHeader[0x40] = 0x00;
+						wavHeader[0x41] = 0x00;
+						wavHeader[0x42] = 0x00;
+						wavHeader[0x43] = 0x00;
+					}
+					else
+					{
+						wavHeader[0x40] = (((alBank->eadPercussion[sound].wav.rawWave->loop->count) >> 0) & 0xFF);
+						wavHeader[0x41] = (((alBank->eadPercussion[sound].wav.rawWave->loop->count) >> 8) & 0xFF);
+						wavHeader[0x42] = (((alBank->eadPercussion[sound].wav.rawWave->loop->count) >> 16) & 0xFF);
+						wavHeader[0x43] = (((alBank->eadPercussion[sound].wav.rawWave->loop->count) >> 24) & 0xFF);
+					}
+				}
 
 				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
 
@@ -431,7 +466,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 						|| (alBank->soundBankFormat == FZEROFORMAT)
 					)
 				{
-					float keybaseFloat = *reinterpret_cast<float*> (&alBank->alPercussion[sound].keyBase);
+					float keybaseFloat = *reinterpret_cast<float*> (&alBank->eadPercussion[sound].keyBase);
 					wavHeader[0x14] = ConvertEADGameValueToKeyBase(keybaseFloat);
 				}
 				else
@@ -453,11 +488,11 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 		else
 		{
 			// hack for mario kart
-			if ((alBank->alPercussion[sound].wav.adpcmWave == NULL) || (alBank->alPercussion[sound].wav.adpcmWave->book == NULL))
+			if ((alBank->eadPercussion[sound].wav.adpcmWave == NULL) || (alBank->eadPercussion[sound].wav.adpcmWave->book == NULL))
 				return false;
 
-			signed short* outRawData = new signed short[alBank->alPercussion[sound].wav.len * 4];
-			int nSamples = decode(alBank->alPercussion[sound].wav.wavData, outRawData, alBank->alPercussion[sound].wav.len, alBank->alPercussion[sound].wav.adpcmWave->book);
+			signed short* outRawData = new signed short[alBank->eadPercussion[sound].wav.len * 4];
+			int nSamples = decode(alBank->eadPercussion[sound].wav.wavData, outRawData, alBank->eadPercussion[sound].wav.len, alBank->eadPercussion[sound].wav.adpcmWave->book, alBank->eadPercussion[sound].wav.decode8Only);
 			
 			FILE* outFileTempRaw = fopen(outputFile, "wb");
 			if (outFileTempRaw == NULL)
@@ -523,7 +558,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 				fwrite(&outRawData[x], 1,2, outFileTempRaw);
 			}
 
-			if (alBank->alPercussion[sound].wav.adpcmWave->loop != NULL)
+			if (alBank->eadPercussion[sound].wav.adpcmWave->loop != NULL)
 			{
 				unsigned char* wavHeader = new unsigned char[0x44];
 				for (int x = 0; x < 0x44; x++)
@@ -546,7 +581,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 						|| (alBank->soundBankFormat == FZEROFORMAT)
 					)
 				{
-					float keybaseFloat = *reinterpret_cast<float*> (&alBank->alPercussion[sound].keyBase);
+					float keybaseFloat = *reinterpret_cast<float*> (&alBank->eadPercussion[sound].keyBase);
 					wavHeader[0x14] = ConvertEADGameValueToKeyBase(keybaseFloat);
 				}
 				else
@@ -560,14 +595,32 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 				wavHeader[0x26] = 0x00;
 				wavHeader[0x27] = 0x00;
 
-				wavHeader[0x34] = ((alBank->alPercussion[sound].wav.adpcmWave->loop->start >> 0) & 0xFF);
-				wavHeader[0x35] = ((alBank->alPercussion[sound].wav.adpcmWave->loop->start >> 8) & 0xFF);
-				wavHeader[0x36] = ((alBank->alPercussion[sound].wav.adpcmWave->loop->start >> 16) & 0xFF);
-				wavHeader[0x37] = ((alBank->alPercussion[sound].wav.adpcmWave->loop->start >> 24) & 0xFF);
-				wavHeader[0x38] = (((alBank->alPercussion[sound].wav.adpcmWave->loop->end) >> 0) & 0xFF);
-				wavHeader[0x39] = (((alBank->alPercussion[sound].wav.adpcmWave->loop->end) >> 8) & 0xFF);
-				wavHeader[0x3A] = (((alBank->alPercussion[sound].wav.adpcmWave->loop->end) >> 16) & 0xFF);
-				wavHeader[0x3B] = (((alBank->alPercussion[sound].wav.adpcmWave->loop->end) >> 24) & 0xFF);
+				if (alBank->eadPercussion[sound].wav.adpcmWave->loop->count > 0)
+				{
+					wavHeader[0x34] = ((alBank->eadPercussion[sound].wav.adpcmWave->loop->start >> 0) & 0xFF);
+					wavHeader[0x35] = ((alBank->eadPercussion[sound].wav.adpcmWave->loop->start >> 8) & 0xFF);
+					wavHeader[0x36] = ((alBank->eadPercussion[sound].wav.adpcmWave->loop->start >> 16) & 0xFF);
+					wavHeader[0x37] = ((alBank->eadPercussion[sound].wav.adpcmWave->loop->start >> 24) & 0xFF);
+					wavHeader[0x38] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->end) >> 0) & 0xFF);
+					wavHeader[0x39] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->end) >> 8) & 0xFF);
+					wavHeader[0x3A] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->end) >> 16) & 0xFF);
+					wavHeader[0x3B] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->end) >> 24) & 0xFF);
+
+					if (alBank->eadPercussion[sound].wav.adpcmWave->loop->count == 0xFFFFFFFF)
+					{
+						wavHeader[0x40] = 0x00;
+						wavHeader[0x41] = 0x00;
+						wavHeader[0x42] = 0x00;
+						wavHeader[0x43] = 0x00;
+					}
+					else
+					{
+						wavHeader[0x40] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->count) >> 0) & 0xFF);
+						wavHeader[0x41] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->count) >> 8) & 0xFF);
+						wavHeader[0x42] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->count) >> 16) & 0xFF);
+						wavHeader[0x43] = (((alBank->eadPercussion[sound].wav.adpcmWave->loop->count) >> 24) & 0xFF);
+					}
+				}
 
 				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
 
@@ -596,7 +649,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 						|| (alBank->soundBankFormat == FZEROFORMAT)
 					)
 				{
-					float keybaseFloat = *reinterpret_cast<float*> (&alBank->alPercussion[sound].keyBase);
+					float keybaseFloat = *reinterpret_cast<float*> (&alBank->eadPercussion[sound].keyBase);
 					wavHeader[0x14] = ConvertEADGameValueToKeyBase(keybaseFloat);
 				}
 				else
@@ -619,7 +672,7 @@ bool CN64AIFCAudio::ExtractPercussion(ALBank* alBank, int sound, CString outputF
 	return false;
 }
 
-bool CN64AIFCAudio::ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool ignoreKeyBase, bool halfSamplingRate)
+bool CN64AIFCAudio::ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate)
 {
 	if (alBank->countSfx > 0)
 	{
@@ -645,277 +698,316 @@ bool CN64AIFCAudio::ExtractSfx(ALBank* alBank, int sound, CString outputFile, un
 		}
 
 
-		if (alBank->alSfx[sound]->type == AL_RAW16_WAVE)
+		if (alBank->alSfx[sound] != NULL)
 		{
-			FILE* outFileTempRaw = fopen(outputFile, "wb");
-			if (outFileTempRaw == NULL)
+			if (alBank->alSfx[sound]->type == AL_RAW16_WAVE)
 			{
-				MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
-				return false;
-			}
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
 
-			unsigned char* wavHeader = new unsigned char[0x28];
+				unsigned char* wavHeader = new unsigned char[0x28];
 
 
-			wavHeader[0x0] = 0x52;
-			wavHeader[0x1] = 0x49;
-			wavHeader[0x2] = 0x46;
-			wavHeader[0x3] = 0x46;
-			unsigned long chunkSize = 0x28 + (alBank->alSfx[sound]->len-2) + 0x44 - 0x8;
-			wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
-			wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
-			wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
-			wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
-			wavHeader[0x8] = 0x57;
-			wavHeader[0x9] = 0x41;
-			wavHeader[0xA] = 0x56;
-			wavHeader[0xB] = 0x45;
-			wavHeader[0xC] = 0x66;
-			wavHeader[0xD] = 0x6D;
-			wavHeader[0xE] = 0x74;
-			wavHeader[0xF] = 0x20;
-			wavHeader[0x10] = 0x10;
-			wavHeader[0x11] = 0x00;
-			wavHeader[0x12] = 0x00;
-			wavHeader[0x13] = 0x00;
-			wavHeader[0x14] = 0x01;
-			wavHeader[0x15] = 0x00;
-			wavHeader[0x16] = 0x01;
-			wavHeader[0x17] = 0x00;
-			wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
-			wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
-			wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
-			wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
-			wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
-			wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
-			wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
-			wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
-			wavHeader[0x20] = 0x02;
-			wavHeader[0x21] = 0x00;
-			wavHeader[0x22] = 0x10;
-			wavHeader[0x23] = 0x00;
-			wavHeader[0x24] = 0x64;
-			wavHeader[0x25] = 0x61;
-			wavHeader[0x26] = 0x74;
-			wavHeader[0x27] = 0x61;
-
-			fwrite(wavHeader, 1, 0x28, outFileTempRaw );
-
-			delete [] wavHeader;
-
-			unsigned long length = (alBank->alSfx[sound]->len-2);
-			fwrite(&length, 1, 4, outFileTempRaw);
-
-			fwrite(&alBank->alSfx[sound]->wavData[1], 1, (alBank->alSfx[sound]->len-2), outFileTempRaw);
-
-			
-			if (alBank->alSfx[sound]->rawWave->loop != NULL)
-			{
-				unsigned char* wavHeader = new unsigned char[0x44];
-				for (int x = 0; x < 0x44; x++)
-					wavHeader[x] = 0x00;
-
-				wavHeader[0x0] = 0x73;
-				wavHeader[0x1] = 0x6D;
-				wavHeader[0x2] = 0x70;
-				wavHeader[0x3] = 0x6C;
-				wavHeader[0x4] = 0x3C;
-				wavHeader[0x5] = 0x00;
-				wavHeader[0x6] = 0x00;
-				wavHeader[0x7] = 0x00;
-				
-				wavHeader[0x14] = 0x3C;
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + (alBank->alSfx[sound]->len-2) + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
 				wavHeader[0x15] = 0x00;
-				wavHeader[0x16] = 0x00;
+				wavHeader[0x16] = 0x01;
 				wavHeader[0x17] = 0x00;
-				
-				wavHeader[0x24] = 0x01;
-				wavHeader[0x25] = 0x00;
-				wavHeader[0x26] = 0x00;
-				wavHeader[0x27] = 0x00;
+				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x20] = 0x02;
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = 0x10;
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
 
-				wavHeader[0x34] = ((alBank->alSfx[sound]->rawWave->loop->start >> 0) & 0xFF);
-				wavHeader[0x35] = ((alBank->alSfx[sound]->rawWave->loop->start >> 8) & 0xFF);
-				wavHeader[0x36] = ((alBank->alSfx[sound]->rawWave->loop->start >> 16) & 0xFF);
-				wavHeader[0x37] = ((alBank->alSfx[sound]->rawWave->loop->start >> 24) & 0xFF);
-				wavHeader[0x38] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 0) & 0xFF);
-				wavHeader[0x39] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 8) & 0xFF);
-				wavHeader[0x3A] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 16) & 0xFF);
-				wavHeader[0x3B] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 24) & 0xFF);
-
-				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
 
 				delete [] wavHeader;
+
+				unsigned long length = (alBank->alSfx[sound]->len-2);
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				fwrite(&alBank->alSfx[sound]->wavData[1], 1, (alBank->alSfx[sound]->len-2), outFileTempRaw);
+
+				
+				if (alBank->alSfx[sound]->rawWave->loop != NULL)
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+					
+					wavHeader[0x24] = 0x01;
+					wavHeader[0x25] = 0x00;
+					wavHeader[0x26] = 0x00;
+					wavHeader[0x27] = 0x00;
+
+					if (alBank->alSfx[sound]->rawWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alBank->alSfx[sound]->rawWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alBank->alSfx[sound]->rawWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alBank->alSfx[sound]->rawWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alBank->alSfx[sound]->rawWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alBank->alSfx[sound]->rawWave->loop->end) >> 24) & 0xFF);
+
+						if (alBank->alSfx[sound]->rawWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alBank->alSfx[sound]->rawWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alBank->alSfx[sound]->rawWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alBank->alSfx[sound]->rawWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alBank->alSfx[sound]->rawWave->loop->count) >> 24) & 0xFF);
+						}
+					}
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+				else
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+
+
+				fclose(outFileTempRaw);
+
+				return true;
 			}
 			else
 			{
-				unsigned char* wavHeader = new unsigned char[0x44];
-				for (int x = 0; x < 0x44; x++)
-					wavHeader[x] = 0x00;
+				// hack for mario kart
+				if ((alBank->alSfx[sound]->adpcmWave == NULL) || (alBank->alSfx[sound]->adpcmWave->book == NULL))
+					return false;
 
-				wavHeader[0x0] = 0x73;
-				wavHeader[0x1] = 0x6D;
-				wavHeader[0x2] = 0x70;
-				wavHeader[0x3] = 0x6C;
-				wavHeader[0x4] = 0x3C;
-				wavHeader[0x5] = 0x00;
-				wavHeader[0x6] = 0x00;
-				wavHeader[0x7] = 0x00;
+				signed short* outRawData = new signed short[alBank->alSfx[sound]->len * 4];
+				int nSamples = decode(alBank->alSfx[sound]->wavData, outRawData, alBank->alSfx[sound]->len, alBank->alSfx[sound]->adpcmWave->book, alBank->alSfx[sound]->decode8Only);
 				
-				wavHeader[0x14] = 0x3C;
-				wavHeader[0x15] = 0x00;
-				wavHeader[0x16] = 0x00;
-				wavHeader[0x17] = 0x00;
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
 
-				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+				unsigned char* wavHeader = new unsigned char[0x28];
+
+
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + (nSamples * 2) + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
+				wavHeader[0x15] = 0x00;
+				wavHeader[0x16] = 0x01;
+				wavHeader[0x17] = 0x00;
+				wavHeader[0x18] = ((samplingRate >> 0) & 0xFF);
+				wavHeader[0x19] = ((samplingRate >> 8) & 0xFF);
+				wavHeader[0x1A] = ((samplingRate >> 16) & 0xFF);
+				wavHeader[0x1B] = ((samplingRate >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x20] = 0x02;
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = 0x10;
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
+
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
 
 				delete [] wavHeader;
+
+				unsigned long length = (nSamples * 2);
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				for (int x = 0; x < nSamples; x++)
+				{
+					fwrite(&outRawData[x], 1,2, outFileTempRaw);
+				}
+
+				if (alBank->alSfx[sound]->adpcmWave->loop != NULL)
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+					
+					wavHeader[0x24] = 0x01;
+					wavHeader[0x25] = 0x00;
+					wavHeader[0x26] = 0x00;
+					wavHeader[0x27] = 0x00;
+
+					if (alBank->alSfx[sound]->adpcmWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 24) & 0xFF);
+
+						if (alBank->alSfx[sound]->adpcmWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alBank->alSfx[sound]->adpcmWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alBank->alSfx[sound]->adpcmWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alBank->alSfx[sound]->adpcmWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alBank->alSfx[sound]->adpcmWave->loop->count) >> 24) & 0xFF);
+						}
+					}
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+				else
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+
+				fclose(outFileTempRaw);
+
+				delete [] outRawData;
+				return true;
 			}
-
-
-			fclose(outFileTempRaw);
-
-			return true;
-		}
-		else
-		{
-			// hack for mario kart
-			if ((alBank->alSfx[sound]->adpcmWave == NULL) || (alBank->alSfx[sound]->adpcmWave->book == NULL))
-				return false;
-
-			signed short* outRawData = new signed short[alBank->alSfx[sound]->len * 4];
-			int nSamples = decode(alBank->alSfx[sound]->wavData, outRawData, alBank->alSfx[sound]->len, alBank->alSfx[sound]->adpcmWave->book);
-			
-			FILE* outFileTempRaw = fopen(outputFile, "wb");
-			if (outFileTempRaw == NULL)
-			{
-				MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
-				return false;
-			}
-
-			unsigned char* wavHeader = new unsigned char[0x28];
-
-
-			wavHeader[0x0] = 0x52;
-			wavHeader[0x1] = 0x49;
-			wavHeader[0x2] = 0x46;
-			wavHeader[0x3] = 0x46;
-			unsigned long chunkSize = 0x28 + (nSamples * 2) + 0x44 - 0x8;
-			wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
-			wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
-			wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
-			wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
-			wavHeader[0x8] = 0x57;
-			wavHeader[0x9] = 0x41;
-			wavHeader[0xA] = 0x56;
-			wavHeader[0xB] = 0x45;
-			wavHeader[0xC] = 0x66;
-			wavHeader[0xD] = 0x6D;
-			wavHeader[0xE] = 0x74;
-			wavHeader[0xF] = 0x20;
-			wavHeader[0x10] = 0x10;
-			wavHeader[0x11] = 0x00;
-			wavHeader[0x12] = 0x00;
-			wavHeader[0x13] = 0x00;
-			wavHeader[0x14] = 0x01;
-			wavHeader[0x15] = 0x00;
-			wavHeader[0x16] = 0x01;
-			wavHeader[0x17] = 0x00;
-			wavHeader[0x18] = ((samplingRate >> 0) & 0xFF);
-			wavHeader[0x19] = ((samplingRate >> 8) & 0xFF);
-			wavHeader[0x1A] = ((samplingRate >> 16) & 0xFF);
-			wavHeader[0x1B] = ((samplingRate >> 24) & 0xFF);
-			wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
-			wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
-			wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
-			wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
-			wavHeader[0x20] = 0x02;
-			wavHeader[0x21] = 0x00;
-			wavHeader[0x22] = 0x10;
-			wavHeader[0x23] = 0x00;
-			wavHeader[0x24] = 0x64;
-			wavHeader[0x25] = 0x61;
-			wavHeader[0x26] = 0x74;
-			wavHeader[0x27] = 0x61;
-
-			fwrite(wavHeader, 1, 0x28, outFileTempRaw );
-
-			delete [] wavHeader;
-
-			unsigned long length = (nSamples * 2);
-			fwrite(&length, 1, 4, outFileTempRaw);
-
-			for (int x = 0; x < nSamples; x++)
-			{
-				fwrite(&outRawData[x], 1,2, outFileTempRaw);
-			}
-
-			if (alBank->alSfx[sound]->adpcmWave->loop != NULL)
-			{
-				unsigned char* wavHeader = new unsigned char[0x44];
-				for (int x = 0; x < 0x44; x++)
-					wavHeader[x] = 0x00;
-
-				wavHeader[0x0] = 0x73;
-				wavHeader[0x1] = 0x6D;
-				wavHeader[0x2] = 0x70;
-				wavHeader[0x3] = 0x6C;
-				wavHeader[0x4] = 0x3C;
-				wavHeader[0x5] = 0x00;
-				wavHeader[0x6] = 0x00;
-				wavHeader[0x7] = 0x00;
-				
-				wavHeader[0x14] = 0x3C;
-				wavHeader[0x15] = 0x00;
-				wavHeader[0x16] = 0x00;
-				wavHeader[0x17] = 0x00;
-				
-				wavHeader[0x24] = 0x01;
-				wavHeader[0x25] = 0x00;
-				wavHeader[0x26] = 0x00;
-				wavHeader[0x27] = 0x00;
-
-				wavHeader[0x34] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 0) & 0xFF);
-				wavHeader[0x35] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 8) & 0xFF);
-				wavHeader[0x36] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 16) & 0xFF);
-				wavHeader[0x37] = ((alBank->alSfx[sound]->adpcmWave->loop->start >> 24) & 0xFF);
-				wavHeader[0x38] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 0) & 0xFF);
-				wavHeader[0x39] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 8) & 0xFF);
-				wavHeader[0x3A] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 16) & 0xFF);
-				wavHeader[0x3B] = (((alBank->alSfx[sound]->adpcmWave->loop->end) >> 24) & 0xFF);
-
-				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
-
-				delete [] wavHeader;
-			}
-			else
-			{
-				unsigned char* wavHeader = new unsigned char[0x44];
-				for (int x = 0; x < 0x44; x++)
-					wavHeader[x] = 0x00;
-
-				wavHeader[0x0] = 0x73;
-				wavHeader[0x1] = 0x6D;
-				wavHeader[0x2] = 0x70;
-				wavHeader[0x3] = 0x6C;
-				wavHeader[0x4] = 0x3C;
-				wavHeader[0x5] = 0x00;
-				wavHeader[0x6] = 0x00;
-				wavHeader[0x7] = 0x00;
-				wavHeader[0x14] = 0x3C;
-				wavHeader[0x15] = 0x00;
-				wavHeader[0x16] = 0x00;
-				wavHeader[0x17] = 0x00;
-
-				fwrite(wavHeader, 1, 0x44, outFileTempRaw );
-
-				delete [] wavHeader;
-			}
-
-			fclose(outFileTempRaw);
-
-			delete [] outRawData;
-			return true;
 		}
 	}
 	return false;
@@ -986,7 +1078,7 @@ bool CN64AIFCAudio::ExtractRawPCMData(CString mainFolder, ALBank* alBank, int in
 					return false;
 
 				signed short* outRawData = new signed short[alWave->len * 4];
-				int nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
+				int nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book, alWave->decode8Only);
 				
 				FILE* outFileTempRaw = fopen(outputFile, "wb");
 				if (outFileTempRaw == NULL)
@@ -1096,7 +1188,146 @@ bool CN64AIFCAudio::ExtractRawPCMData(CString mainFolder, ALBank* alBank, int in
 	return false;
 }
 
-bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool ignoreKeyBase, bool halfSamplingRate)
+bool CN64AIFCAudio::ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile)
+{
+	if (alBank->percussion->soundCount > 0)
+	{
+		if (alBank->percussion->sounds[sound] != NULL)
+		{
+			ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+			if (alWave->type == AL_RAW16_WAVE)
+			{
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				//unsigned long length = (alWave->len-2);
+				//fwrite(&length, 1, 4, outFileTempRaw);
+
+				fwrite(&alWave->wavData[1], 1, (alWave->len-2), outFileTempRaw);
+				fclose(outFileTempRaw);
+			}
+			else if (alWave->type == AL_ADPCM_WAVE)
+			{
+				if ((alWave->adpcmWave == NULL) || (alWave->adpcmWave->book == NULL))
+					return false;
+
+				signed short* outRawData = new signed short[alWave->len * 4];
+				int nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book, alWave->decode8Only);
+				
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				//unsigned long length = (nSamples * 2);
+				//fwrite(&length, 1, 4, outFileTempRaw);
+
+				for (int x = 0; x < nSamples; x++)
+				{
+					fwrite(&outRawData[x], 1,2, outFileTempRaw);
+				}
+
+				fclose(outFileTempRaw);
+
+				delete [] outRawData;
+			}
+			else if (alWave->type == AL_VOX_WAVE)
+			{
+				// TODO better
+				CString directory = outputFile.Mid(0, (outputFile.ReverseFind('\\')+1));
+
+				FILE* outFileTemp = fopen(directory + "tempASA3d.vox", "wb");
+				if (outFileTemp == NULL)
+				{
+					return false;
+				}
+				fwrite(alBank->percussion->sounds[sound]->wav.wavData, 1, alBank->percussion->sounds[sound]->wav.len, outFileTemp);
+				fflush(outFileTemp);
+				fclose(outFileTemp);
+
+				::SetCurrentDirectory(mainFolder);
+
+				CString tempStr;
+				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->percussion->samplerate, directory + "tempASA3d.vox", outputFile);
+				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
+			}
+			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
+			else if (alWave->type == AL_MUSYX_WAVE)
+			{
+				if ((alWave->adpcmWave == NULL) || (alWave->adpcmWave->book == NULL))
+					return false;
+
+				signed short* outRawData = new signed short[alWave->len * 4];
+				int nSamples = decodemusyxadpcm(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
+				
+				nSamples = alWave->sampleRateNotInDefaultNintendoSpec;
+
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				//unsigned long length = (nSamples * 2);
+				//fwrite(&length, 1, 4, outFileTempRaw);
+
+				for (int x = 0; x < nSamples; x++)
+				{
+					fwrite(&outRawData[x], 1,2, outFileTempRaw);
+				}
+
+				fclose(outFileTempRaw);
+
+				delete [] outRawData;
+			}
+			else if ((alWave->type == AL_SIGNED_RAW8) || (alWave->type == AL_SIGNED_RAW16))
+			{
+				int flags = (alWave->type == AL_SIGNED_RAW16);
+
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				
+				//unsigned long length = alWave->len;
+				//fwrite(&length, 1, 4, outFileTempRaw);
+
+				if ((flags & 1) == 1)
+				{
+					fwrite(&alWave->wavData, 1, alWave->len, outFileTempRaw);
+				}
+				else
+				{
+					for (int r = 0; r < alWave->len; r++)
+					{
+						int value = (signed char)alWave->wavData[r];
+						value += 128;
+						fwrite(&value, 1, 1, outFileTempRaw);
+
+					}
+				}
+
+				fclose(outFileTempRaw);
+			}
+
+			return true;
+		}
+	}
+	return false;
+}
+
+bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool halfSamplingRate)
 {
 	int nSamples=-1;
 	float samplingRateFloat = (float)samplingRate;
@@ -1265,28 +1496,31 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 					wavHeader[0x26] = 0x00;
 					wavHeader[0x27] = 0x00;
 
-					wavHeader[0x34] = ((alWave->rawWave->loop->start >> 0) & 0xFF);
-					wavHeader[0x35] = ((alWave->rawWave->loop->start >> 8) & 0xFF);
-					wavHeader[0x36] = ((alWave->rawWave->loop->start >> 16) & 0xFF);
-					wavHeader[0x37] = ((alWave->rawWave->loop->start >> 24) & 0xFF);
-					wavHeader[0x38] = (((alWave->rawWave->loop->end) >> 0) & 0xFF);
-					wavHeader[0x39] = (((alWave->rawWave->loop->end) >> 8) & 0xFF);
-					wavHeader[0x3A] = (((alWave->rawWave->loop->end) >> 16) & 0xFF);
-					wavHeader[0x3B] = (((alWave->rawWave->loop->end) >> 24) & 0xFF);
+					if (alWave->rawWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->rawWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->rawWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->rawWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->rawWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->rawWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->rawWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->rawWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->rawWave->loop->end) >> 24) & 0xFF);
 
-					if (alWave->rawWave->loop->count == 0xFFFFFFFF)
-					{
-						wavHeader[0x40] = 0x00;
-						wavHeader[0x41] = 0x00;
-						wavHeader[0x42] = 0x00;
-						wavHeader[0x43] = 0x00;
-					}
-					else
-					{
-						wavHeader[0x40] = (((alWave->rawWave->loop->count) >> 0) & 0xFF);
-						wavHeader[0x41] = (((alWave->rawWave->loop->count) >> 8) & 0xFF);
-						wavHeader[0x42] = (((alWave->rawWave->loop->count) >> 16) & 0xFF);
-						wavHeader[0x43] = (((alWave->rawWave->loop->count) >> 24) & 0xFF);
+						if (alWave->rawWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->rawWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->rawWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->rawWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->rawWave->loop->count) >> 24) & 0xFF);
+						}
 					}
 
 					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
@@ -1354,7 +1588,8 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 					return false;
 
 				signed short* outRawData = new signed short[alWave->len * 4];
-				nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
+
+				nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book, alWave->decode8Only);
 				
 				FILE* outFileTempRaw = fopen(outputFile, "wb");
 				if (outFileTempRaw == NULL)
@@ -1473,28 +1708,31 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 					wavHeader[0x26] = 0x00;
 					wavHeader[0x27] = 0x00;
 
-					wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
-					wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
-					wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
-					wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
-					wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
-					wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
-					wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
-					wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
+					if (alWave->adpcmWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
 
-					if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
-					{
-						wavHeader[0x40] = 0x00;
-						wavHeader[0x41] = 0x00;
-						wavHeader[0x42] = 0x00;
-						wavHeader[0x43] = 0x00;
-					}
-					else
-					{
-						wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
-						wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
-						wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
-						wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						}
 					}
 
 
@@ -1706,28 +1944,31 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 					wavHeader[0x26] = 0x00;
 					wavHeader[0x27] = 0x00;
 
-					wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
-					wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
-					wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
-					wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
-					wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
-					wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
-					wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
-					wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
+					if (alWave->adpcmWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
 
-					if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
-					{
-						wavHeader[0x40] = 0x00;
-						wavHeader[0x41] = 0x00;
-						wavHeader[0x42] = 0x00;
-						wavHeader[0x43] = 0x00;
-					}
-					else
-					{
-						wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
-						wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
-						wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
-						wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						}
 					}
 
 
@@ -1854,7 +2095,7 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 
 				if ((flags & 1) == 1)
 				{
-					fwrite(&alWave->wavData, 1, alWave->len, outFileTempRaw);
+					fwrite(alWave->wavData, 1, alWave->len, outFileTempRaw);
 				}
 				else
 				{
@@ -1997,6 +2238,633 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 	return false;
 }
 
+bool CN64AIFCAudio::ExtractPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate)
+{
+	float samplingRateFloat = (float)samplingRate;
+
+	if (alBank->percussion->soundCount > 0)
+	{
+		if (alBank->percussion->sounds[sound] != NULL)
+		{
+			ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+			/*if (!ignoreKeyBase)
+			{
+				if (
+					(alBank->soundBankFormat == STANDARDFORMAT)
+					|| (alBank->soundBankFormat == STANDARDRNCCOMPRESSED)
+					|| (alBank->soundBankFormat == STANDARDRNXCOMPRESSED)
+					|| (alBank->soundBankFormat == BLASTCORPSZLBSTANDARD)
+					|| (alBank->soundBankFormat == NINDEC)
+					)
+				{
+					samplingRateFloat = samplingRateFloat / CN64AIFCAudio::keyTable[alBank->percussion->sounds[sound]->key.keybase];
+				}
+				else if (
+						(alBank->soundBankFormat == SUPERMARIO64FORMAT)
+						|| (alBank->soundBankFormat == MARIOKART64FORMAT) 
+						|| (alBank->soundBankFormat == ZELDAFORMAT)
+						|| (alBank->soundBankFormat == STARFOX64FORMAT)
+						|| (alBank->soundBankFormat == FZEROFORMAT)
+					)
+				{
+					samplingRateFloat = samplingRateFloat / (((*reinterpret_cast<float*> (&alBank->percussion->sounds[sound]->unknown3) - 0.0) < 0.00001) ? 1.0f : *reinterpret_cast<float*> (&alBank->percussion->sounds[sound]->unknown3));
+				}
+			}*/
+
+			if (halfSamplingRate)
+			{
+				samplingRateFloat = samplingRateFloat / 2;
+			}
+
+			if (alWave->type == AL_RAW16_WAVE)
+			{
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				unsigned char* wavHeader = new unsigned char[0x28];
+
+
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + (alWave->len-2) + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
+				wavHeader[0x15] = 0x00;
+				wavHeader[0x16] = 0x01;
+				wavHeader[0x17] = 0x00;
+				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x20] = 0x02;
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = 0x10;
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
+
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+				delete [] wavHeader;
+
+				unsigned long length = (alWave->len-2);
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				fwrite(&alWave->wavData[1], 1, (alWave->len-2), outFileTempRaw);
+
+				
+				if (alWave->rawWave->loop != NULL)
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+					
+					wavHeader[0x24] = 0x01;
+					wavHeader[0x25] = 0x00;
+					wavHeader[0x26] = 0x00;
+					wavHeader[0x27] = 0x00;
+
+					if (alWave->rawWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->rawWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->rawWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->rawWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->rawWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->rawWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->rawWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->rawWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->rawWave->loop->end) >> 24) & 0xFF);
+
+						if (alWave->rawWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->rawWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->rawWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->rawWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->rawWave->loop->count) >> 24) & 0xFF);
+						}
+					}
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+				else
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+
+				fclose(outFileTempRaw);
+			}
+			else if (alWave->type == AL_ADPCM_WAVE)
+			{
+				if ((alWave->adpcmWave == NULL) || (alWave->adpcmWave->book == NULL))
+					return false;
+
+				signed short* outRawData = new signed short[alWave->len * 4];
+				int nSamples = decode(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book, alWave->decode8Only);
+				
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				unsigned char* wavHeader = new unsigned char[0x28];
+
+
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + (nSamples * 2) + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
+				wavHeader[0x15] = 0x00;
+				wavHeader[0x16] = 0x01;
+				wavHeader[0x17] = 0x00;
+				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x20] = 0x02;
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = 0x10;
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
+
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+				delete [] wavHeader;
+
+				unsigned long length = (nSamples * 2);
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				for (int x = 0; x < nSamples; x++)
+				{
+					fwrite(&outRawData[x], 1,2, outFileTempRaw);
+				}
+
+				if (alWave->adpcmWave->loop != NULL)
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+					
+					wavHeader[0x24] = 0x01;
+					wavHeader[0x25] = 0x00;
+					wavHeader[0x26] = 0x00;
+					wavHeader[0x27] = 0x00;
+
+					if (alWave->adpcmWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
+
+						if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						}
+					}
+
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+				else
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+
+				fclose(outFileTempRaw);
+
+				delete [] outRawData;
+			}
+			else if (alWave->type == AL_VOX_WAVE)
+			{
+				CString directory = outputFile.Mid(0, (outputFile.ReverseFind('\\')+1));
+
+				FILE* outFileTemp = fopen(directory + "tempASA3d.vox", "wb");
+				if (outFileTemp == NULL)
+				{
+					return false;
+				}
+				fwrite(alBank->percussion->sounds[sound]->wav.wavData, 1, alBank->percussion->sounds[sound]->wav.len, outFileTemp);
+				fflush(outFileTemp);
+				fclose(outFileTemp);
+
+				::SetCurrentDirectory(mainFolder);
+
+				CString tempStr;
+				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->percussion->samplerate, directory + "tempASA3d.vox", outputFile);
+				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
+			}
+			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
+			else if (alWave->type == AL_MUSYX_WAVE)
+			{
+				if ((alWave->adpcmWave == NULL) || (alWave->adpcmWave->book == NULL))
+					return false;
+
+				signed short* outRawData = new signed short[alWave->len * 4];
+				int nSamples = decodemusyxadpcm(alWave->wavData, outRawData, alWave->len, alWave->adpcmWave->book);
+				
+				nSamples = alWave->sampleRateNotInDefaultNintendoSpec;
+
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				unsigned char* wavHeader = new unsigned char[0x28];
+
+
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + (nSamples * 2) + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
+				wavHeader[0x15] = 0x00;
+				wavHeader[0x16] = 0x01;
+				wavHeader[0x17] = 0x00;
+				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x20] = 0x02;
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = 0x10;
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
+
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+				delete [] wavHeader;
+
+				unsigned long length = (nSamples * 2);
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				for (int x = 0; x < nSamples; x++)
+				{
+					fwrite(&outRawData[x], 1,2, outFileTempRaw);
+				}
+
+				if (alWave->adpcmWave->loop != NULL)
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+					
+					wavHeader[0x24] = 0x01;
+					wavHeader[0x25] = 0x00;
+					wavHeader[0x26] = 0x00;
+					wavHeader[0x27] = 0x00;
+
+					if (alWave->adpcmWave->loop->count > 0)
+					{
+						wavHeader[0x34] = ((alWave->adpcmWave->loop->start >> 0) & 0xFF);
+						wavHeader[0x35] = ((alWave->adpcmWave->loop->start >> 8) & 0xFF);
+						wavHeader[0x36] = ((alWave->adpcmWave->loop->start >> 16) & 0xFF);
+						wavHeader[0x37] = ((alWave->adpcmWave->loop->start >> 24) & 0xFF);
+						wavHeader[0x38] = (((alWave->adpcmWave->loop->end) >> 0) & 0xFF);
+						wavHeader[0x39] = (((alWave->adpcmWave->loop->end) >> 8) & 0xFF);
+						wavHeader[0x3A] = (((alWave->adpcmWave->loop->end) >> 16) & 0xFF);
+						wavHeader[0x3B] = (((alWave->adpcmWave->loop->end) >> 24) & 0xFF);
+
+						if (alWave->adpcmWave->loop->count == 0xFFFFFFFF)
+						{
+							wavHeader[0x40] = 0x00;
+							wavHeader[0x41] = 0x00;
+							wavHeader[0x42] = 0x00;
+							wavHeader[0x43] = 0x00;
+						}
+						else
+						{
+							wavHeader[0x40] = (((alWave->adpcmWave->loop->count) >> 0) & 0xFF);
+							wavHeader[0x41] = (((alWave->adpcmWave->loop->count) >> 8) & 0xFF);
+							wavHeader[0x42] = (((alWave->adpcmWave->loop->count) >> 16) & 0xFF);
+							wavHeader[0x43] = (((alWave->adpcmWave->loop->count) >> 24) & 0xFF);
+						}
+					}
+
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+				else
+				{
+					unsigned char* wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					if (alBank->percussion->sounds[sound]->key.keybase != 0)
+						wavHeader[0x14] = alBank->percussion->sounds[sound]->key.keybase;//0x3C;
+					else
+						wavHeader[0x14] = 0x3C;
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+				}
+
+				fclose(outFileTempRaw);
+
+				delete [] outRawData;
+			}
+			else if ((alWave->type == AL_SIGNED_RAW8) || (alWave->type == AL_SIGNED_RAW16))
+			{
+				int flags = (alWave->type == AL_SIGNED_RAW16);
+
+				FILE* outFileTempRaw = fopen(outputFile, "wb");
+				if (outFileTempRaw == NULL)
+				{
+					MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+					return false;
+				}
+
+				unsigned char wavHeader[0x28];
+
+				wavHeader[0x0] = 0x52;
+				wavHeader[0x1] = 0x49;
+				wavHeader[0x2] = 0x46;
+				wavHeader[0x3] = 0x46;
+				unsigned long chunkSize = 0x28 + alWave->len + 0x44 - 0x8;
+				wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+				wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+				wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+				wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+				wavHeader[0x8] = 0x57;
+				wavHeader[0x9] = 0x41;
+				wavHeader[0xA] = 0x56;
+				wavHeader[0xB] = 0x45;
+				wavHeader[0xC] = 0x66;
+				wavHeader[0xD] = 0x6D;
+				wavHeader[0xE] = 0x74;
+				wavHeader[0xF] = 0x20;
+				wavHeader[0x10] = 0x10;
+				wavHeader[0x11] = 0x00;
+				wavHeader[0x12] = 0x00;
+				wavHeader[0x13] = 0x00;
+				wavHeader[0x14] = 0x01;
+				wavHeader[0x15] = 0x00;
+				wavHeader[0x16] = 0x01;
+				wavHeader[0x17] = 0x00;
+				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * (1 + (flags & 1))) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * (1 + (flags & 1))) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * (1 + (flags & 1))) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * (1 + (flags & 1))) >> 24) & 0xFF);
+				wavHeader[0x20] = (1 + (flags & 1));
+				wavHeader[0x21] = 0x00;
+				wavHeader[0x22] = (((flags & 1) + 1) * 8);
+				wavHeader[0x23] = 0x00;
+				wavHeader[0x24] = 0x64;
+				wavHeader[0x25] = 0x61;
+				wavHeader[0x26] = 0x74;
+				wavHeader[0x27] = 0x61;
+
+				fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+				unsigned long length = alWave->len;
+				fwrite(&length, 1, 4, outFileTempRaw);
+
+				if ((flags & 1) == 1)
+				{
+					fwrite(&alWave->wavData, 1, alWave->len, outFileTempRaw);
+				}
+				else
+				{
+					for (int r = 0; r < alWave->len; r++)
+					{
+						int value = (signed char)alWave->wavData[r];
+						value += 128;
+						fwrite(&value, 1, 1, outFileTempRaw);
+
+					}
+				}
+
+				fclose(outFileTempRaw);
+			}
+
+			return true;
+
+		}
+	}
+	return false;
+}
+
 BOOL CN64AIFCAudio::hiddenExec (PTSTR pCmdLine, CString currentDirectory)
 {
 	::SetCurrentDirectory(currentDirectory);
@@ -2033,7 +2901,7 @@ bool CN64AIFCAudio::AddSound(ALBank*& alBank, int instrument, CString rawWavFile
 {
 	AddSound(alBank, instrument);
 
-	bool replace = ReplaceSoundWithWavData(alBank, instrument, (alBank->inst[instrument]->soundCount-1), rawWavFileName, samplingRate, type, PRIMARY);
+	bool replace = ReplaceSoundWithWavData(alBank, instrument, (alBank->inst[instrument]->soundCount-1), rawWavFileName, samplingRate, type, PRIMARY, false);
 	if (replace)
 	{
 		UpdateAudioOffsets(alBank);
@@ -2082,6 +2950,122 @@ bool CN64AIFCAudio::AddSound(ALBank*& alBank, int instrument)
 
 	return true;
 }
+
+bool CN64AIFCAudio::AddPercussion(ALBank*& alBank, CString rawWavFileName, unsigned long& samplingRate, bool type)
+{
+	AddPercussion(alBank);
+
+	bool replace = ReplacePercussionWithWavData(alBank, (alBank->percussion->soundCount-1), rawWavFileName, samplingRate, type);
+	if (replace)
+	{
+		UpdateAudioOffsets(alBank);
+	}
+	return replace;
+}
+
+bool CN64AIFCAudio::DeleteInstrument(ALBank*& alBank, int instrSel)
+{
+	if (instrSel >= alBank->count)
+		return false;
+
+	DisposeALInst(alBank->inst[instrSel]);
+
+	ALInst** newInstruments = new ALInst*[alBank->count - 1];
+	for (int x = 0; x < instrSel; x++)
+	{
+		newInstruments[x] = alBank->inst[x];
+	}
+
+	for (int x = (instrSel + 1); x < alBank->count; x++)
+	{
+		newInstruments[x-1] = alBank->inst[x];
+	}
+
+	delete [] alBank->inst;
+	alBank->inst = newInstruments;
+
+	alBank->count--;
+	return true;
+}
+
+bool CN64AIFCAudio::AddInstrument(ALBank*& alBank)
+{
+	ALInst** newInstruments = new ALInst*[alBank->count + 1];
+	for (int x = 0; x < alBank->count; x++)
+	{
+		newInstruments[x] = alBank->inst[x];
+	}
+
+	newInstruments[alBank->count] = new ALInst();
+	newInstruments[alBank->count]->bendRange = 0x0000;
+	newInstruments[alBank->count]->flags = 0x00;
+	newInstruments[alBank->count]->pan = 0x40;
+	newInstruments[alBank->count]->priority = 0x05;
+	newInstruments[alBank->count]->samplerate = 0;
+
+	newInstruments[alBank->count]->soundCount = 0;
+	newInstruments[alBank->count]->sounds = new ALSound*[1];
+	newInstruments[alBank->count]->sounds[0] = NULL;
+
+	newInstruments[alBank->count]->tremDelay = 0x00;
+	newInstruments[alBank->count]->tremDepth = 0x00;
+	newInstruments[alBank->count]->tremRate = 0x00;
+	newInstruments[alBank->count]->tremType = 0x00;
+	newInstruments[alBank->count]->vibDelay = 0x00;
+	newInstruments[alBank->count]->vibDepth = 0x00;
+	newInstruments[alBank->count]->vibRate = 0x00;
+	newInstruments[alBank->count]->vibType = 0x00;
+	newInstruments[alBank->count]->volume = 0x7F;
+
+	delete [] alBank->inst;
+	alBank->inst = newInstruments;
+
+	alBank->count++;
+	return true;
+}
+
+bool CN64AIFCAudio::AddPercussion(ALBank*& alBank)
+{
+	ALSound** newSounds = new ALSound*[alBank->percussion->soundCount + 1];
+	for (int x = 0; x < alBank->percussion->soundCount; x++)
+	{
+		newSounds[x] = alBank->percussion->sounds[x];
+	}
+
+	newSounds[alBank->percussion->soundCount] = new ALSound();
+	newSounds[alBank->percussion->soundCount]->env.attackTime = 0;
+	newSounds[alBank->percussion->soundCount]->env.attackVolume = 0x7F;
+	newSounds[alBank->percussion->soundCount]->env.decayTime = 0xFFFFFFFF;
+	newSounds[alBank->percussion->soundCount]->env.decayVolume = 0x7F;
+	newSounds[alBank->percussion->soundCount]->env.releaseTime = 0;
+	newSounds[alBank->percussion->soundCount]->flags = 0;
+	newSounds[alBank->percussion->soundCount]->key.detune = 0;
+	newSounds[alBank->percussion->soundCount]->key.keybase = 0x3C;
+	newSounds[alBank->percussion->soundCount]->key.keymax = 0x7F;
+	newSounds[alBank->percussion->soundCount]->key.keymin = 0;
+	newSounds[alBank->percussion->soundCount]->key.velocitymax = 0x7F;
+	newSounds[alBank->percussion->soundCount]->key.velocitymin = 0;
+	newSounds[alBank->percussion->soundCount]->samplePan = 0x40;
+	newSounds[alBank->percussion->soundCount]->sampleVolume = 0x7F;
+	newSounds[alBank->percussion->soundCount]->wav.base = 0;
+	newSounds[alBank->percussion->soundCount]->wav.len = 4;
+	newSounds[alBank->percussion->soundCount]->wav.type = AL_RAW16_WAVE;
+	newSounds[alBank->percussion->soundCount]->wav.flags = 0;
+	newSounds[alBank->percussion->soundCount]->wav.wavData = new unsigned char[4];
+	newSounds[alBank->percussion->soundCount]->wav.wavData[0] = 0x3;
+	newSounds[alBank->percussion->soundCount]->wav.wavData[1] = 0x0;
+	newSounds[alBank->percussion->soundCount]->wav.wavData[2] = 0x0;
+	newSounds[alBank->percussion->soundCount]->wav.wavData[3] = 0x0;
+	newSounds[alBank->percussion->soundCount]->wav.rawWave = new ALRAWWaveInfo();
+	newSounds[alBank->percussion->soundCount]->wav.rawWave->loop = NULL;
+
+	delete [] alBank->percussion->sounds;
+	alBank->percussion->sounds = newSounds;
+
+	alBank->percussion->soundCount++;
+
+	return true;
+}
 void CN64AIFCAudio::DeleteSound(ALBank*& alBank, int instrument, int sound)
 {
 	if ((alBank->soundBankFormat != STANDARDFORMAT) && (alBank->soundBankFormat != SUPERMARIO64FORMAT)  && (alBank->soundBankFormat != N64PTRWAVETABLETABLEV2))
@@ -2107,6 +3091,31 @@ void CN64AIFCAudio::DeleteSound(ALBank*& alBank, int instrument, int sound)
 
 	UpdateAudioOffsets(alBank);
 }
+void CN64AIFCAudio::DeletePercussion(ALBank*& alBank, int sound)
+{
+	if ((alBank->soundBankFormat != STANDARDFORMAT) && (alBank->soundBankFormat != SUPERMARIO64FORMAT)  && (alBank->soundBankFormat != N64PTRWAVETABLETABLEV2))
+	{
+		::MessageBox(NULL, "Cannot delete sound in this format", "Cannot delete", NULL);
+		return;
+	}
+	ALSound** newSounds = new ALSound*[alBank->percussion->soundCount - 1];
+	for (int x = 0; x < sound; x++)
+	{
+		newSounds[x] = alBank->percussion->sounds[x];
+	}
+
+	for (int x = (sound+1); x < alBank->percussion->soundCount; x++)
+	{
+		newSounds[x-1] = alBank->percussion->sounds[x];
+	}
+
+	delete [] alBank->percussion->sounds;
+	alBank->percussion->sounds = newSounds;
+
+	alBank->percussion->soundCount--;
+
+	UpdateAudioOffsets(alBank);
+}
 void CN64AIFCAudio::MoveUpSound(ALBank*& alBank, int instrument, int sound)
 {
 	if (sound == 0)
@@ -2115,6 +3124,18 @@ void CN64AIFCAudio::MoveUpSound(ALBank*& alBank, int instrument, int sound)
 	ALSound* soundAl = alBank->inst[instrument]->sounds[sound-1];
 	alBank->inst[instrument]->sounds[sound-1] = alBank->inst[instrument]->sounds[sound];
 	alBank->inst[instrument]->sounds[sound] = soundAl;
+
+	UpdateAudioOffsets(alBank);
+}
+
+void CN64AIFCAudio::MoveUpPercussion(ALBank*& alBank, int sound)
+{
+	if (sound == 0)
+		return;
+
+	ALSound* soundAl = alBank->percussion->sounds[sound-1];
+	alBank->percussion->sounds[sound-1] = alBank->percussion->sounds[sound];
+	alBank->percussion->sounds[sound] = soundAl;
 
 	UpdateAudioOffsets(alBank);
 }
@@ -2157,7 +3178,7 @@ void CN64AIFCAudio::ExportPredictors(ALBank*& alBank, int instrument, int sound,
 	fclose(outFile);
 }
 
-void CN64AIFCAudio::ExportPercussionPredictors(ALBank*& alBank, int percussion, CString fileName)
+void CN64AIFCAudio::ExportPercussionPredictors(ALBank*& alBank, int sound, CString fileName)
 {
 	FILE* outFile = fopen(fileName, "wb");
 	if (outFile == NULL)
@@ -2166,7 +3187,33 @@ void CN64AIFCAudio::ExportPercussionPredictors(ALBank*& alBank, int percussion, 
 		return;
 	}
 
-	ALWave* alWave = &alBank->alPercussion[percussion].wav;
+	ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+	unsigned long tempLong = Flip32Bit(alWave->adpcmWave->book->order);
+	fwrite(&tempLong, 1, 4, outFile);
+
+	tempLong = Flip32Bit(alWave->adpcmWave->book->npredictors);
+	fwrite(&tempLong, 1, 4, outFile);
+
+	for (int z = 0; z < (alWave->adpcmWave->book->order * alWave->adpcmWave->book->npredictors * 8); z++)
+	{
+		unsigned short tempShort = Flip16Bit(alWave->adpcmWave->book->predictors[z]);
+		fwrite(&tempShort, 1, 2, outFile);
+	}
+
+	fclose(outFile);
+}
+
+void CN64AIFCAudio::ExportEADPercussionPredictors(ALBank*& alBank, int percussion, CString fileName)
+{
+	FILE* outFile = fopen(fileName, "wb");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL, "Error opening file", "Error", NULL);
+		return;
+	}
+
+	ALWave* alWave = &alBank->eadPercussion[percussion].wav;
 
 	unsigned long tempLong = Flip32Bit(alWave->adpcmWave->book->order);
 	fwrite(&tempLong, 1, 4, outFile);
@@ -2270,7 +3317,7 @@ void CN64AIFCAudio::ImportPredictors(ALBank*& alBank, int instrument, int sound,
 	UpdateAudioOffsets(alBank);
 }
 
-void CN64AIFCAudio::ImportPercussionPredictors(ALBank*& alBank, int percussion, CString fileName)
+void CN64AIFCAudio::ImportPercussionPredictors(ALBank*& alBank, int sound, CString fileName)
 {
 	int fileSize = GetSizeFile(fileName);
 	FILE* inFile = fopen(fileName, "rb");
@@ -2292,7 +3339,56 @@ void CN64AIFCAudio::ImportPercussionPredictors(ALBank*& alBank, int percussion, 
 	fread(buffer, 1, fileSize, inFile);
 	fclose(inFile);
 	
-	ALWave* alWave = &alBank->alPercussion[percussion].wav;
+	ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+	alWave->adpcmWave->book->order = CharArrayToLong(&buffer[0]);
+	alWave->adpcmWave->book->npredictors = CharArrayToLong(&buffer[4]);
+
+	if (fileSize != (8 + ((alWave->adpcmWave->book->order * alWave->adpcmWave->book->npredictors * 8) * 2)))
+	{
+		delete [] buffer;
+		MessageBox(NULL, "Error invalid file size", "Error", NULL);
+		return;
+	}
+
+	delete [] alWave->adpcmWave->book->predictors;
+	alWave->adpcmWave->book->predictors = new signed short[(alWave->adpcmWave->book->order * alWave->adpcmWave->book->npredictors * 8)];
+	
+	
+
+	for (int z = 0; z < (alWave->adpcmWave->book->order * alWave->adpcmWave->book->npredictors * 8); z++)
+	{
+		alWave->adpcmWave->book->predictors[z] = CharArrayToShort(&buffer[0x8 + (z * 2)]);
+	}
+
+	delete [] buffer;
+
+	UpdateAudioOffsets(alBank);
+}
+
+void CN64AIFCAudio::ImportEADPercussionPredictors(ALBank*& alBank, int percussion, CString fileName)
+{
+	int fileSize = GetSizeFile(fileName);
+	FILE* inFile = fopen(fileName, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Error opening", "Error", NULL);
+		return;
+	}
+
+	if (fileSize < 0x8)
+	{
+		MessageBox(NULL, "Error too small file", "Error", NULL);
+		fclose(inFile);
+		return;
+	}
+
+
+	unsigned char* buffer = new unsigned char[fileSize];
+	fread(buffer, 1, fileSize, inFile);
+	fclose(inFile);
+	
+	ALWave* alWave = &alBank->eadPercussion[percussion].wav;
 
 	alWave->adpcmWave->book->order = CharArrayToLong(&buffer[0]);
 	alWave->adpcmWave->book->npredictors = CharArrayToLong(&buffer[4]);
@@ -2469,7 +3565,8 @@ void CN64AIFCAudio::ImportRawData(ALBank*& alBank, int instrument, int sound, CS
 	UpdateAudioOffsets(alBank);
 }
 
-void CN64AIFCAudio::ExportRawPercussionData(ALBank*& alBank, int sound, CString fileName)
+
+void CN64AIFCAudio::ExportPercussionRawData(ALBank*& alBank, int sound, CString fileName)
 {
 	FILE* outFile = fopen(fileName, "wb");
 	if (outFile == NULL)
@@ -2478,14 +3575,14 @@ void CN64AIFCAudio::ExportRawPercussionData(ALBank*& alBank, int sound, CString 
 		return;
 	}
 
-	ALWave* alWave = &alBank->alPercussion[sound].wav;
+	ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
 
 	fwrite(alWave->wavData, 1, alWave->len, outFile);
 
 	fclose(outFile);
 }
 
-void CN64AIFCAudio::ImportRawPercussionData(ALBank*& alBank, int sound, CString fileName)
+void CN64AIFCAudio::ImportPercussionRawData(ALBank*& alBank, int sound, CString fileName)
 {
 	int fileSize = GetSizeFile(fileName);
 	FILE* inFile = fopen(fileName, "rb");
@@ -2495,7 +3592,52 @@ void CN64AIFCAudio::ImportRawPercussionData(ALBank*& alBank, int sound, CString 
 		return;
 	}
 
-	ALWave* alWave = &alBank->alPercussion[sound].wav;
+	ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+	alWave->len = fileSize;
+	delete [] alWave->wavData;
+
+	alWave->wavData = new unsigned char[fileSize];
+	fread(alWave->wavData, 1, fileSize, inFile);
+	fclose(inFile);
+
+	if (alBank->soundBankFormat == SUPERMARIO64FORMAT)
+	{
+		alWave->adpcmWave->loop->start = 0;
+		alWave->adpcmWave->loop->end = (fileSize * 7) / 4;
+		alWave->adpcmWave->loop->count = 0;
+	}
+
+	UpdateAudioOffsets(alBank);
+}
+
+void CN64AIFCAudio::ExportEADRawPercussionData(ALBank*& alBank, int sound, CString fileName)
+{
+	FILE* outFile = fopen(fileName, "wb");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL, "Error opening file", "Error", NULL);
+		return;
+	}
+
+	ALWave* alWave = &alBank->eadPercussion[sound].wav;
+
+	fwrite(alWave->wavData, 1, alWave->len, outFile);
+
+	fclose(outFile);
+}
+
+void CN64AIFCAudio::ImportEADRawPercussionData(ALBank*& alBank, int sound, CString fileName)
+{
+	int fileSize = GetSizeFile(fileName);
+	FILE* inFile = fopen(fileName, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Error opening", "Error", NULL);
+		return;
+	}
+
+	ALWave* alWave = &alBank->eadPercussion[sound].wav;
 	
 	alWave->len = fileSize;
 	delete [] alWave->wavData;
@@ -2516,18 +3658,27 @@ void CN64AIFCAudio::ImportRawPercussionData(ALBank*& alBank, int sound, CString 
 
 void CN64AIFCAudio::ExportRawSfxData(ALBank*& alBank, int sound, CString fileName)
 {
-	FILE* outFile = fopen(fileName, "wb");
-	if (outFile == NULL)
-	{
-		MessageBox(NULL, "Error opening file", "Error", NULL);
-		return;
-	}
-
 	ALWave* alWave = alBank->alSfx[sound];
 
-	fwrite(alWave->wavData, 1, alWave->len, outFile);
+	if (alWave != NULL)
+	{
 
-	fclose(outFile);
+		FILE* outFile = fopen(fileName, "wb");
+		if (outFile == NULL)
+		{
+			MessageBox(NULL, "Error opening file", "Error", NULL);
+			return;
+		}
+
+		fwrite(alWave->wavData, 1, alWave->len, outFile);
+
+		fclose(outFile);
+	}
+	else
+	{
+		MessageBox(NULL, "Nothing to export", "Error", NULL);
+		return;
+	}
 }
 
 void CN64AIFCAudio::ImportRawSfxData(ALBank*& alBank, int sound, CString fileName)
@@ -2564,6 +3715,18 @@ void CN64AIFCAudio::MoveDownSound(ALBank*& alBank, int instrument, int sound)
 	UpdateAudioOffsets(alBank);
 }
 
+void CN64AIFCAudio::MoveDownPercussion(ALBank*& alBank, int sound)
+{
+	if (sound == (alBank->percussion->soundCount-1))
+		return;
+
+	ALSound* soundAl = alBank->percussion->sounds[sound+1];
+	alBank->percussion->sounds[sound+1] = alBank->percussion->sounds[sound];
+	alBank->percussion->sounds[sound] = soundAl;
+
+	UpdateAudioOffsets(alBank);
+}
+
 bool CN64AIFCAudio::ReadWavData(CString rawWavFileName, unsigned char*& rawData, int& rawLength, unsigned long& samplingRate, bool& hasLoopData, unsigned char& keyBase, unsigned long& loopStart, unsigned long& loopEnd, unsigned long& loopCount)
 {
 	FILE* inWavFile = fopen(rawWavFileName, "rb");
@@ -2583,12 +3746,14 @@ bool CN64AIFCAudio::ReadWavData(CString rawWavFileName, unsigned char*& rawData,
 
 	if (((((((wavData[0] << 8) | wavData[1]) << 8) | wavData[2]) << 8) | wavData[3]) != 0x52494646)
 	{
+		delete [] wavData;
 		MessageBox(NULL, "Error not RIFF wav", "Error", NULL);
 		return false;
 	}
 
 	if (((((((wavData[0x8] << 8) | wavData[0x9]) << 8) | wavData[0xA]) << 8) | wavData[0xB]) != 0x57415645)
 	{
+		delete [] wavData;
 		MessageBox(NULL, "Error not WAVE wav", "Error", NULL);
 		return false;
 	}
@@ -2690,7 +3855,7 @@ bool CN64AIFCAudio::ReadWavData(CString rawWavFileName, unsigned char*& rawData,
 	return returnFlag;
 }
 
-bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType, byte primSel)
+bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType, byte primSel, bool decode8Only)
 {
 	unsigned char* wavPCMData;
 	int rawLength;
@@ -2761,6 +3926,8 @@ bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int
 
 	if (newType == AL_RAW16_WAVE)
 	{
+		alWave->decode8Only = false;
+
 		alWave->type = AL_RAW16_WAVE;
 		alWave->rawWave = new ALRAWWaveInfo();
 		alWave->rawWave->loop = NULL;/*new ALRawLoop();
@@ -2805,6 +3972,8 @@ bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int
 	}
 	else
 	{
+		alWave->decode8Only = decode8Only;
+
 		alWave->type = AL_ADPCM_WAVE;
 		alWave->adpcmWave = new ALADPCMWaveInfo();
 		alWave->adpcmWave->loop = NULL;/*new ALRawLoop();
@@ -2822,14 +3991,33 @@ bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int
 			pcmSamples[x] = (signed short)(((wavPCMData[x*2+1] << 8)) | wavPCMData[x*2]);
 		}
 
-		alWave->adpcmWave->book->predictors = determineBestPredictors(alBank, alWave->adpcmWave->book->npredictors, alWave->adpcmWave->book->order, pcmSamples, numberSamples);
+		if (decode8Only)
+		{
+			alWave->adpcmWave->book->predictors = new signed short[0x10];
+			for (int x = 0; x < 0x10; x++)
+				alWave->adpcmWave->book->predictors[x] = 0x00;
+
+			alWave->adpcmWave->book->npredictors = 1;
+			alWave->adpcmWave->book->order = 2;
+		}
+		else
+		{
+			alWave->adpcmWave->book->predictors = determineBestPredictors(alBank, alWave->adpcmWave->book->npredictors, alWave->adpcmWave->book->order, pcmSamples, numberSamples);
+		}
 
 		delete [] alWave->wavData;
 
 		unsigned long vadpcmOutputLength;
 		unsigned char* vadpcmData = new unsigned char[numberSamples];
 
-		encode(pcmSamples, numberSamples, vadpcmData, vadpcmOutputLength, alWave->adpcmWave->book);
+		if (decode8Only)
+		{
+			encode_half(pcmSamples, numberSamples, vadpcmData, vadpcmOutputLength, alWave->adpcmWave->book);
+		}
+		else
+		{
+			encode(pcmSamples, numberSamples, vadpcmData, vadpcmOutputLength, alWave->adpcmWave->book);
+		}
 
 		alWave->wavData = new unsigned char[vadpcmOutputLength];
 		memcpy(alWave->wavData, vadpcmData, vadpcmOutputLength);
@@ -2903,12 +4091,187 @@ bool CN64AIFCAudio::ReplaceSoundWithWavData(ALBank*& alBank, int instrument, int
 	return true;
 }
 
-bool CN64AIFCAudio::ReplacePercussionWithWavData(ALBank*& alBank, int percussion, CString rawWavFileName, unsigned long& samplingRate, bool newType)
+bool CN64AIFCAudio::ReplacePercussionWithWavData(ALBank*& alBank, int sound, CString rawWavFileName, unsigned long& samplingRate, bool newType)
 {
 	unsigned char* wavPCMData;
 	int rawLength;
 
-	if (alBank->alPercussion == NULL)
+	if (alBank->percussion == NULL)
+		return false;
+
+	bool hasLoopData = false;
+	unsigned char keyBase = 0x3C;
+	unsigned long loopStart = 0x00000000;
+	unsigned long loopEnd = 0x00000000;
+	unsigned long loopCount = 0x00000000;
+
+	if (!ReadWavData(rawWavFileName, wavPCMData, rawLength, samplingRate, hasLoopData, keyBase, loopStart, loopEnd, loopCount))
+	{
+		return false;
+	}
+
+	ALWave* alWave = &alBank->percussion->sounds[sound]->wav;
+
+	if (alWave->type == AL_ADPCM_WAVE)
+	{
+		if (alWave->adpcmWave->loop != NULL)
+		{
+			delete alWave->adpcmWave->loop;
+			alWave->adpcmWave->loop = NULL;
+		}
+
+		if (alWave->adpcmWave->book != NULL)
+		{
+			if (alWave->adpcmWave->book->predictors != NULL)
+			{
+				delete [] alWave->adpcmWave->book->predictors;
+				alWave->adpcmWave->book->predictors = NULL;
+			}
+			delete alWave->adpcmWave->book;
+			alWave->adpcmWave->book = NULL;
+		}
+
+		delete alWave->adpcmWave->book;
+		delete alWave->adpcmWave;
+		alWave->adpcmWave = NULL;
+		alWave->rawWave = NULL;
+	}
+	else if (alWave->type == AL_RAW16_WAVE)
+	{
+		if (alWave->rawWave->loop != NULL)
+		{
+			delete alWave->rawWave->loop;
+			alWave->rawWave->loop = NULL;
+		}
+		delete alWave->rawWave;
+		alWave->rawWave = NULL;
+		alWave->adpcmWave = NULL;
+	}
+
+	if (newType == AL_RAW16_WAVE)
+	{
+		alWave->type = AL_RAW16_WAVE;
+		alWave->rawWave = new ALRAWWaveInfo();
+		alWave->rawWave->loop = NULL;/*new ALRawLoop();
+		alWave->rawWave->loop->start = 0;
+		alWave->rawWave->loop->end = (rawLength-2);
+		alWave->rawWave->loop->count = 0;*/
+
+		delete [] alWave->wavData;
+		alWave->wavData = new unsigned char[rawLength + 2];
+		alWave->wavData[0] = 0x03;
+		alWave->wavData[rawLength + 1] = 0x00;
+		memcpy(&alWave->wavData[1], wavPCMData, rawLength);
+		alWave->len = rawLength + 2;
+
+		alBank->percussion->sounds[sound]->flags = 0;
+		/*alBank->percussion->sounds[sound]->env.attackTime = 0;
+		alBank->percussion->sounds[sound]->env.attackVolume = 0x7F;
+		alBank->percussion->sounds[sound]->env.decayTime = 0xFFFFFFFF;
+		alBank->percussion->sounds[sound]->env.decayVolume = 0x7F;
+		alBank->percussion->sounds[sound]->env.releaseTime = 0;
+		
+		alBank->percussion->sounds[sound]->key.detune = 0;*/
+		if (hasLoopData)
+			alBank->percussion->sounds[sound]->key.keybase = keyBase;
+		/*else
+			alBank->percussion->sounds[sound]->key.keybase = 0x3C;
+		alBank->percussion->sounds[sound]->key.keymax = 0x7F;
+		alBank->percussion->sounds[sound]->key.keymin = 0;
+		alBank->percussion->sounds[sound]->key.velocitymax = 0x7F;
+		alBank->percussion->sounds[sound]->key.velocitymin = 0;
+		alBank->percussion->sounds[sound]->samplePan = 0x40;
+		alBank->percussion->sounds[sound]->sampleVolume = 0x7F;*/
+		alWave->flags = 0;
+
+		if (hasLoopData)
+		{
+			alWave->rawWave->loop = new ALRawLoop();
+			alWave->rawWave->loop->count = loopCount;
+			alWave->rawWave->loop->start = loopStart;
+			alWave->rawWave->loop->end = loopEnd;
+		}
+	}
+	else
+	{
+		alWave->type = AL_ADPCM_WAVE;
+		alWave->adpcmWave = new ALADPCMWaveInfo();
+		alWave->adpcmWave->loop = NULL;/*new ALRawLoop();
+		alWave->rawWave->loop->start = 0;
+		alWave->rawWave->loop->end = (rawLength-2);
+		alWave->rawWave->loop->count = 0;*/
+
+		alWave->adpcmWave->book = new ALADPCMBook();
+
+		int numberSamples = (rawLength / 2);
+		signed short* pcmSamples = new signed short[numberSamples];
+
+		for (int x = 0; x < numberSamples; x++)
+		{
+			pcmSamples[x] = (signed short)(((wavPCMData[x*2+1] << 8)) | wavPCMData[x*2]);
+		}
+
+		alWave->adpcmWave->book->predictors = determineBestPredictors(alBank, alWave->adpcmWave->book->npredictors, alWave->adpcmWave->book->order, pcmSamples, numberSamples);
+
+		delete [] alWave->wavData;
+
+		unsigned long vadpcmOutputLength;
+		unsigned char* vadpcmData = new unsigned char[numberSamples];
+
+		encode(pcmSamples, numberSamples, vadpcmData, vadpcmOutputLength, alWave->adpcmWave->book);
+
+		alWave->wavData = new unsigned char[vadpcmOutputLength];
+		memcpy(alWave->wavData, vadpcmData, vadpcmOutputLength);
+		alWave->len = vadpcmOutputLength;
+
+		alBank->percussion->sounds[sound]->flags = 0;
+		/*alBank->percussion->sounds[sound]->env.attackTime = 0;
+		alBank->percussion->sounds[sound]->env.attackVolume = 0x7F;
+		alBank->percussion->sounds[sound]->env.decayTime = 0xFFFFFFFF;
+		alBank->percussion->sounds[sound]->env.decayVolume = 0x7F;
+		alBank->percussion->sounds[sound]->env.releaseTime = 0;
+		alBank->percussion->sounds[sound]->key.detune = 0;*/
+		if (hasLoopData)
+			alBank->percussion->sounds[sound]->key.keybase = keyBase;
+		/*else
+			alBank->percussion->sounds[sound]->key.keybase = 0x3C;
+		alBank->percussion->sounds[sound]->key.keymax = 0x7F;
+		alBank->percussion->sounds[sound]->key.keymin = 0;
+		alBank->percussion->sounds[sound]->key.velocitymax = 0x7F;
+		alBank->percussion->sounds[sound]->key.velocitymin = 0;
+		alBank->percussion->sounds[sound]->samplePan = 0x40;
+		alBank->percussion->sounds[sound]->sampleVolume = 0x7F;*/
+		alWave->flags = 0;
+
+		if (hasLoopData)
+		{
+			alWave->adpcmWave->loop = new ALADPCMloop();
+			alWave->adpcmWave->loop->count = loopCount;
+			alWave->adpcmWave->loop->start = loopStart;
+			alWave->adpcmWave->loop->end = loopEnd;
+			alWave->adpcmWave->loop->unknown1 = 0;
+			for (int x = 0; x < 0x10; x++)
+				alWave->adpcmWave->loop->state[x] = alWave->adpcmWave->book->predictors[x];
+
+		}
+
+		delete [] pcmSamples;
+		delete [] vadpcmData;
+	}
+
+	delete [] wavPCMData;
+
+	UpdateAudioOffsets(alBank);
+
+	return true;
+}
+
+bool CN64AIFCAudio::ReplaceEADPercussionWithWavData(ALBank*& alBank, int percussion, CString rawWavFileName, unsigned long& samplingRate, bool newType)
+{
+	unsigned char* wavPCMData;
+	int rawLength;
+
+	if (alBank->eadPercussion == NULL)
 		return false;
 
 	bool hasLoopData = false;
@@ -2923,7 +4286,7 @@ bool CN64AIFCAudio::ReplacePercussionWithWavData(ALBank*& alBank, int percussion
 	}
 
 	ALWave* alWave = NULL;
-	alWave = &alBank->alPercussion[percussion].wav;
+	alWave = &alBank->eadPercussion[percussion].wav;
 
 	if (alWave->type == AL_ADPCM_WAVE)
 	{
@@ -3032,7 +4395,7 @@ bool CN64AIFCAudio::ReplacePercussionWithWavData(ALBank*& alBank, int percussion
 
 			if (hasLoopData)
 			{
-				alBank->alPercussion[percussion].keyBase = *reinterpret_cast<unsigned long*> (&CN64AIFCAudio::keyTable[keyBase]);
+				alBank->eadPercussion[percussion].keyBase = *reinterpret_cast<unsigned long*> (&CN64AIFCAudio::keyTable[keyBase]);
 			}
 		}
 		else
@@ -3158,6 +4521,7 @@ void CN64AIFCAudio::WriteAudioToFile(ALBank*& alBank, CString outFileNameCtl, CS
 	FILE* outFileTbl = fopen(outFileNameTbl, "wb");
 	if (outFileTbl == NULL)
 	{
+		fclose(outFileCtl);
 		MessageBox(NULL, "Cannot open tbl file", "Error", NULL);
 		return;
 	}
@@ -3360,7 +4724,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV1(ALBank*& alBank, unsigned char*&
 
 		if (sameBank == -1)
 		{
-			bookOffsetsWav[x] = bookWriteSpot;
+			bookOffsetsWav[x] = outputCtlCounter;
 			WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
 
 			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
@@ -3630,7 +4994,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 
 		if (sameBank == -1)
 		{
-			bookOffsetsWav[x] = bookWriteSpot;
+			bookOffsetsWav[x] = outputCtlCounter;
 			WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
 
 			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
@@ -3702,6 +5066,7 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 
 	for (int x = 0; x < alBank->count; x++)
 	{
+		// Coarse Tune
 		temporaryCtlBuffer[outputCtlCounter] = alBank->inst[x]->volume;
 		outputCtlCounter++;
 	}
@@ -3716,6 +5081,22 @@ void CN64AIFCAudio::WriteAudioN64PtrWavetableV2(ALBank*& alBank, unsigned char*&
 	}
 
 	WriteLongToBuffer(temporaryCtlBuffer, 0x28, outputCtlCounter);
+
+	for (int x = 0; x < alBank->count; x++)
+	{
+		// Fine tune
+		temporaryCtlBuffer[outputCtlCounter] = alBank->inst[x]->pan;
+		outputCtlCounter++;
+	}
+
+	if ((outputCtlCounter % 4) != 0)
+	{
+		int pad = 4 - (outputCtlCounter % 4);
+		for (int z = 0; z < pad; z++)
+		{
+			temporaryCtlBuffer[outputCtlCounter++] = 0;
+		}
+	}
 
 	delete [] instrumentSoundStartLookup;
 	delete [] bookOffsetsWav;
@@ -3961,13 +5342,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 		ALBank* alBank = results[soundBankNumber].bank;
 
 		unsigned long instrumentALLookup = 0;
-		unsigned long* instrumentSoundStartLookup = new unsigned long[alBank->count+alBank->countPercussion];
-		unsigned long* offsetsEnv = new unsigned long[alBank->count+alBank->countPercussion];
-		unsigned long* offsetsWav = new unsigned long[alBank->count+alBank->countPercussion];
-		unsigned long* bookOffsetsWav = new unsigned long[alBank->count+alBank->countPercussion];
-		unsigned long* adpcmRawLoopOffsetsWav = new unsigned long[alBank->count+alBank->countPercussion];
+		unsigned long* instrumentSoundStartLookup = new unsigned long[alBank->count+alBank->countEADPercussion];
+		unsigned long* offsetsEnv = new unsigned long[alBank->count+alBank->countEADPercussion];
+		unsigned long* offsetsWav = new unsigned long[alBank->count+alBank->countEADPercussion];
+		unsigned long* bookOffsetsWav = new unsigned long[alBank->count+alBank->countEADPercussion];
+		unsigned long* adpcmRawLoopOffsetsWav = new unsigned long[alBank->count+alBank->countEADPercussion];
 
-		unsigned long* tblOffsets = new unsigned long[alBank->count+alBank->countPercussion];
+		unsigned long* tblOffsets = new unsigned long[alBank->count+alBank->countEADPercussion];
 
 		unsigned long* offsetsWavSecondary = new unsigned long[alBank->count];
 		unsigned long* bookOffsetsWavSecondary = new unsigned long[alBank->count];
@@ -3988,7 +5369,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->count);
 		outputCtlCounter += 4;
-		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->countPercussion);
+		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->countEADPercussion);
 		outputCtlCounter += 4;
 		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->unknown2);
 		outputCtlCounter += 4;
@@ -5224,7 +6605,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 		int startPercussionInListing = alBank->count;
 
-		for (int y = 0; y < alBank->countPercussion; y++)
+		for (int y = 0; y < alBank->countEADPercussion; y++)
 		{
 			offsetsWav[startPercussionInListing+y] = (outputCtlCounter - soundDataOffset);
 
@@ -5242,7 +6623,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						if (!alBank->inst[w]->sounds[0]->hasWavePrevious)
 							continue;
 
-						if (CompareWavs(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
+						if (CompareWavs(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
 						{
 							entireMatch = w;
 							offsetsWav[startPercussionInListing+y] = offsetsWavPrevious[entireMatch];
@@ -5263,7 +6644,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 					if (alBank->inst[w]->sounds[0] != NULL)
 					{
-						if (CompareWavs(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
+						if (CompareWavs(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
 						{
 							entireMatch = w;
 							offsetsWav[startPercussionInListing+y] = offsetsWav[entireMatch];
@@ -5287,7 +6668,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						if (!alBank->inst[w]->sounds[0]->hasWaveSecondary)
 							continue;
 
-						if (CompareWavs(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
+						if (CompareWavs(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
 						{
 							entireMatch = w;
 							offsetsWav[startPercussionInListing+y] = offsetsWavSecondary[entireMatch];
@@ -5307,7 +6688,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						break;
 
 
-					if (CompareWavs(&alBank->alPercussion[y].wav, &alBank->alPercussion[w].wav))
+					if (CompareWavs(&alBank->eadPercussion[y].wav, &alBank->eadPercussion[w].wav))
 					{
 						entireMatch = w;
 						offsetsWav[startPercussionInListing+y] = offsetsWav[startPercussionInListing+w];
@@ -5325,7 +6706,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				int sameBook = -1;
 
 				unsigned long loopOutputPosition = outputCtlCounter + 0x20;
-				if (alBank->alPercussion[y].wav.adpcmWave->book != NULL)
+				if (alBank->eadPercussion[y].wav.adpcmWave->book != NULL)
 				{						
 					bookOffsetsWav[startPercussionInListing+y] = loopOutputPosition;
 
@@ -5337,7 +6718,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 							{
 								if (alBank->inst[w]->sounds[0]->hasWavePrevious)
 								{
-									if (CompareBooks(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
+									if (CompareBooks(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
 									{
 										sameBook = w;
 										bookOffsetsWav[startPercussionInListing+y] = bookOffsetsWavPrevious[x][w];
@@ -5354,7 +6735,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{
 							if (alBank->inst[w]->sounds[0] != NULL)
 							{
-								if (CompareBooks(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
+								if (CompareBooks(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
 								{
 									sameBook = w;
 									bookOffsetsWav[startPercussionInListing+y] = bookOffsetsWav[x][w];
@@ -5372,7 +6753,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 							{
 								if (alBank->inst[w]->sounds[0]->hasWaveSecondary)
 								{
-									if (CompareBooks(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
+									if (CompareBooks(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
 									{
 										sameBook = w;
 										bookOffsetsWav[startPercussionInListing+y] = bookOffsetsWavSecondary[x][w];
@@ -5387,7 +6768,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 					{
 						for (int w = 0; w < y; w++)
 						{
-							if (CompareBooks(&alBank->alPercussion[y].wav, &alBank->inst[x]->alPercussion[w].wav))
+							if (CompareBooks(&alBank->eadPercussion[y].wav, &alBank->inst[x]->eadPercussion[w].wav))
 							{
 								sameBook = w;
 								bookOffsetsWav[startPercussionInListing+y] = bookOffsetsWav[x][startPercussionInListing+w];
@@ -5398,7 +6779,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 					if (sameBook == -1)
 					{
-						loopOutputPosition = loopOutputPosition + 0x8 + ((alBank->alPercussion[y].wav.adpcmWave->book->npredictors * alBank->alPercussion[y].wav.adpcmWave->book->order) * 0x10);
+						loopOutputPosition = loopOutputPosition + 0x8 + ((alBank->eadPercussion[y].wav.adpcmWave->book->npredictors * alBank->eadPercussion[y].wav.adpcmWave->book->order) * 0x10);
 						if ((loopOutputPosition % 0x10) != 0)
 							loopOutputPosition = (loopOutputPosition + (0x10 - (loopOutputPosition % 0x10)));
 					}
@@ -5412,12 +6793,12 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 				int sameLoop = -1;
 
-				if (alBank->alPercussion[y].wav.adpcmWave->loop != NULL)
+				if (alBank->eadPercussion[y].wav.adpcmWave->loop != NULL)
 				{
 					
 					adpcmRawLoopOffsetsWav[startPercussionInListing+y] = loopOutputPosition;
 
-					if (alBank->alPercussion[y].wav.adpcmWave->loop != NULL)
+					if (alBank->eadPercussion[y].wav.adpcmWave->loop != NULL)
 					{
 						/*if (sameLoop == -1)
 						{
@@ -5427,7 +6808,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 								{
 									if (alBank->inst[w]->sounds[0]->hasWavePrevious)
 									{
-										if (CompareLoops(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
+										if (CompareLoops(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavPrevious))
 										{
 											adpcmRawLoopOffsetsWav[startPercussionInListing+y] = adpcmRawLoopOffsetsWavPrevious[x][w];
 											sameLoop = w;
@@ -5444,7 +6825,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 							{
 								if (alBank->inst[w]->sounds[0] != NULL)
 								{
-									if (CompareLoops(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
+									if (CompareLoops(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wav))
 									{
 										adpcmRawLoopOffsetsWav[startPercussionInListing+y] = adpcmRawLoopOffsetsWav[x][w];
 										sameLoop = w;
@@ -5462,7 +6843,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 								{
 									if (alBank->inst[w]->sounds[0]->hasWaveSecondary)
 									{
-										if (CompareLoops(&alBank->alPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
+										if (CompareLoops(&alBank->eadPercussion[y].wav, &alBank->inst[w]->sounds[0]->wavSecondary))
 										{
 											adpcmRawLoopOffsetsWav[startPercussionInListing+y] = adpcmRawLoopOffsetsWavSecondary[x][w];
 											sameLoop = w;
@@ -5477,7 +6858,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{
 							for (int w = 0; w < y; w++)
 							{
-								if (CompareLoops(&alBank->alPercussion[y].wav, &alBank->inst[x]->alPercussion[w].wav))
+								if (CompareLoops(&alBank->eadPercussion[y].wav, &alBank->inst[x]->eadPercussion[w].wav))
 								{
 									sameBook = w;
 									adpcmRawLoopOffsetsWav[startPercussionInListing+y] = adpcmRawLoopOffsetsWav[x][startPercussionInListing+w];
@@ -5493,7 +6874,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 					MessageBox(NULL, "Error loop", "Error", NULL);
 				}
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.unknown1);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.unknown1);
 				outputCtlCounter += 4;
 
 				tblOffsets[startPercussionInListing+y] = tblSizes;
@@ -5504,7 +6885,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				{
 					for (int z = 0; z < overallTblOffsets.size(); z++)
 					{
-						if (CompareTbls(&alBank->alPercussion[y].wav, overallTblDataWaves[z]))
+						if (CompareTbls(&alBank->eadPercussion[y].wav, overallTblDataWaves[z]))
 						{
 							foundSameTbl = true;
 							tblOffsets[startPercussionInListing+y] = overallTblOffsets[z];
@@ -5522,7 +6903,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{
 							if (alBank->inst[z]->sounds[0]->hasWavePrevious)
 							{
-								if (CompareTbls(&alBank->alPercussion[y].wav, &alBank->inst[z]->sounds[0]->wavPrevious))
+								if (CompareTbls(&alBank->eadPercussion[y].wav, &alBank->inst[z]->sounds[0]->wavPrevious))
 								{
 									foundSameTbl = true;
 									tblOffsets[startPercussionInListing+y] = tblOffsetsPrevious[z];
@@ -5540,7 +6921,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 					{
 						if (alBank->inst[z]->sounds[0] != NULL)
 						{
-							if (CompareTbls(&alBank->alPercussion[y].wav, &alBank->inst[z]->sounds[0]->wav))
+							if (CompareTbls(&alBank->eadPercussion[y].wav, &alBank->inst[z]->sounds[0]->wav))
 							{
 								foundSameTbl = true;
 								tblOffsets[startPercussionInListing+y] = tblOffsets[z];
@@ -5559,7 +6940,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{
 							if (alBank->inst[z]->sounds[0]->hasWaveSecondary)
 							{
-								if (CompareTbls(&alBank->alPercussion[y].wav, &alBank->inst[z]->sounds[0]->wavSecondary))
+								if (CompareTbls(&alBank->eadPercussion[y].wav, &alBank->inst[z]->sounds[0]->wavSecondary))
 								{
 									foundSameTbl = true;
 									tblOffsets[startPercussionInListing+y] = tblOffsetsSecondary[z];
@@ -5577,7 +6958,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 					int loopEnd = y;
 					for (int z = 0; z < loopEnd; z++)
 					{
-						if (CompareTbls(&alBank->alPercussion[y].wav, &alBank->alPercussion[z].wav))
+						if (CompareTbls(&alBank->eadPercussion[y].wav, &alBank->eadPercussion[z].wav))
 						{
 							foundSameTbl = true;
 							tblOffsets[startPercussionInListing+y] = tblOffsets[startPercussionInListingNew+z];
@@ -5593,15 +6974,15 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				if (!foundSameTbl)
 				{
 					overallTblOffsets.push_back(tblOffsets[startPercussionInListing+y]);
-					overallTblDataWaves.push_back(&alBank->alPercussion[y].wav);
+					overallTblDataWaves.push_back(&alBank->eadPercussion[y].wav);
 
-					unsigned long curEntrySize = alBank->alPercussion[y].wav.len;
-					if ((alBank->alPercussion[y].wav.len % 0x10) != 0)
-						curEntrySize += (0x10 - (alBank->alPercussion[y].wav.len % 0x10));
+					unsigned long curEntrySize = alBank->eadPercussion[y].wav.len;
+					if ((alBank->eadPercussion[y].wav.len % 0x10) != 0)
+						curEntrySize += (0x10 - (alBank->eadPercussion[y].wav.len % 0x10));
 
-					for (int z = 0; z < alBank->alPercussion[y].wav.len; z++)
+					for (int z = 0; z < alBank->eadPercussion[y].wav.len; z++)
 					{
-						tblData[tblSizes + z] = alBank->alPercussion[y].wav.wavData[z];
+						tblData[tblSizes + z] = alBank->eadPercussion[y].wav.wavData[z];
 					}
 
 					tblSizes += curEntrySize;
@@ -5618,29 +6999,29 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, (bookOffsetsWav[startPercussionInListing+y] - soundDataOffset));
 				outputCtlCounter += 4;
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.len);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.len);
 				outputCtlCounter += 4;
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.unknown2);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.unknown2);
 				outputCtlCounter += 4;
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.unknown3);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.unknown3);
 				outputCtlCounter += 4;
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.unknown4);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.unknown4);
 				outputCtlCounter += 4;
 
 				if (sameBook == -1)
 				{
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->book->order);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->book->order);
 					outputCtlCounter += 4;
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->book->npredictors);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->book->npredictors);
 					outputCtlCounter += 4;
 
-					for (int z = 0; z < (alBank->alPercussion[y].wav.adpcmWave->book->order * alBank->alPercussion[y].wav.adpcmWave->book->npredictors * 8); z++)
+					for (int z = 0; z < (alBank->eadPercussion[y].wav.adpcmWave->book->order * alBank->eadPercussion[y].wav.adpcmWave->book->npredictors * 8); z++)
 					{
-						temporaryCtlBuffer[outputCtlCounter++] = ((alBank->alPercussion[y].wav.adpcmWave->book->predictors[z] >> 8) & 0xFF);
-						temporaryCtlBuffer[outputCtlCounter++] = ((alBank->alPercussion[y].wav.adpcmWave->book->predictors[z]) & 0xFF);
+						temporaryCtlBuffer[outputCtlCounter++] = ((alBank->eadPercussion[y].wav.adpcmWave->book->predictors[z] >> 8) & 0xFF);
+						temporaryCtlBuffer[outputCtlCounter++] = ((alBank->eadPercussion[y].wav.adpcmWave->book->predictors[z]) & 0xFF);
 					}
 
 					if ((outputCtlCounter % 0x10) != 0)
@@ -5650,21 +7031,21 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				if (sameLoop == -1)
 				{
 
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->loop->start);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->loop->start);
 					outputCtlCounter += 4;
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->loop->end);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->loop->end);
 					outputCtlCounter += 4;
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->loop->count);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->loop->count);
 					outputCtlCounter += 4;
-					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].wav.adpcmWave->loop->unknown1);
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].wav.adpcmWave->loop->unknown1);
 					outputCtlCounter += 4;
 
-					if (alBank->alPercussion[y].wav.adpcmWave->loop->start != 0)
+					if (alBank->eadPercussion[y].wav.adpcmWave->loop->start != 0)
 					{
 						for (int z = 0; z < 0x10; z++)
 						{
-							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->alPercussion[y].wav.adpcmWave->loop->state[z] >> 8) & 0xFF);
-							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->alPercussion[y].wav.adpcmWave->loop->state[z]) & 0xFF);
+							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->eadPercussion[y].wav.adpcmWave->loop->state[z] >> 8) & 0xFF);
+							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->eadPercussion[y].wav.adpcmWave->loop->state[z]) & 0xFF);
 						}
 					}
 
@@ -5716,7 +7097,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 			}
 		}
 
-		for (int y = 0; y < alBank->countPercussion; y++)
+		for (int y = 0; y < alBank->countEADPercussion; y++)
 		{
 			offsetsEnv[startPercussionInListing+y] = (outputCtlCounter - soundDataOffset);
 
@@ -5727,14 +7108,14 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 				if (alBank->inst[z]->sounds[0] != NULL)
 				{
 					if (
-						(alBank->alPercussion[y].adsrEAD[0] == alBank->inst[z]->sounds[0]->adsrEAD[0])
-						&& (alBank->alPercussion[y].adsrEAD[1] == alBank->inst[z]->sounds[0]->adsrEAD[1])
-						&& (alBank->alPercussion[y].adsrEAD[2] == alBank->inst[z]->sounds[0]->adsrEAD[2])
-						&& (alBank->alPercussion[y].adsrEAD[3] == alBank->inst[z]->sounds[0]->adsrEAD[3])
-						&& (alBank->alPercussion[y].adsrEAD[4] == alBank->inst[z]->sounds[0]->adsrEAD[4])
-						&& (alBank->alPercussion[y].adsrEAD[5] == alBank->inst[z]->sounds[0]->adsrEAD[5])
-						&& (alBank->alPercussion[y].adsrEAD[6] == alBank->inst[z]->sounds[0]->adsrEAD[6])
-						&& (alBank->alPercussion[y].adsrEAD[7] == alBank->inst[z]->sounds[0]->adsrEAD[7])
+						(alBank->eadPercussion[y].adsrEAD[0] == alBank->inst[z]->sounds[0]->adsrEAD[0])
+						&& (alBank->eadPercussion[y].adsrEAD[1] == alBank->inst[z]->sounds[0]->adsrEAD[1])
+						&& (alBank->eadPercussion[y].adsrEAD[2] == alBank->inst[z]->sounds[0]->adsrEAD[2])
+						&& (alBank->eadPercussion[y].adsrEAD[3] == alBank->inst[z]->sounds[0]->adsrEAD[3])
+						&& (alBank->eadPercussion[y].adsrEAD[4] == alBank->inst[z]->sounds[0]->adsrEAD[4])
+						&& (alBank->eadPercussion[y].adsrEAD[5] == alBank->inst[z]->sounds[0]->adsrEAD[5])
+						&& (alBank->eadPercussion[y].adsrEAD[6] == alBank->inst[z]->sounds[0]->adsrEAD[6])
+						&& (alBank->eadPercussion[y].adsrEAD[7] == alBank->inst[z]->sounds[0]->adsrEAD[7])
 						)
 					{
 						foundPast = true;
@@ -5750,14 +7131,14 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 			for (int z = 0; z < y; z++)
 			{
 				if (
-					(alBank->alPercussion[y].adsrEAD[0] == alBank->alPercussion[z].adsrEAD[0])
-					&& (alBank->alPercussion[y].adsrEAD[1] == alBank->alPercussion[z].adsrEAD[1])
-					&& (alBank->alPercussion[y].adsrEAD[2] == alBank->alPercussion[z].adsrEAD[2])
-					&& (alBank->alPercussion[y].adsrEAD[3] == alBank->alPercussion[z].adsrEAD[3])
-					&& (alBank->alPercussion[y].adsrEAD[4] == alBank->alPercussion[z].adsrEAD[4])
-					&& (alBank->alPercussion[y].adsrEAD[5] == alBank->alPercussion[z].adsrEAD[5])
-					&& (alBank->alPercussion[y].adsrEAD[6] == alBank->alPercussion[z].adsrEAD[6])
-					&& (alBank->alPercussion[y].adsrEAD[7] == alBank->alPercussion[z].adsrEAD[7])
+					(alBank->eadPercussion[y].adsrEAD[0] == alBank->eadPercussion[z].adsrEAD[0])
+					&& (alBank->eadPercussion[y].adsrEAD[1] == alBank->eadPercussion[z].adsrEAD[1])
+					&& (alBank->eadPercussion[y].adsrEAD[2] == alBank->eadPercussion[z].adsrEAD[2])
+					&& (alBank->eadPercussion[y].adsrEAD[3] == alBank->eadPercussion[z].adsrEAD[3])
+					&& (alBank->eadPercussion[y].adsrEAD[4] == alBank->eadPercussion[z].adsrEAD[4])
+					&& (alBank->eadPercussion[y].adsrEAD[5] == alBank->eadPercussion[z].adsrEAD[5])
+					&& (alBank->eadPercussion[y].adsrEAD[6] == alBank->eadPercussion[z].adsrEAD[6])
+					&& (alBank->eadPercussion[y].adsrEAD[7] == alBank->eadPercussion[z].adsrEAD[7])
 					)
 				{
 					foundPast = true;
@@ -5771,7 +7152,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 			for (int z = 0; z < 8; z++)
 			{
-				WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].adsrEAD[z]);
+				WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].adsrEAD[z]);
 				outputCtlCounter += 2;
 			}
 		}
@@ -5833,28 +7214,28 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 		
 
-		if (alBank->countPercussion == 0)
+		if (alBank->countEADPercussion == 0)
 		{
 			WriteLongToBuffer(temporaryCtlBuffer, soundDataOffset, 0x00000000);
 		}
 		else
 		{
 			unsigned long startPercussionDataOffsets = (outputCtlCounter  - soundDataOffset);
-			for (int y = 0; y < alBank->countPercussion; y++)
+			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
-				temporaryCtlBuffer[outputCtlCounter] = alBank->alPercussion[y].unknown1A;
+				temporaryCtlBuffer[outputCtlCounter] = alBank->eadPercussion[y].unknown1A;
 				outputCtlCounter++;
 
-				temporaryCtlBuffer[outputCtlCounter] = alBank->alPercussion[y].pan;
+				temporaryCtlBuffer[outputCtlCounter] = alBank->eadPercussion[y].pan;
 				outputCtlCounter++;
 
-				WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].unknown1C);
+				WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].unknown1C);
 				outputCtlCounter += 2;
 
 				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, offsetsWav[alBank->count + y]);
 				outputCtlCounter += 4;
 
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->alPercussion[y].keyBase);
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->eadPercussion[y].keyBase);
 				outputCtlCounter += 4;
 
 				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, offsetsEnv[alBank->count + y]);
@@ -5866,7 +7247,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 			WriteLongToBuffer(temporaryCtlBuffer, soundDataOffset, (outputCtlCounter  - soundDataOffset));
 
-			for (int y = 0; y < alBank->countPercussion; y++)
+			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
 				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, startPercussionDataOffsets + (y * 0x10));
 				outputCtlCounter += 4;
@@ -5943,6 +7324,68 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 	tblSize = outputTblCounter;
 }
 
+void CN64AIFCAudio::WriteKonamiADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		for (int x = 0; x < alBank->konamiADSR.size(); x++)
+		{
+			KonamiADSR adsr = alBank->konamiADSR[x];
+			ROM[instrumentOffset + (x * 7)] = adsr.coarseTune;
+			ROM[instrumentOffset + (x * 7) + 1] = adsr.fineTune;
+			ROM[instrumentOffset + (x * 7) + 2] = adsr.attackTime;
+			ROM[instrumentOffset + (x * 7) + 3] = adsr.decayTime;
+			ROM[instrumentOffset + (x * 7) + 4] = adsr.releaseTime;
+			ROM[instrumentOffset + (x * 7) + 5] = adsr.unknownOne;
+			ROM[instrumentOffset + (x * 7) + 6] = adsr.unknownTwo;
+		}
+
+		for (int x = 0; x < alBank->konamiDrumsADSR.size(); x++)
+		{
+			KonamiADSRDrum adsr = alBank->konamiDrumsADSR[x];
+			ROM[startDrumOffset + (x * 8)] = adsr.instrumentLookup;
+			ROM[startDrumOffset + (x * 8) + 1] = adsr.coarseTune;
+			ROM[startDrumOffset + (x * 8) + 2] = adsr.fineTune;
+			ROM[startDrumOffset + (x * 8) + 3] = adsr.attackTime;
+			ROM[startDrumOffset + (x * 8) + 4] = adsr.decayTime;
+			ROM[startDrumOffset + (x * 8) + 5] = adsr.releaseTime;
+			ROM[startDrumOffset + (x * 8) + 6] = adsr.unknownOne;
+			ROM[startDrumOffset + (x * 8) + 7] = adsr.unknownTwo;
+		}
+	}
+}
+
+void CN64AIFCAudio::WriteKonami8ADSR(unsigned char* ROM, ALBank*& alBank, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		for (int x = 0; x < alBank->konamiADSR.size(); x++)
+		{
+			KonamiADSR adsr = alBank->konamiADSR[x];
+			ROM[instrumentOffset + (x * 8)] = adsr.coarseTune;
+			ROM[instrumentOffset + (x * 8) + 1] = adsr.fineTune;
+			ROM[instrumentOffset + (x * 8) + 2] = adsr.attackTime;
+			ROM[instrumentOffset + (x * 8) + 3] = adsr.decayTime;
+			ROM[instrumentOffset + (x * 8) + 4] = adsr.releaseTime;
+			ROM[instrumentOffset + (x * 8) + 5] = adsr.unknownOne;
+			ROM[instrumentOffset + (x * 8) + 6] = adsr.unknownTwo;
+		}
+
+		for (int x = 0; x < alBank->konamiDrumsADSR.size(); x++)
+		{
+			KonamiADSRDrum adsr = alBank->konamiDrumsADSR[x];
+			ROM[startDrumOffset + (x * 0xA)] = adsr.coarseTune;
+			ROM[startDrumOffset + (x * 0xA) + 1] = adsr.fineTune;
+			ROM[startDrumOffset + (x * 0xA) + 2] = adsr.attackTime;
+			ROM[startDrumOffset + (x * 0xA) + 3] = adsr.decayTime;
+			ROM[startDrumOffset + (x * 0xA) + 4] = adsr.releaseTime;
+			ROM[startDrumOffset + (x * 0xA) + 5] = adsr.unknownOne;
+			ROM[startDrumOffset + (x * 0xA) + 6] = adsr.unknownTwo;
+			ROM[startDrumOffset + (x * 0xA) + 9] = adsr.instrumentLookup;
+		}
+	}
+}
+
 void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSize, unsigned char*& tbl, int& tblSize)
 {
 	unsigned char* temporaryCtlBuffer = new unsigned char[0x1000000];
@@ -5966,6 +7409,29 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 
 	unsigned long outputTblCounter = 0;
 
+	unsigned long percussionALLookup = 0;	
+	unsigned long* percussioninstrumentSoundStartLookup = NULL;
+	unsigned long* percussionoffsetsEnv = NULL;
+	unsigned long* percussionoffsetsKey = NULL;
+	unsigned long* percussionoffsetsWav = NULL;
+	unsigned long* percussionbookOffsetsWav = NULL;
+	unsigned long* percussionadpcmRawLoopOffsetsWav = NULL;
+	unsigned long* percussionrawLoopOffsetsWav = NULL;
+	unsigned long* percussiontblOffsets = NULL;
+
+	if (alBank->percussion != NULL)
+	{
+		percussioninstrumentSoundStartLookup = new unsigned long[alBank->percussion->soundCount];
+		percussionoffsetsEnv = new unsigned long[alBank->percussion->soundCount];
+		percussionoffsetsKey = new unsigned long[alBank->percussion->soundCount];
+		percussionoffsetsWav = new unsigned long[alBank->percussion->soundCount];
+		percussionbookOffsetsWav = new unsigned long[alBank->percussion->soundCount];
+		percussionadpcmRawLoopOffsetsWav = new unsigned long[alBank->percussion->soundCount];
+		percussionrawLoopOffsetsWav = new unsigned long[alBank->percussion->soundCount];
+		percussiontblOffsets = new unsigned long[alBank->percussion->soundCount];
+	}
+
+
 	unsigned long* instrumentALLookup = new unsigned long[alBank->count];
 	unsigned long** instrumentSoundStartLookup = new unsigned long*[alBank->count];
 	unsigned long** offsetsEnv = new unsigned long*[alBank->count];
@@ -5988,15 +7454,80 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 		tblOffsets[x] = new unsigned long[alBank->inst[x]->soundCount];
 	}
 
+	if (alBank->percussion != NULL)
+	{
+		unsigned long envStart = outputCtlCounter;
+
+		for (int y = 0; y < alBank->percussion->soundCount; y++)
+		{
+			bool foundPast = false;
+
+			int loopEnd = y;
+			
+			for (int z = 0; z < loopEnd; z++)
+			{
+				if (
+					(alBank->percussion->sounds[y]->env.attackTime == alBank->percussion->sounds[z]->env.attackTime)
+					&& (alBank->percussion->sounds[y]->env.decayTime == alBank->percussion->sounds[z]->env.decayTime)
+					&& (alBank->percussion->sounds[y]->env.releaseTime == alBank->percussion->sounds[z]->env.releaseTime)
+					&& (alBank->percussion->sounds[y]->env.attackVolume == alBank->percussion->sounds[z]->env.attackVolume)
+					&& (alBank->percussion->sounds[y]->env.decayVolume == alBank->percussion->sounds[z]->env.decayVolume)
+					)
+				{
+					foundPast = true;
+					percussionoffsetsEnv[y] = percussionoffsetsEnv[z];
+					break;
+				}
+			}
+
+			if (foundPast)
+				continue;
+
+			percussionoffsetsEnv[y] = outputCtlCounter;
+
+			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->env.attackTime);
+			outputCtlCounter += 4;
+			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->env.decayTime);
+			outputCtlCounter += 4;
+			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->env.releaseTime);
+			outputCtlCounter += 4;
+			temporaryCtlBuffer[outputCtlCounter] = alBank->percussion->sounds[y]->env.attackVolume;
+			outputCtlCounter += 1;
+			temporaryCtlBuffer[outputCtlCounter] = alBank->percussion->sounds[y]->env.decayVolume;
+			outputCtlCounter += 1;
+			WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->env.zeroPad);
+			outputCtlCounter += 2;
+		}
+	}
+
 	for (int x = 0; x < alBank->count; x++)
 	{
-
-		
-
 		unsigned long envStart = outputCtlCounter;
 		for (int y = 0; y < alBank->inst[x]->soundCount; y++)
 		{
 			bool foundPast = false;
+
+			if (alBank->percussion != NULL)
+			{
+				for (int z = 0; z < alBank->percussion->soundCount; z++)
+				{
+					if (
+						(alBank->inst[x]->sounds[y]->env.attackTime == alBank->percussion->sounds[z]->env.attackTime)
+						&& (alBank->inst[x]->sounds[y]->env.decayTime == alBank->percussion->sounds[z]->env.decayTime)
+						&& (alBank->inst[x]->sounds[y]->env.releaseTime == alBank->percussion->sounds[z]->env.releaseTime)
+						&& (alBank->inst[x]->sounds[y]->env.attackVolume == alBank->percussion->sounds[z]->env.attackVolume)
+						&& (alBank->inst[x]->sounds[y]->env.decayVolume == alBank->percussion->sounds[z]->env.decayVolume)
+						)
+					{
+						foundPast = true;
+						offsetsEnv[x][y] = percussionoffsetsEnv[z];
+						break;
+					}
+				}
+
+				if (foundPast)
+					continue;
+			}
 
 			for (int r = 0; r < (x + 1); r++)
 			{
@@ -6050,11 +7581,73 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 		}
 	}
 
+	if (alBank->percussion != NULL)
+	{
+		if ((outputCtlCounter % 0x10) != 0)
+		{
+			outputCtlCounter = outputCtlCounter + (0x10 - (outputCtlCounter % 0x10));
+		}
+
+		unsigned long keyStart = outputCtlCounter;
+		for (int y = 0; y < alBank->percussion->soundCount; y++)
+		{
+			bool foundPast = false;
+
+			int loopEnd = y;
+			
+			for (int z = 0; z < loopEnd; z++)
+			{
+				if (
+					(alBank->percussion->sounds[y]->key.velocitymin == alBank->percussion->sounds[z]->key.velocitymin)
+					&& (alBank->percussion->sounds[y]->key.velocitymax == alBank->percussion->sounds[z]->key.velocitymax)
+					&& (alBank->percussion->sounds[y]->key.keymin == alBank->percussion->sounds[z]->key.keymin)
+					&& (alBank->percussion->sounds[y]->key.keymax == alBank->percussion->sounds[z]->key.keymax)
+					&& (alBank->percussion->sounds[y]->key.keybase == alBank->percussion->sounds[z]->key.keybase)
+					&& (alBank->percussion->sounds[y]->key.detune == alBank->percussion->sounds[z]->key.detune)
+					)
+				{
+					foundPast = true;
+					percussionoffsetsKey[y] = percussionoffsetsKey[z];
+					break;
+				}
+			}
+
+			if (foundPast)
+				continue;
+
+
+			percussionoffsetsKey[y] = outputCtlCounter;
+
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.velocitymin;
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.velocitymax;
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.keymin;
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.keymax;
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.keybase;
+			temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->key.detune;
+
+			if ((outputCtlCounter % 8) != 0)
+			{
+				int pad = 8 - (outputCtlCounter % 8);
+				for (int z = 0; z < pad; z++)
+				{
+					temporaryCtlBuffer[outputCtlCounter++] = 0;
+				}
+			}
+		}
+
+
+		if ((outputCtlCounter % 8) != 0)
+		{
+			int pad = 8 - (outputCtlCounter % 8);
+			for (int z = 0; z < pad; z++)
+			{
+				temporaryCtlBuffer[outputCtlCounter++] = 0;
+			}
+		}
+	}
+
 	for (int x = 0; x < alBank->count; x++)
 	{
-
-
-		
 		if ((outputCtlCounter % 0x10) != 0)
 		{
 			outputCtlCounter = outputCtlCounter + (0x10 - (outputCtlCounter % 0x10));
@@ -6064,6 +7657,29 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 		for (int y = 0; y < alBank->inst[x]->soundCount; y++)
 		{
 			bool foundPast = false;
+
+			if (alBank->percussion != NULL)
+			{
+				for (int z = 0; z < alBank->percussion->soundCount; z++)
+				{
+					if (
+						(alBank->inst[x]->sounds[y]->key.velocitymin == alBank->percussion->sounds[z]->key.velocitymin)
+						&& (alBank->inst[x]->sounds[y]->key.velocitymax == alBank->percussion->sounds[z]->key.velocitymax)
+						&& (alBank->inst[x]->sounds[y]->key.keymin == alBank->percussion->sounds[z]->key.keymin)
+						&& (alBank->inst[x]->sounds[y]->key.keymax == alBank->percussion->sounds[z]->key.keymax)
+						&& (alBank->inst[x]->sounds[y]->key.keybase == alBank->percussion->sounds[z]->key.keybase)
+						&& (alBank->inst[x]->sounds[y]->key.detune == alBank->percussion->sounds[z]->key.detune)
+						)
+					{
+						foundPast = true;
+						offsetsKey[x][y] = percussionoffsetsKey[z];
+						break;
+					}
+				}
+
+				if (foundPast)
+					continue;
+			}
 
 			for (int r = 0; r < (x + 1); r++)
 			{
@@ -6124,10 +7740,529 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 		}
 	}
 
+	if (alBank->percussion != NULL)
+	{
+		unsigned long wavStart = outputCtlCounter;
+
+		for (int y = 0; y < alBank->percussion->soundCount; y++)
+		{
+			percussioninstrumentSoundStartLookup[y] = outputCtlCounter;
+
+			percussionoffsetsWav[y] = outputCtlCounter + 0x10;
+
+			bool entireSoundMatch = false;
+
+			int entireMatch = -1;
+			
+			int loopEnd = y;
+			
+			for (int w = 0; w < loopEnd; w++)
+			{
+				if (
+					(alBank->percussion->sounds[y]->wav.base == alBank->percussion->sounds[w]->wav.base)
+					&& (alBank->percussion->sounds[y]->wav.len == alBank->percussion->sounds[w]->wav.len)
+					&& (alBank->percussion->sounds[y]->wav.flags == alBank->percussion->sounds[w]->wav.flags)
+					&& (alBank->percussion->sounds[y]->wav.type == alBank->percussion->sounds[w]->wav.type)
+					)
+				{
+					if (alBank->percussion->sounds[y]->wav.type == 0)
+					{
+						if (((alBank->percussion->sounds[y]->wav.adpcmWave->loop == NULL) && (alBank->percussion->sounds[w]->wav.adpcmWave->loop != NULL))
+							|| ((alBank->percussion->sounds[y]->wav.adpcmWave->loop != NULL) && (alBank->percussion->sounds[w]->wav.adpcmWave->loop == NULL)))
+						{
+							continue;
+						}
+
+						bool sameLoop = false;
+						if ((alBank->percussion->sounds[y]->wav.adpcmWave->loop == NULL) && (alBank->percussion->sounds[w]->wav.adpcmWave->loop == NULL))
+						{
+							sameLoop = true;
+						}
+						else
+						{
+							if (
+								(alBank->percussion->sounds[y]->wav.adpcmWave->loop->start == alBank->percussion->sounds[w]->wav.adpcmWave->loop->start)
+								&& (alBank->percussion->sounds[y]->wav.adpcmWave->loop->end == alBank->percussion->sounds[w]->wav.adpcmWave->loop->end)
+								&& (alBank->percussion->sounds[y]->wav.adpcmWave->loop->count == alBank->percussion->sounds[w]->wav.adpcmWave->loop->count))
+							{
+								bool abort = false;
+								for (int z = 0; z < 0x10; z++)
+								{
+									if (alBank->percussion->sounds[y]->wav.adpcmWave->loop->state[z] != alBank->percussion->sounds[w]->wav.adpcmWave->loop->state[z])
+									{
+										abort = true;
+										break;
+									}
+								}
+
+								if (abort)
+									continue;
+								else
+
+									sameLoop = true;
+							}
+							else
+							{
+								continue;
+							}
+						}
+
+						if (sameLoop)
+						{
+							if ((alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors == alBank->percussion->sounds[w]->wav.adpcmWave->book->npredictors)
+								&& (alBank->percussion->sounds[y]->wav.adpcmWave->book->order == alBank->percussion->sounds[w]->wav.adpcmWave->book->order))
+							{
+								bool abort = false;
+								for (int z = 0; z < (alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors * alBank->percussion->sounds[y]->wav.adpcmWave->book->order * 8); z++)
+								{
+									if (alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors[z] != alBank->percussion->sounds[w]->wav.adpcmWave->book->predictors[z])
+									{
+										abort = true;
+										break;
+									}
+								}
+
+								if (abort)
+									continue;
+								else
+								{
+									entireMatch = w;
+									percussionoffsetsWav[y] = percussionoffsetsWav[entireMatch];
+									percussionbookOffsetsWav[y] = percussionbookOffsetsWav[entireMatch];
+									percussiontblOffsets[y] = percussiontblOffsets[entireMatch];
+
+
+									if (
+										(alBank->percussion->sounds[y]->env.attackTime == alBank->percussion->sounds[entireMatch]->env.attackTime)
+										&& (alBank->percussion->sounds[y]->env.attackVolume == alBank->percussion->sounds[entireMatch]->env.attackVolume)
+										&& (alBank->percussion->sounds[y]->env.decayTime == alBank->percussion->sounds[entireMatch]->env.decayTime)
+										&& (alBank->percussion->sounds[y]->env.decayVolume == alBank->percussion->sounds[entireMatch]->env.decayVolume)
+										&& (alBank->percussion->sounds[y]->env.releaseTime == alBank->percussion->sounds[entireMatch]->env.releaseTime)
+										&& (alBank->percussion->sounds[y]->samplePan == alBank->percussion->sounds[entireMatch]->samplePan)
+										&& (alBank->percussion->sounds[y]->sampleVolume == alBank->percussion->sounds[entireMatch]->sampleVolume)
+										&& (alBank->percussion->sounds[y]->flags == alBank->percussion->sounds[entireMatch]->flags)
+										&& (alBank->percussion->sounds[y]->key.detune == alBank->percussion->sounds[entireMatch]->key.detune)
+										&& (alBank->percussion->sounds[y]->key.keybase == alBank->percussion->sounds[entireMatch]->key.keybase)
+										&& (alBank->percussion->sounds[y]->key.keymax == alBank->percussion->sounds[entireMatch]->key.keymax)
+										&& (alBank->percussion->sounds[y]->key.keymin == alBank->percussion->sounds[entireMatch]->key.keymin)
+										&& (alBank->percussion->sounds[y]->key.velocitymax == alBank->percussion->sounds[entireMatch]->key.velocitymax)
+										&& (alBank->percussion->sounds[y]->key.velocitymin == alBank->percussion->sounds[entireMatch]->key.velocitymin)
+										)
+									{
+										percussioninstrumentSoundStartLookup[y] = percussioninstrumentSoundStartLookup[entireMatch];
+										entireSoundMatch = true;
+										break;
+									}
+									else
+									{
+										continue;
+									}
+									
+								}
+							}
+							else
+							{
+								continue;
+							}
+						}
+					}
+					else
+					{
+						if (((alBank->percussion->sounds[y]->wav.rawWave->loop == NULL) && (alBank->percussion->sounds[w]->wav.rawWave->loop != NULL))
+							|| ((alBank->percussion->sounds[y]->wav.rawWave->loop != NULL) && (alBank->percussion->sounds[w]->wav.rawWave->loop == NULL)))
+						{
+							continue;
+						}
+
+						bool sameLoop = false;
+						if ((alBank->percussion->sounds[y]->wav.rawWave->loop == NULL) && (alBank->percussion->sounds[w]->wav.rawWave->loop == NULL))
+						{
+							sameLoop = true;
+						}
+						else
+						{
+							if (
+								(alBank->percussion->sounds[y]->wav.rawWave->loop->start == alBank->percussion->sounds[w]->wav.rawWave->loop->start)
+								&& (alBank->percussion->sounds[y]->wav.rawWave->loop->end == alBank->percussion->sounds[w]->wav.rawWave->loop->end)
+								&& (alBank->percussion->sounds[y]->wav.rawWave->loop->count == alBank->percussion->sounds[w]->wav.rawWave->loop->count))
+							{
+								entireMatch = w;
+								percussionoffsetsWav[y] = percussionoffsetsWav[entireMatch];
+								percussionbookOffsetsWav[y] = percussionbookOffsetsWav[entireMatch];
+								percussiontblOffsets[y] = percussiontblOffsets[entireMatch];
+								
+								if (
+										(alBank->percussion->sounds[y]->env.attackTime == alBank->percussion->sounds[entireMatch]->env.attackTime)
+										&& (alBank->percussion->sounds[y]->env.attackVolume == alBank->percussion->sounds[entireMatch]->env.attackVolume)
+										&& (alBank->percussion->sounds[y]->env.decayTime == alBank->percussion->sounds[entireMatch]->env.decayTime)
+										&& (alBank->percussion->sounds[y]->env.decayVolume == alBank->percussion->sounds[entireMatch]->env.decayVolume)
+										&& (alBank->percussion->sounds[y]->env.releaseTime == alBank->percussion->sounds[entireMatch]->env.releaseTime)
+										&& (alBank->percussion->sounds[y]->samplePan == alBank->percussion->sounds[entireMatch]->samplePan)
+										&& (alBank->percussion->sounds[y]->sampleVolume == alBank->percussion->sounds[entireMatch]->sampleVolume)
+										&& (alBank->percussion->sounds[y]->flags == alBank->percussion->sounds[entireMatch]->flags)
+										&& (alBank->percussion->sounds[y]->key.detune == alBank->percussion->sounds[entireMatch]->key.detune)
+										&& (alBank->percussion->sounds[y]->key.keybase == alBank->percussion->sounds[entireMatch]->key.keybase)
+										&& (alBank->percussion->sounds[y]->key.keymax == alBank->percussion->sounds[entireMatch]->key.keymax)
+										&& (alBank->percussion->sounds[y]->key.keymin == alBank->percussion->sounds[entireMatch]->key.keymin)
+										&& (alBank->percussion->sounds[y]->key.velocitymax == alBank->percussion->sounds[entireMatch]->key.velocitymax)
+										&& (alBank->percussion->sounds[y]->key.velocitymin == alBank->percussion->sounds[entireMatch]->key.velocitymin)
+										)
+									{
+										percussioninstrumentSoundStartLookup[y] = percussioninstrumentSoundStartLookup[entireMatch];
+										entireSoundMatch = true;
+										break;
+									}
+									else
+									{
+										continue;
+									}
+							}
+							else
+							{
+								continue;
+							}
+						}
+					}
+				}
+			}
+
+			
+
+			if (!entireSoundMatch)
+			{
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussionoffsetsEnv[y]);
+				outputCtlCounter += 4;
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussionoffsetsKey[y]);
+				outputCtlCounter += 4;
+
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussionoffsetsWav[y]);
+				outputCtlCounter += 4;
+
+				temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->samplePan;
+				temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->sampleVolume;
+				WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, 0);
+				outputCtlCounter += 2;
+			}
+
+			if (entireMatch == -1)
+			{
+			
+				percussiontblOffsets[y] = outputTblCounter;
+
+				int foundSameTbl = false;
+
+				int loopEnd = y;
+					
+				for (int z = 0; z < loopEnd; z++)
+				{
+					if (
+						(alBank->percussion->sounds[y]->wav.base == alBank->percussion->sounds[z]->wav.base)
+						&& (alBank->percussion->sounds[y]->wav.len == alBank->percussion->sounds[z]->wav.len)
+						)
+					{
+						bool mismatchValues = false;
+						for (int rr = 0; rr < alBank->percussion->sounds[y]->wav.len; rr++)
+						{
+							if (alBank->percussion->sounds[y]->wav.wavData[rr] != alBank->percussion->sounds[z]->wav.wavData[rr])
+							{
+								mismatchValues = true;
+								break;
+							}
+						}
+						if (!mismatchValues)
+						{
+							foundSameTbl = true;
+							percussiontblOffsets[y] = percussiontblOffsets[z];
+							break;
+						}
+						else
+						{
+							continue;
+						}
+					}
+				}
+
+				// update base
+				//alBank->percussion->sounds[y]->wav.base = percussiontblOffsets[x][y];
+
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussiontblOffsets[y]);
+				outputCtlCounter += 4;
+				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.len);
+				outputCtlCounter += 4;
+
+				if (!foundSameTbl)
+				{
+					for (int z = 0; z < alBank->percussion->sounds[y]->wav.len; z++)
+					{
+						temporaryTblBuffer[outputTblCounter + z] = alBank->percussion->sounds[y]->wav.wavData[z];
+					}
+					outputTblCounter += alBank->percussion->sounds[y]->wav.len;
+
+					if ((outputTblCounter % 8) != 0)
+					{
+						int pad = 8 - (outputTblCounter % 8);
+						for (int z = 0; z < pad; z++)
+						{
+							temporaryTblBuffer[outputTblCounter++] = 0;
+						}
+					}
+				}
+
+				temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->sounds[y]->wav.type;
+				temporaryCtlBuffer[outputCtlCounter++] = 0; // offset type
+				temporaryCtlBuffer[outputCtlCounter++] = 0; // pad
+				temporaryCtlBuffer[outputCtlCounter++] = 0; // pad
+
+				if (alBank->percussion->sounds[y]->wav.type == AL_ADPCM_WAVE)
+				{
+					int sameLoop = -1;
+
+
+					if (alBank->percussion->sounds[y]->wav.adpcmWave->loop != NULL)
+					{
+						if (sameLoop != -1)
+							break;
+
+						int loopEnd = y;
+						
+						for (int w = 0; w < loopEnd; w++)
+						{
+							if ((alBank->percussion->sounds[w]->wav.adpcmWave != NULL) && (alBank->percussion->sounds[w]->wav.adpcmWave->loop != NULL))
+							{
+								if ((alBank->percussion->sounds[y]->wav.adpcmWave->loop->start == alBank->percussion->sounds[w]->wav.adpcmWave->loop->start) 
+									&& (alBank->percussion->sounds[y]->wav.adpcmWave->loop->end == alBank->percussion->sounds[w]->wav.adpcmWave->loop->end)
+									&& (alBank->percussion->sounds[y]->wav.adpcmWave->loop->count == alBank->percussion->sounds[w]->wav.adpcmWave->loop->count))
+								{
+									bool goOn = false;
+									for (int ww = 0; ww < 0x10; ww++)
+									{
+										if (alBank->percussion->sounds[w]->wav.adpcmWave->loop->state[ww] != alBank->percussion->sounds[y]->wav.adpcmWave->loop->state[ww])
+										{
+											goOn = true;
+											break;
+										}
+									}
+
+									if (goOn)
+										continue;
+
+									percussionadpcmRawLoopOffsetsWav[y] = percussionadpcmRawLoopOffsetsWav[w];
+									sameLoop = w;
+									break;
+								}
+							}
+						}
+					}
+
+					unsigned long loopWriteSpot = outputCtlCounter;
+					unsigned long bookWriteSpot = outputCtlCounter + 4;
+					 
+					int same = -1;
+					
+					if (same != -1)
+						break;
+
+					int loopEnd = y;
+					
+					for (int w = 0; w < loopEnd; w++)
+					{
+						if (alBank->percussion->sounds[w]->wav.adpcmWave != NULL)
+						{
+							if ((alBank->percussion->sounds[y]->wav.adpcmWave->book->order == alBank->percussion->sounds[w]->wav.adpcmWave->book->order) 
+								&& (alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors == alBank->percussion->sounds[w]->wav.adpcmWave->book->npredictors))
+							{
+								bool goOn = false;
+								for (int ww = 0; ww < (alBank->percussion->sounds[y]->wav.adpcmWave->book->order * alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors * 8); ww++)
+								{
+									if (alBank->percussion->sounds[w]->wav.adpcmWave->book->predictors[ww] != alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors[ww])
+									{
+										goOn = true;
+										break;
+									}
+								}
+
+								if (goOn)
+									continue;
+
+								same = w;
+								break;
+							}
+						}
+					}
+
+					// write later loop/predictor offsets
+					outputCtlCounter += 8;
+
+
+					if ((outputCtlCounter % 8) != 0)
+					{
+						int pad = 8 - (outputCtlCounter % 8);
+						for (int z = 0; z < pad; z++)
+						{
+							temporaryCtlBuffer[outputCtlCounter++] = 0;
+						}
+					}
+
+					if (alBank->percussion->sounds[y]->wav.adpcmWave->loop != NULL)
+					{
+						if (sameLoop == -1)
+						{
+							percussionadpcmRawLoopOffsetsWav[y] = outputCtlCounter;
+							WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, outputCtlCounter);
+
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.adpcmWave->loop->start);
+							outputCtlCounter += 4;
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.adpcmWave->loop->end);
+							outputCtlCounter += 4;
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.adpcmWave->loop->count);
+							outputCtlCounter += 4;
+							for (int z = 0; z < 0x10; z++)
+							{
+								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->percussion->sounds[y]->wav.adpcmWave->loop->state[z] >> 8) & 0xFF);
+								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->percussion->sounds[y]->wav.adpcmWave->loop->state[z]) & 0xFF);
+							}
+						}
+						else
+						{
+							WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, percussionadpcmRawLoopOffsetsWav[sameLoop]);
+						}
+					}
+					else
+					{
+						// null loop
+						WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, 0x0);
+					}
+
+					if ((outputCtlCounter % 8) != 0)
+					{
+						int pad = 8 - (outputCtlCounter % 8);
+						for (int z = 0; z < pad; z++)
+						{
+							temporaryCtlBuffer[outputCtlCounter++] = 0;
+						}
+					}
+
+					if (same == -1)
+					{
+						percussionbookOffsetsWav[y] = outputCtlCounter;
+						WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
+
+						WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.adpcmWave->book->order);
+						outputCtlCounter += 4;
+						WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors);
+						outputCtlCounter += 4;
+
+						for (int z = 0; z < (alBank->percussion->sounds[y]->wav.adpcmWave->book->order * alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors * 8); z++)
+						{
+							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors[z] >> 8) & 0xFF);
+							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors[z]) & 0xFF);
+						}
+
+						
+						// game does this not sure why
+						/*int pad = 8;
+						for (int z = 0; z < pad; z++)
+						{
+							temporaryCtlBuffer[outputCtlCounter++] = 0;
+						}*/
+					}
+					else
+					{
+						WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, percussionbookOffsetsWav[same]);
+					}
+				}
+				else if (alBank->percussion->sounds[y]->wav.type == AL_RAW16_WAVE)
+				{
+
+					if (alBank->percussion->sounds[y]->wav.rawWave->loop != NULL)
+					{
+						int same = -1;
+
+						int loopEnd = y;
+						
+						for (int w = 0; w < loopEnd; w++)
+						{
+							if ((alBank->percussion->sounds[w]->wav.rawWave != NULL) && (alBank->percussion->sounds[w]->wav.rawWave->loop != NULL))
+							{
+								if ((alBank->percussion->sounds[y]->wav.rawWave->loop->start == alBank->percussion->sounds[w]->wav.rawWave->loop->start) 
+									&& (alBank->percussion->sounds[y]->wav.rawWave->loop->end == alBank->percussion->sounds[w]->wav.rawWave->loop->end) 
+									&& (alBank->percussion->sounds[y]->wav.rawWave->loop->count == alBank->percussion->sounds[w]->wav.rawWave->loop->count) 
+									)
+								{
+									percussionrawLoopOffsetsWav[y] = percussionrawLoopOffsetsWav[w];
+									same = w;
+									break;
+								}
+							}
+						}
+
+						if (same == -1)
+						{
+							unsigned long loopWriteSpot = outputCtlCounter;
+
+							outputCtlCounter += 4;
+
+							if ((outputCtlCounter % 8) != 0)
+							{
+								int pad = 8 - (outputCtlCounter % 8);
+								for (int z = 0; z < pad; z++)
+								{
+									temporaryCtlBuffer[outputCtlCounter++] = 0;
+								}
+							}
+
+							percussionrawLoopOffsetsWav[y] = (outputCtlCounter);
+							WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, outputCtlCounter);
+
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.rawWave->loop->start);
+							outputCtlCounter += 4;
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.rawWave->loop->end);
+							outputCtlCounter += 4;
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->sounds[y]->wav.rawWave->loop->count);
+							outputCtlCounter += 4;
+						}
+						else
+						{
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussionrawLoopOffsetsWav[same]);
+							outputCtlCounter += 4;
+						}
+					}
+					else
+					{
+						WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, 0);
+						outputCtlCounter += 4;
+					}
+
+					if ((outputCtlCounter % 8) != 0)
+					{
+						int pad = 8 - (outputCtlCounter % 8);
+						for (int z = 0; z < pad; z++)
+						{
+							temporaryCtlBuffer[outputCtlCounter++] = 0;
+						}
+					}
+				}
+			}
+		}
+
+		if ((outputCtlCounter % 8) != 0)
+		{
+			int pad = 8 - (outputCtlCounter % 8);
+			for (int z = 0; z < pad; z++)
+			{
+				temporaryCtlBuffer[outputCtlCounter++] = 0;
+			}
+		}
+	}
+
+
+
+
+
+
+
 	for (int x = 0; x < alBank->count; x++)
 	{
-
-
 		unsigned long wavStart = outputCtlCounter;
 
 		for (int y = 0; y < alBank->inst[x]->soundCount; y++)
@@ -6524,19 +8659,59 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 					{
 						if (sameLoop == -1)
 						{
-							adpcmRawLoopOffsetsWav[x][y] = outputCtlCounter;
-							WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, outputCtlCounter);
-
-							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start);
-							outputCtlCounter += 4;
-							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end);
-							outputCtlCounter += 4;
-							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count);
-							outputCtlCounter += 4;
-							for (int z = 0; z < 0x10; z++)
+							bool foundSameInPercussion = false;
+							if (alBank->percussion != NULL)
 							{
-								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] >> 8) & 0xFF);
-								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z]) & 0xFF);
+								for (int w = 0; w < alBank->percussion->soundCount; w++)
+								{
+									if (alBank->percussion->sounds[w]->wav.adpcmWave->loop != NULL)
+									{
+										if ((alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start == alBank->percussion->sounds[w]->wav.adpcmWave->loop->start) 
+												&& (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end == alBank->percussion->sounds[w]->wav.adpcmWave->loop->end)
+												&& (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count == alBank->percussion->sounds[w]->wav.adpcmWave->loop->count))
+										{
+											bool goOn = false;
+											for (int ww = 0; ww < 0x10; ww++)
+											{
+												if (alBank->percussion->sounds[w]->wav.adpcmWave->loop->state[ww] != alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[ww])
+												{
+													goOn = true;
+													break;
+												}
+											}
+
+											if (goOn)
+												continue;
+
+											adpcmRawLoopOffsetsWav[x][y] = percussionadpcmRawLoopOffsetsWav[w];
+
+											foundSameInPercussion = true;
+											break;
+										}
+									}
+								}
+							}
+							
+							if (!foundSameInPercussion)
+							{
+								adpcmRawLoopOffsetsWav[x][y] = outputCtlCounter;
+								WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, outputCtlCounter);
+
+								WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start);
+								outputCtlCounter += 4;
+								WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end);
+								outputCtlCounter += 4;
+								WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count);
+								outputCtlCounter += 4;
+								for (int z = 0; z < 0x10; z++)
+								{
+									temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] >> 8) & 0xFF);
+									temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z]) & 0xFF);
+								}
+							}
+							else
+							{
+								WriteLongToBuffer(temporaryCtlBuffer, loopWriteSpot, adpcmRawLoopOffsetsWav[x][y]);
 							}
 						}
 						else
@@ -6561,18 +8736,57 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 
 					if (same == -1)
 					{
-						bookOffsetsWav[x][y] = outputCtlCounter;
-						WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
+						bool foundSameInPercussion = false;
 
-						WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
-						outputCtlCounter += 4;
-						WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors);
-						outputCtlCounter += 4;
-
-						for (int z = 0; z < (alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8); z++)
+						if (alBank->percussion != NULL)
 						{
-							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] >> 8) & 0xFF);
-							temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z]) & 0xFF);
+							for (int w = 0; w < alBank->percussion->soundCount; w++)
+							{
+								if (alBank->percussion->sounds[w]->wav.adpcmWave != NULL)
+								{
+									if ((alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order == alBank->percussion->sounds[w]->wav.adpcmWave->book->order) 
+										&& (alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors == alBank->percussion->sounds[w]->wav.adpcmWave->book->npredictors))
+									{
+										bool goOn = false;
+										for (int ww = 0; ww < (alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8); ww++)
+										{
+											if (alBank->percussion->sounds[w]->wav.adpcmWave->book->predictors[ww] != alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[ww])
+											{
+												goOn = true;
+												break;
+											}
+										}
+
+										if (goOn)
+											continue;
+
+										bookOffsetsWav[x][y] = percussionbookOffsetsWav[w];
+										foundSameInPercussion = true;
+										break;
+									}
+								}
+							}
+						}
+
+						if (!foundSameInPercussion)
+						{
+							bookOffsetsWav[x][y] = outputCtlCounter;
+							WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, outputCtlCounter);
+
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order);
+							outputCtlCounter += 4;
+							WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors);
+							outputCtlCounter += 4;
+
+							for (int z = 0; z < (alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8); z++)
+							{
+								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] >> 8) & 0xFF);
+								temporaryCtlBuffer[outputCtlCounter++] = ((alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z]) & 0xFF);
+							}
+						}
+						else
+						{
+							WriteLongToBuffer(temporaryCtlBuffer, bookWriteSpot, bookOffsetsWav[x][y]);
 						}
 
 						
@@ -6685,6 +8899,41 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 
 	unsigned long startALSound = outputCtlCounter;
 
+	if (alBank->percussion != NULL)
+	{
+		percussionALLookup = outputCtlCounter;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->volume;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->pan;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->priority;
+		temporaryCtlBuffer[outputCtlCounter++] = 0; //offset type
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->tremType;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->tremRate;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->tremDepth;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->tremDelay;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->vibType;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->vibRate;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->vibDepth;
+		temporaryCtlBuffer[outputCtlCounter++] = alBank->percussion->vibDelay;
+		WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->bendRange);
+		outputCtlCounter += 2;
+		WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion->soundCount);
+		outputCtlCounter += 2;
+		
+		for (int z = 0; z < alBank->percussion->soundCount; z++)
+		{
+			WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, (percussioninstrumentSoundStartLookup[z]));
+			outputCtlCounter += 4;
+		}
+
+		if ((outputCtlCounter % 8) != 0)
+		{
+			int pad = 8 - (outputCtlCounter % 8);
+			for (int z = 0; z < pad; z++)
+			{
+				temporaryCtlBuffer[outputCtlCounter++] = 0;
+			}
+		}
+	}
 
 	for (int y = 0; y < alBank->count; y++)
 	{
@@ -6742,8 +8991,17 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 	outputCtlCounter += 2;
 	WriteShortToBuffer(temporaryCtlBuffer, outputCtlCounter, (alBank->samplerate));
 	outputCtlCounter += 2;
-	WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, alBank->percussion);
-	outputCtlCounter += 4;
+
+	if (alBank->percussion != NULL)
+	{
+		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, percussionALLookup);
+		outputCtlCounter += 4;
+	}
+	else
+	{
+		WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, 0x00000000);
+		outputCtlCounter += 4;
+	}
 
 	for (int y = 0; y < alBank->count; y++)
 	{
@@ -6782,6 +9040,18 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 	delete [] adpcmRawLoopOffsetsWav;
 	delete [] rawLoopOffsetsWav;
 	delete [] tblOffsets;
+
+	if (alBank->percussion != NULL)
+	{
+		delete [] percussioninstrumentSoundStartLookup;
+		delete [] percussionoffsetsEnv;
+		delete [] percussionoffsetsKey;
+		delete [] percussionoffsetsWav;
+		delete [] percussionbookOffsetsWav;
+		delete [] percussionadpcmRawLoopOffsetsWav;
+		delete [] percussionrawLoopOffsetsWav;
+		delete [] percussiontblOffsets;
+	}
 	
 	ctl = temporaryCtlBuffer;
 	tbl = temporaryTblBuffer;
@@ -6813,58 +9083,218 @@ bool CN64AIFCAudio::InjectCtlTblIntoROMArrayInPlace(unsigned char* ROM, unsigned
 	return true;
 }
 
+void CN64AIFCAudio::DisposeALInst(ALInst*& alInst)
+{
+	if (alInst->sounds != NULL)
+	{
+		for (int y = 0; y < alInst->soundCount; y++)
+		{
+			if (alInst->sounds[y] != NULL)
+			{
+				if (alInst->sounds[y]->wav.type == AL_ADPCM_WAVE)
+				{
+					if (alInst->sounds[y]->wav.adpcmWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.adpcmWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.adpcmWave->loop;
+						}
+						if (alInst->sounds[y]->wav.adpcmWave->book != NULL)
+						{
+							delete [] alInst->sounds[y]->wav.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wav.adpcmWave->book;
+						}
+						delete alInst->sounds[y]->wav.adpcmWave;
+					}
+				}
+				else if (alInst->sounds[y]->wav.type == AL_RAW16_WAVE)
+				{
+					if (alInst->sounds[y]->wav.rawWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.rawWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.rawWave->loop;
+						}
+						delete alInst->sounds[y]->wav.rawWave;
+					}
+				}
+				else if (alInst->sounds[y]->wav.type == AL_MUSYX_WAVE)
+				{
+					if (alInst->sounds[y]->wav.adpcmWave != NULL)
+					{
+						if (alInst->sounds[y]->wav.adpcmWave->loop != NULL)
+						{
+							delete alInst->sounds[y]->wav.adpcmWave->loop;
+						}
+						if (alInst->sounds[y]->wav.adpcmWave->book != NULL)
+						{
+							delete [] alInst->sounds[y]->wav.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wav.adpcmWave->book;
+						}
+						delete alInst->sounds[y]->wav.adpcmWave;
+					}
+				}
+
+				if (alInst->sounds[y]->wav.wavData != NULL)
+					delete [] alInst->sounds[y]->wav.wavData;
+
+
+
+
+				if (alInst->sounds[y]->hasWavePrevious)
+				{
+					if (alInst->sounds[y]->wavPrevious.type == AL_ADPCM_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave->book;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavPrevious.type== AL_RAW16_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.rawWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.rawWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.rawWave->loop;
+							}
+							delete alInst->sounds[y]->wavPrevious.rawWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavPrevious.type == AL_MUSYX_WAVE)
+					{
+						if (alInst->sounds[y]->wavPrevious.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavPrevious.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave->book;
+							delete alInst->sounds[y]->wavPrevious.adpcmWave;
+						}
+					}
+
+					if (alInst->sounds[y]->wavPrevious.wavData != NULL)
+						delete [] alInst->sounds[y]->wavPrevious.wavData;
+				}
+
+				if (alInst->sounds[y]->hasWaveSecondary)
+				{
+					if (alInst->sounds[y]->wavSecondary.type == AL_ADPCM_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave->book;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavSecondary.type == AL_RAW16_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.rawWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.rawWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.rawWave->loop;
+							}
+							delete alInst->sounds[y]->wavSecondary.rawWave;
+						}
+					}
+					else if (alInst->sounds[y]->wavSecondary.type == AL_MUSYX_WAVE)
+					{
+						if (alInst->sounds[y]->wavSecondary.adpcmWave != NULL)
+						{
+							if (alInst->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+							{
+								delete alInst->sounds[y]->wavSecondary.adpcmWave->loop;
+							}
+							delete [] alInst->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave->book;
+							delete alInst->sounds[y]->wavSecondary.adpcmWave;
+						}
+					}
+
+					if (alInst->sounds[y]->wavSecondary.wavData != NULL)
+						delete [] alInst->sounds[y]->wavSecondary.wavData;
+				}
+
+
+				delete alInst->sounds[y];
+			}
+		}
+
+		delete alInst->sounds;
+	}
+
+	delete alInst;
+}
+
 void CN64AIFCAudio::DisposeALBank(ALBank*& alBank)
 {
 	if (alBank != NULL)
 	{
-		if (alBank->alPercussion != NULL)
+		alBank->konamiADSR.clear();
+		alBank->konamiDrumsADSR.clear();
+
+		if (alBank->eadPercussion != NULL)
 		{
-			for (int y = 0; y < alBank->countPercussion; y++)
+			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
-				if (alBank->alPercussion[y].wav.type == AL_ADPCM_WAVE)
+				if (alBank->eadPercussion[y].wav.type == AL_ADPCM_WAVE)
 				{
-					if (alBank->alPercussion[y].wav.adpcmWave != NULL)
+					if (alBank->eadPercussion[y].wav.adpcmWave != NULL)
 					{
-						if (alBank->alPercussion[y].wav.adpcmWave->loop != NULL)
+						if (alBank->eadPercussion[y].wav.adpcmWave->loop != NULL)
 						{
-							delete alBank->alPercussion[y].wav.adpcmWave->loop;
+							delete alBank->eadPercussion[y].wav.adpcmWave->loop;
 						}
-						if (alBank->alPercussion[y].wav.adpcmWave->book != NULL)
+						if (alBank->eadPercussion[y].wav.adpcmWave->book != NULL)
 						{
-							delete [] alBank->alPercussion[y].wav.adpcmWave->book->predictors;
-							delete alBank->alPercussion[y].wav.adpcmWave->book;
+							delete [] alBank->eadPercussion[y].wav.adpcmWave->book->predictors;
+							delete alBank->eadPercussion[y].wav.adpcmWave->book;
 						}
-						delete alBank->alPercussion[y].wav.adpcmWave;
+						delete alBank->eadPercussion[y].wav.adpcmWave;
 					}
 				}
-				else if (alBank->alPercussion[y].wav.type == AL_RAW16_WAVE)
+				else if (alBank->eadPercussion[y].wav.type == AL_RAW16_WAVE)
 				{
-					if (alBank->alPercussion[y].wav.rawWave != NULL)
+					if (alBank->eadPercussion[y].wav.rawWave != NULL)
 					{
-						if (alBank->alPercussion[y].wav.rawWave->loop != NULL)
+						if (alBank->eadPercussion[y].wav.rawWave->loop != NULL)
 						{
-							delete alBank->alPercussion[y].wav.rawWave->loop;
+							delete alBank->eadPercussion[y].wav.rawWave->loop;
 						}
-						delete alBank->alPercussion[y].wav.rawWave;
+						delete alBank->eadPercussion[y].wav.rawWave;
 					}
 				}
-				else if (alBank->alPercussion[y].wav.type == AL_MUSYX_WAVE)
+				else if (alBank->eadPercussion[y].wav.type == AL_MUSYX_WAVE)
 				{
-					if (alBank->alPercussion[y].wav.adpcmWave != NULL)
+					if (alBank->eadPercussion[y].wav.adpcmWave != NULL)
 					{
-						if (alBank->alPercussion[y].wav.adpcmWave->loop != NULL)
+						if (alBank->eadPercussion[y].wav.adpcmWave->loop != NULL)
 						{
-							delete alBank->alPercussion[y].wav.adpcmWave->loop;
+							delete alBank->eadPercussion[y].wav.adpcmWave->loop;
 						}
-						delete alBank->alPercussion[y].wav.adpcmWave;
+						delete alBank->eadPercussion[y].wav.adpcmWave;
 					}
 				}
 
-				if (alBank->alPercussion[y].wav.wavData != NULL)
-					delete [] alBank->alPercussion[y].wav.wavData;
+				if (alBank->eadPercussion[y].wav.wavData != NULL)
+					delete [] alBank->eadPercussion[y].wav.wavData;
 			}
 
-			delete [] alBank->alPercussion;
+			delete [] alBank->eadPercussion;
 		}
 
 		if (alBank->alSfx != NULL)
@@ -6927,163 +9357,168 @@ void CN64AIFCAudio::DisposeALBank(ALBank*& alBank)
 			delete [] alBank->alSfx;
 		}
 
+		if (alBank->percussion != NULL)
+		{
+			if (alBank->percussion->sounds != NULL)
+			{
+				for (int y = 0; y < alBank->percussion->soundCount; y++)
+				{
+					if (alBank->percussion->sounds[y] != NULL)
+					{
+						if (alBank->percussion->sounds[y]->wav.type == AL_ADPCM_WAVE)
+						{
+							if (alBank->percussion->sounds[y]->wav.adpcmWave != NULL)
+							{
+								if (alBank->percussion->sounds[y]->wav.adpcmWave->loop != NULL)
+								{
+									delete alBank->percussion->sounds[y]->wav.adpcmWave->loop;
+								}
+								if (alBank->percussion->sounds[y]->wav.adpcmWave->book != NULL)
+								{
+									delete [] alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wav.adpcmWave->book;
+								}
+								delete alBank->percussion->sounds[y]->wav.adpcmWave;
+							}
+						}
+						else if (alBank->percussion->sounds[y]->wav.type == AL_RAW16_WAVE)
+						{
+							if (alBank->percussion->sounds[y]->wav.rawWave != NULL)
+							{
+								if (alBank->percussion->sounds[y]->wav.rawWave->loop != NULL)
+								{
+									delete alBank->percussion->sounds[y]->wav.rawWave->loop;
+								}
+								delete alBank->percussion->sounds[y]->wav.rawWave;
+							}
+						}
+						else if (alBank->percussion->sounds[y]->wav.type == AL_MUSYX_WAVE)
+						{
+							if (alBank->percussion->sounds[y]->wav.adpcmWave != NULL)
+							{
+								if (alBank->percussion->sounds[y]->wav.adpcmWave->loop != NULL)
+								{
+									delete alBank->percussion->sounds[y]->wav.adpcmWave->loop;
+								}
+								if (alBank->percussion->sounds[y]->wav.adpcmWave->book != NULL)
+								{
+									delete [] alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wav.adpcmWave->book;
+								}
+								delete alBank->percussion->sounds[y]->wav.adpcmWave;
+							}
+						}
+
+						if (alBank->percussion->sounds[y]->wav.wavData != NULL)
+							delete [] alBank->percussion->sounds[y]->wav.wavData;
+
+
+
+
+						if (alBank->percussion->sounds[y]->hasWavePrevious)
+						{
+							if (alBank->percussion->sounds[y]->wavPrevious.type == AL_ADPCM_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavPrevious.adpcmWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave->loop;
+									}
+									delete [] alBank->percussion->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave->book;
+									delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave;
+								}
+							}
+							else if (alBank->percussion->sounds[y]->wavPrevious.type== AL_RAW16_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavPrevious.rawWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavPrevious.rawWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavPrevious.rawWave->loop;
+									}
+									delete alBank->percussion->sounds[y]->wavPrevious.rawWave;
+								}
+							}
+							else if (alBank->percussion->sounds[y]->wavPrevious.type == AL_MUSYX_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavPrevious.adpcmWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave->loop;
+									}
+									delete [] alBank->percussion->sounds[y]->wavPrevious.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave->book;
+									delete alBank->percussion->sounds[y]->wavPrevious.adpcmWave;
+								}
+							}
+
+							if (alBank->percussion->sounds[y]->wavPrevious.wavData != NULL)
+								delete [] alBank->percussion->sounds[y]->wavPrevious.wavData;
+						}
+
+						if (alBank->percussion->sounds[y]->hasWaveSecondary)
+						{
+							if (alBank->percussion->sounds[y]->wavSecondary.type == AL_ADPCM_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavSecondary.adpcmWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave->loop;
+									}
+									delete [] alBank->percussion->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave->book;
+									delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave;
+								}
+							}
+							else if (alBank->percussion->sounds[y]->wavSecondary.type == AL_RAW16_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavSecondary.rawWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavSecondary.rawWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavSecondary.rawWave->loop;
+									}
+									delete alBank->percussion->sounds[y]->wavSecondary.rawWave;
+								}
+							}
+							else if (alBank->percussion->sounds[y]->wavSecondary.type == AL_MUSYX_WAVE)
+							{
+								if (alBank->percussion->sounds[y]->wavSecondary.adpcmWave != NULL)
+								{
+									if (alBank->percussion->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
+									{
+										delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave->loop;
+									}
+									delete [] alBank->percussion->sounds[y]->wavSecondary.adpcmWave->book->predictors;
+									delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave->book;
+									delete alBank->percussion->sounds[y]->wavSecondary.adpcmWave;
+								}
+							}
+
+							if (alBank->percussion->sounds[y]->wavSecondary.wavData != NULL)
+								delete [] alBank->percussion->sounds[y]->wavSecondary.wavData;
+						}
+
+
+						delete alBank->percussion->sounds[y];
+					}
+				}
+
+				delete alBank->percussion->sounds;
+			}
+
+			delete alBank->percussion;
+		}
+
 		if (alBank->inst != NULL)
 		{
 			for (int x = 0; x < alBank->count; x++)
 			{
-				if (alBank->inst[x]->sounds != NULL)
-				{
-					for (int y = 0; y < alBank->inst[x]->soundCount; y++)
-					{
-						if (alBank->inst[x]->sounds[y] != NULL)
-						{
-							if (alBank->inst[x]->sounds[y]->wav.type == AL_ADPCM_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.adpcmWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->loop;
-									}
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->book != NULL)
-									{
-										delete [] alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->book;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.adpcmWave;
-								}
-							}
-							else if (alBank->inst[x]->sounds[y]->wav.type == AL_RAW16_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.rawWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.rawWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.rawWave->loop;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.rawWave;
-								}
-							}
-							else if (alBank->inst[x]->sounds[y]->wav.type == AL_MUSYX_WAVE)
-							{
-								if (alBank->inst[x]->sounds[y]->wav.adpcmWave != NULL)
-								{
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop != NULL)
-									{
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->loop;
-									}
-									if (alBank->inst[x]->sounds[y]->wav.adpcmWave->book != NULL)
-									{
-										delete [] alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wav.adpcmWave->book;
-									}
-									delete alBank->inst[x]->sounds[y]->wav.adpcmWave;
-								}
-							}
-
-							if (alBank->inst[x]->sounds[y]->wav.wavData != NULL)
-								delete [] alBank->inst[x]->sounds[y]->wav.wavData;
-
-
-
-
-							if (alBank->inst[x]->sounds[y]->hasWavePrevious)
-							{
-								if (alBank->inst[x]->sounds[y]->wavPrevious.type == AL_ADPCM_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavPrevious.type== AL_RAW16_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.rawWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.rawWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.rawWave->loop;
-										}
-										delete alBank->inst[x]->sounds[y]->wavPrevious.rawWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavPrevious.type == AL_MUSYX_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave;
-									}
-								}
-
-								if (alBank->inst[x]->sounds[y]->wavPrevious.wavData != NULL)
-									delete [] alBank->inst[x]->sounds[y]->wavPrevious.wavData;
-							}
-
-							if (alBank->inst[x]->sounds[y]->hasWaveSecondary)
-							{
-								if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_ADPCM_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_RAW16_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.rawWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.rawWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.rawWave->loop;
-										}
-										delete alBank->inst[x]->sounds[y]->wavSecondary.rawWave;
-									}
-								}
-								else if (alBank->inst[x]->sounds[y]->wavSecondary.type == AL_MUSYX_WAVE)
-								{
-									if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave != NULL)
-									{
-										if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop != NULL)
-										{
-											delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop;
-										}
-										delete [] alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book->predictors;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->book;
-										delete alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave;
-									}
-								}
-
-								if (alBank->inst[x]->sounds[y]->wavSecondary.wavData != NULL)
-									delete [] alBank->inst[x]->sounds[y]->wavSecondary.wavData;
-							}
-
-
-							delete alBank->inst[x]->sounds[y];
-						}
-					}
-
-					delete alBank->inst[x]->sounds;
-				}
-
-				delete alBank->inst[x];
+				DisposeALInst(alBank->inst[x]);
 			}
 
 			delete alBank->inst;
@@ -7117,8 +9552,8 @@ ALBank* CN64AIFCAudio::ReadAudioN64PtrWavetableV1(unsigned char* ctl, unsigned l
 	alBank->pad = 0x0;
 	alBank->samplerate = 22050;
 	alBank->percussion = 0x000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 	
 	alBank->inst = NULL;
 
@@ -7275,8 +9710,8 @@ ALBank* CN64AIFCAudio::ReadAudioH20Raw816(unsigned char* ctl, unsigned long& ctl
 	alBank->pad = 0;
 	alBank->samplerate = 11025;
 	alBank->percussion = 0;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -7330,8 +9765,8 @@ ALBank* CN64AIFCAudio::ReadAudioTetrisphereRaw816(unsigned char* ctl, unsigned l
 	alBank->pad = 0;
 	alBank->samplerate = 11025;
 	alBank->percussion = 0;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -7381,10 +9816,23 @@ ALBank* CN64AIFCAudio::ReadAudioRNCN64PtrOffset(unsigned char* ctl, unsigned lon
 	unsigned char* outputDecompressed = new unsigned char[0x1000000];
 	int fileSizeCompressed = -1;
 	RncDecoder rnc;
-	rnc.unpackM1(&ctl[ctlOffset], outputDecompressed, 0x0, fileSizeCompressed);
+	int returnedSize = rnc.unpackM1(&ctl[ctlOffset], outputDecompressed, 0x0, fileSizeCompressed);
 	unsigned long ctlSizeUncompressed = fileSizeCompressed;
 	ALBank* alBank = ReadAudioN64PtrWavetableV2(&outputDecompressed[offset], ctlSizeUncompressed, 0, tbl);
 	alBank->soundBankFormat = RNCCOMPRESSEDN64PTR;
+	delete [] outputDecompressed;
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioAVL_0Ptr(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl)
+{
+	unsigned char* outputDecompressed = new unsigned char[0x1000000];
+	int fileSizeCompressed = ctlSize;
+	CMidwayDecoder midwayDec;
+	int returnedSize = midwayDec.dec(&ctl[ctlOffset], fileSizeCompressed, outputDecompressed, "LZSS");
+	unsigned long ctlSizeUncompressed = fileSizeCompressed;
+	ALBank* alBank = ReadAudioN64PtrWavetableV2(outputDecompressed, ctlSizeUncompressed, 0, tbl);
+	alBank->soundBankFormat = AVL_0PTR;
 	delete [] outputDecompressed;
 	return alBank;
 }
@@ -7512,8 +9960,8 @@ ALBank* CN64AIFCAudio::ReadAudioN64SN64(unsigned char* ctl, unsigned long& ctlSi
 		numberLoops++;
 	
 	alBank->inst = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
 	{
@@ -7753,8 +10201,8 @@ ALBank* CN64AIFCAudio::ReadAudioBnkB(unsigned char* ctl, unsigned long& ctlSize,
 	alBank->pad = 0x0;
 	alBank->samplerate = 8000;
 	alBank->percussion = 0x000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	unsigned long tblOffset = ctlOffset + CharArrayToLong(&ctl[ctlOffset+8]);
 
@@ -7919,6 +10367,10 @@ ALBank* CN64AIFCAudio::ReadAudioArmyMenCompressed(unsigned char* ctl, unsigned l
 	int fileSizeCompressed = -1;
 	n643docompression compression;
 	compression.dec(&ctl[ctlOffset], compression.uncompressedSize(&ctl[ctlOffset], littleEndianCompressedHeader), outputDecompressed, fileSizeCompressed, littleEndianCompressedHeader, sarge2style);
+
+	//FILE* outA = fopen("C:\\temp\\army.ctl", "wb");
+	//fwrite(&outputDecompressed[0], 1, ctlSize, outA);
+	//fclose(outA);
 	ALBank* alBank = ReadAudioN64PtrWavetableV2(&outputDecompressed[0], ctlSize, 0, tbl);
 	alBank->soundBankFormat = ARMYMENFORMAT;
 	delete [] outputDecompressed;
@@ -7937,6 +10389,7 @@ ALBank* CN64AIFCAudio::ReadAudioMegamanN64PtrWavetableV2(unsigned char* ctl, uns
 		int fileSizeCompressed = -1;
 		MidwayLZ compression;
 		ctlSize = compression.decLZSS0B(&ctl[ctlOffset], fileSizeCompressed, outputDecompressed);
+
 		ALBank* alBank = ReadAudioN64PtrWavetableV2(&outputDecompressed[0], ctlSize, 0, tbl);
 		alBank->soundBankFormat = MEGAMAN64PTRV2;
 		delete [] outputDecompressed;
@@ -8016,8 +10469,8 @@ ALBank* CN64AIFCAudio::ReadAudioPaperMario(unsigned char* ctl, unsigned long& ct
 	alBank->pad = 0x0;
 	alBank->samplerate = 22050;
 	alBank->percussion = 0x000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	unsigned long bankSize = CharArrayToLong(&ctl[ctlOffset + 4]);
 	alBank->bankName.Format("%s", &ctl[ctlOffset + 0x8]);
@@ -8171,6 +10624,175 @@ ALBank* CN64AIFCAudio::ReadAudioPaperMario(unsigned char* ctl, unsigned long& ct
 	return alBank;
 }
 
+ALBank* CN64AIFCAudio::ReadAudioB0(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl)
+{
+	ALBank* alBank = new ALBank();
+	alBank->soundBankFormat = B0;
+	alBank->flags = 0x0000;
+	alBank->pad = 0x0;
+	alBank->samplerate = 22050;
+	alBank->percussion = 0x000;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
+
+	alBank->count = 1;
+
+	unsigned long bankOffset = ctlOffset;
+
+	int soundCount = CharArrayToLong(&ctl[bankOffset]) / 0x10;
+
+	alBank->inst = NULL;
+
+	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
+	{
+		alBank->inst = new ALInst*[alBank->count];
+
+		for (int x = 0; x < alBank->count; x++)
+		{
+			alBank->inst[x] = new ALInst();
+			alBank->inst[x]->samplerate = 0;
+			alBank->inst[x]->sounds = NULL;
+		}
+
+		int x = 0;
+		{
+			alBank->inst[x]->soundCount = soundCount;
+			alBank->inst[x]->sounds = new ALSound*[alBank->inst[x]->soundCount];
+
+			for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+			{
+				alBank->inst[x]->sounds[y] = new ALSound();
+				alBank->inst[x]->sounds[y]->wav.wavData = NULL;
+			}
+
+			for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+			{
+				unsigned long offsetSound = bankOffset + (0x10 * y);
+
+				alBank->inst[x]->sounds[y]->samplePan = ctl[offsetSound+0xC];
+				alBank->inst[x]->sounds[y]->sampleVolume = ctl[offsetSound+0xD];
+				alBank->inst[x]->sounds[y]->flags = ctl[offsetSound+0xE];
+
+				
+				if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+				{
+					unsigned long offsetEnv = CharArrayToLong(&ctl[offsetSound+ 0x0]);
+					offsetEnv = bankOffset + offsetEnv;
+
+					alBank->inst[x]->sounds[y]->env.attackTime = CharArrayToLong(&ctl[offsetEnv + 0x0]);
+					alBank->inst[x]->sounds[y]->env.decayTime = CharArrayToLong(&ctl[offsetEnv + 0x4]);
+					alBank->inst[x]->sounds[y]->env.releaseTime = CharArrayToLong(&ctl[offsetEnv + 0x8]);
+					alBank->inst[x]->sounds[y]->env.attackVolume = ctl[offsetEnv + 0xC];
+					alBank->inst[x]->sounds[y]->env.decayVolume = ctl[offsetEnv + 0xD];
+					alBank->inst[x]->sounds[y]->env.zeroPad = CharArrayToShort(&ctl[offsetEnv + 0xE]);
+
+
+
+					unsigned long offsetWaveTable = CharArrayToLong(&ctl[offsetSound+ 0x8]);
+					offsetWaveTable = bankOffset + offsetWaveTable;
+
+					unsigned char flag = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) >> 24; // hack for NUD-DSCJ-JPN, can't imagine impact others
+					if (flag == 0x40) // Means using 64DD IPL Bank
+						alBank->inst[x]->sounds[y]->wav.base = (CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF) + 0x140000;
+					else
+						alBank->inst[x]->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
+					alBank->inst[x]->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+					alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
+
+					for (int  r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
+					{
+						alBank->inst[x]->sounds[y]->wav.wavData[r] = tbl[alBank->inst[x]->sounds[y]->wav.base + r];
+					}
+					
+
+					alBank->inst[x]->sounds[y]->wav.type = ctl[offsetWaveTable + 0x8];
+					alBank->inst[x]->sounds[y]->wav.flags = ctl[offsetWaveTable + 0x9];
+					// MUST PAD to 4s
+
+					if ((alBank->inst[x]->sounds[y]->wav.type == AL_ADPCM_WAVE) && ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1)))
+					{
+						alBank->inst[x]->sounds[y]->wav.adpcmWave = new ALADPCMWaveInfo();
+						unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+						unsigned long predictorOffset = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+
+						if (loopOffset != 0)
+						{
+							loopOffset = bankOffset + loopOffset;
+
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = new ALADPCMloop();
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+							for (int z = 0; z < 0x10; z++)
+							{
+								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0xC + z * 2]);
+							}
+						}
+						else
+						{
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = NULL;
+						}
+
+						if (predictorOffset != 0)
+						{
+							predictorOffset = bankOffset + predictorOffset;
+
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->book = new ALADPCMBook();
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors = new signed short[alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8];
+
+							for (int z = 0; z < alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8; z++)
+							{
+								alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+							}
+						}
+					}
+					else if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+					{
+						alBank->inst[x]->sounds[y]->wav.rawWave = new ALRAWWaveInfo();
+						unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+
+						if (loopOffset != 0)
+						{
+							loopOffset = bankOffset + loopOffset;
+
+							alBank->inst[x]->sounds[y]->wav.rawWave->loop = new ALRawLoop();
+							alBank->inst[x]->sounds[y]->wav.rawWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+							alBank->inst[x]->sounds[y]->wav.rawWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+							alBank->inst[x]->sounds[y]->wav.rawWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);	
+						}
+						else
+						{
+							alBank->inst[x]->sounds[y]->wav.rawWave->loop = NULL;
+						}
+					}
+					else
+					{
+						DisposeALBank(alBank);
+						MessageBox(NULL, "Error", "Unsupported type in ALSound wav", NULL);
+						return NULL;
+					}
+				}
+				else
+				{
+					DisposeALBank(alBank);
+					MessageBox(NULL, "Error", "Unsupported type in ALSound", NULL);
+					return NULL;
+				}
+			}
+		}
+	}
+	else
+	{
+		DisposeALBank(alBank);
+		MessageBox(NULL, "Error", "Unsupported type in ALBank", NULL);
+		return NULL;
+	}
+
+	return alBank;
+}
+
 ALBank* CN64AIFCAudio::ReadAudioDuckDodgers(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl)
 {
 	ALBank* alBank = new ALBank();
@@ -8179,8 +10801,8 @@ ALBank* CN64AIFCAudio::ReadAudioDuckDodgers(unsigned char* ctl, unsigned long& c
 	alBank->pad = 0x0;
 	alBank->samplerate = 22050;
 	alBank->percussion = 0x000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	unsigned long bankSize = CharArrayToLong(&ctl[ctlOffset + 4]);
 	alBank->bankName.Format("%s", &ctl[ctlOffset + 0x8]);
@@ -8344,8 +10966,8 @@ ALBank* CN64AIFCAudio::ReadAudioN64PtrWavetableV2(unsigned char* ctl, unsigned l
 	alBank->pad = 0x0;
 	alBank->samplerate = 22050;
 	alBank->percussion = 0x000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->bankName.Format("%s", &ctl[ctlOffset + 0x14]);
 	
@@ -8484,9 +11106,16 @@ ALBank* CN64AIFCAudio::ReadAudioN64PtrWavetableV2(unsigned char* ctl, unsigned l
 			}
 		}
 
+		// Semitones
 		for (int x = 0; x < alBank->count; x++)
 		{
 			alBank->inst[x]->volume = ctl[endOffsets + x];
+		}
+
+		// Fine tones
+		for (int x = 0; x < alBank->count; x++)
+		{
+			alBank->inst[x]->pan = ctl[endExtraBytes + x];
 		}
 	}
 	else
@@ -8513,8 +11142,8 @@ ALBank* CN64AIFCAudio::ReadAudioFZero(unsigned char* ctl, int ctlSize, int ctlOf
 	alBank->pad = 0x0000;
 	alBank->samplerate = 11025;
 	alBank->percussion = 0x0000;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = NULL;
 
@@ -8574,6 +11203,12 @@ ALBank* CN64AIFCAudio::ReadAudioFZero(unsigned char* ctl, int ctlSize, int ctlOf
 
 				alBank->inst[x]->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetSound + 0x4]);
 				alBank->inst[x]->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetSound + 0x0]) & 0xFFFFFF;
+
+				if (ctl[offsetSound] != 0)
+				{
+					// Lots of flags here, what is this? Maybe choose Tbl A vs Tbl B on Bank 0?
+				}
+
 				alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
 
 				for (int  r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
@@ -8688,15 +11323,15 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 	alBank->percussion = 0x0000;
 
 	alBank->inst = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = instrumentCountSection1;
-	if (alBank->countPercussion > 0)
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = instrumentCountSection1;
+	if (alBank->countEADPercussion > 0)
 	{
-		alBank->alPercussion = new ALPercussion[alBank->countPercussion];
+		alBank->eadPercussion = new EADPercussion[alBank->countEADPercussion];
 	}
 	else
 	{
-		alBank->alPercussion = NULL;
+		alBank->eadPercussion = NULL;
 	}
 
 	alBank->countSfx = instrumentCountSection2;
@@ -8720,8 +11355,8 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 			alBank->inst[x]->sounds = NULL;
 		}
 
-		for (int x = 0; x < alBank->count + alBank->countPercussion; x++)
-		{		
+		for (int x = 0; x < instrumentCountNormal + instrumentCountSection1 + instrumentCountSection2; x++)
+		{
 			if (x < instrumentCountNormal)
 			{
 				unsigned long offsetInstrument = CharArrayToLong(&ctl[ctlOffset + x*4 + 0x8]);
@@ -8772,6 +11407,7 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 					if (ctl[offsetWaveTable] == 0x30)
 					{
 						//30 special somehow
+						alBank->inst[x]->sounds[y]->wav.decode8Only = true;
 					}
 					alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
 
@@ -8846,6 +11482,7 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 						if (ctl[offsetWaveTableSecondary] == 0x30)
 						{
 							//30 special somehow
+							alBank->inst[x]->sounds[y]->wavSecondary.decode8Only = true;
 						}
 
 						for (int  r = 0; r < alBank->inst[x]->sounds[y]->wavSecondary.len; r++)
@@ -8917,6 +11554,7 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 						if (ctl[offsetWaveTablePrevious] == 0x30)
 						{
 							//30 special somehow
+							alBank->inst[x]->sounds[y]->wavPrevious.decode8Only = true;
 						}
 						alBank->inst[x]->sounds[y]->wavPrevious.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wavPrevious.len];
 
@@ -9012,7 +11650,7 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 			{
 				int percussionInNumber = x - instrumentCountNormal;
 
-				alBank->alPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
+				alBank->eadPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
 
 				unsigned long percussionItemOffset = CharArrayToLong(&ctl[ctlOffset + offsetInstrumentSection1 + (x-instrumentCountNormal)*4]);
 				if (percussionItemOffset == 0x0000)
@@ -9024,11 +11662,11 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 
 				unsigned long offsetWaveTable = ctlOffset + CharArrayToLong(&ctl[percussionItemOffset+0x4]);
 
-				alBank->alPercussion[percussionInNumber].unknown1A = ctl[percussionItemOffset+0x0];
-				alBank->alPercussion[percussionInNumber].pan = ctl[percussionItemOffset+0x1];
-				alBank->alPercussion[percussionInNumber].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
+				alBank->eadPercussion[percussionInNumber].unknown1A = ctl[percussionItemOffset+0x0];
+				alBank->eadPercussion[percussionInNumber].pan = ctl[percussionItemOffset+0x1];
+				alBank->eadPercussion[percussionInNumber].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
 
-				alBank->alPercussion[percussionInNumber].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
+				alBank->eadPercussion[percussionInNumber].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
 
 				unsigned long offsetADRSData = CharArrayToLong(&ctl[percussionItemOffset + 0xC]);
 				if (offsetADRSData != 0)
@@ -9037,33 +11675,34 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 
 					for (int z = 0; z < 8; z++)
 					{
-						alBank->alPercussion[percussionInNumber].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
+						alBank->eadPercussion[percussionInNumber].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
 					}
 				}
 
-				alBank->alPercussion[percussionInNumber].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
-				alBank->alPercussion[percussionInNumber].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
-				alBank->alPercussion[percussionInNumber].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF;
-				alBank->alPercussion[percussionInNumber].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
-				alBank->alPercussion[percussionInNumber].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
-				alBank->alPercussion[percussionInNumber].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+				alBank->eadPercussion[percussionInNumber].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+				alBank->eadPercussion[percussionInNumber].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF;
+				alBank->eadPercussion[percussionInNumber].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
 
-				if (ctl[ctlOffset] == 0x03)
+				if (ctl[ctlOffset] == 0x30)
 				{
 					// special but not sure what
+					alBank->eadPercussion[percussionInNumber].wav.decode8Only = true;
 				}
 
-				alBank->alPercussion[percussionInNumber].wav.wavData = new unsigned char[alBank->alPercussion[percussionInNumber].wav.len];
+				alBank->eadPercussion[percussionInNumber].wav.wavData = new unsigned char[alBank->eadPercussion[percussionInNumber].wav.len];
 
-				for (int  r = 0; r < alBank->alPercussion[percussionInNumber].wav.len; r++)
+				for (int  r = 0; r < alBank->eadPercussion[percussionInNumber].wav.len; r++)
 				{
-					alBank->alPercussion[percussionInNumber].wav.wavData[r] = tbl[alBank->alPercussion[percussionInNumber].wav.base + r];
+					alBank->eadPercussion[percussionInNumber].wav.wavData[r] = tbl[alBank->eadPercussion[percussionInNumber].wav.base + r];
 				}
 
-				alBank->alPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
-				alBank->alPercussion[percussionInNumber].wav.flags = 0;
+				alBank->eadPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
+				alBank->eadPercussion[percussionInNumber].wav.flags = 0;
 
-				alBank->alPercussion[percussionInNumber].wav.adpcmWave = new ALADPCMWaveInfo();
+				alBank->eadPercussion[percussionInNumber].wav.adpcmWave = new ALADPCMWaveInfo();
 				unsigned long loopOffset;
 				unsigned long predictorOffset;
 				
@@ -9074,42 +11713,42 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 				{
 					loopOffset = ctlOffset + loopOffset;
 
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop = new ALADPCMloop();
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop = new ALADPCMloop();
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
 
-					if (alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->start != 0)
+					if (alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->start != 0)
 					{
 						for (int z = 0; z < 0x10; z++)
 						{
-							alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
+							alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
 						}
 					}
 				}
 				else
 				{
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop = NULL;
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop = NULL;
 				}
 
 				if (predictorOffset != 0)
 				{
 					predictorOffset = ctlOffset + predictorOffset;
 
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book = new ALADPCMBook();
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->predictors = new signed short[alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8];
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book = new ALADPCMBook();
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->predictors = new signed short[alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8];
 
-					for (int z = 0; z < alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8; z++)
+					for (int z = 0; z < alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8; z++)
 					{
-						alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+						alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
 					}
 				}
 				else
 				{
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book = NULL;
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book = NULL;
 				}
 				continue;
 			}
@@ -9137,9 +11776,10 @@ ALBank* CN64AIFCAudio::ReadAudioZelda(unsigned char* ctl, int ctlSize, int ctlOf
 				alBank->alSfx[soundInNumber]->len = CharArrayToLong(&ctl[offsetSound + 0x0]) & 0xFFFFFF;
 				alBank->alSfx[soundInNumber]->wavData = new unsigned char[alBank->alSfx[soundInNumber]->len];
 
-				if (ctl[offsetSound] == 0x03)
+				if (ctl[offsetSound] == 0x30)
 				{
 					// special but not sure what
+					alBank->alSfx[soundInNumber]->decode8Only = true;
 				}
 				for (int  r = 0; r < alBank->alSfx[soundInNumber]->len; r++)
 				{
@@ -9221,18 +11861,18 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 	unsigned long offsetInstrumentSection1 = CharArrayToLong(&ctl[ctlOffset]);
 	unsigned long endOffsetInstrument1Section1 = 0;
 
-	alBank->alPercussion = NULL;
+	alBank->eadPercussion = NULL;
 
 	if (offsetInstrumentSection1 != NULL)
 	{
 		endOffsetInstrument1Section1 = endSpot - ctlOffset;
 		instrumentCountSection1 = ((endOffsetInstrument1Section1 - offsetInstrumentSection1) / 4);
 
-		alBank->alPercussion = new ALPercussion[instrumentCountSection1];
+		alBank->eadPercussion = new EADPercussion[instrumentCountSection1];
 	}
 
 	alBank->inst = NULL;
-	alBank->countPercussion = instrumentCountSection1;
+	alBank->countEADPercussion = instrumentCountSection1;
 	
 
 	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
@@ -9246,7 +11886,7 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 			alBank->inst[x]->sounds = NULL;
 		}
 
-		for (int x = 0; x < alBank->count + alBank->countPercussion; x++)
+		for (int x = 0; x < alBank->count + alBank->countEADPercussion; x++)
 		{		
 			if (x < instrumentCountNormal)
 			{
@@ -9289,24 +11929,12 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 					}
 
 
-
-
-
-
-
-
-
-
 					unsigned long offsetWaveTable = CharArrayToLong(&ctl[offsetSoundData+ 0x10]);
 					offsetWaveTable = ctlOffset + offsetWaveTable;
 
 					alBank->inst[x]->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
 					alBank->inst[x]->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF;
 
-					if (ctl[offsetWaveTable] == 0x30)
-					{
-						//30 special somehow
-					}
 					alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
 
 					for (int  r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
@@ -9377,11 +12005,6 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 
 						alBank->inst[x]->sounds[y]->wavSecondary.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wavSecondary.len];
 
-						if (ctl[offsetWaveTableSecondary] == 0x30)
-						{
-							//30 special somehow
-						}
-
 						for (int  r = 0; r < alBank->inst[x]->sounds[y]->wavSecondary.len; r++)
 						{
 							alBank->inst[x]->sounds[y]->wavSecondary.wavData[r] = tbl[alBank->inst[x]->sounds[y]->wavSecondary.base + r];
@@ -9448,10 +12071,6 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 						alBank->inst[x]->sounds[y]->wavPrevious.base = CharArrayToLong(&ctl[offsetWaveTablePrevious + 0x4]);
 						alBank->inst[x]->sounds[y]->wavPrevious.len = CharArrayToLong(&ctl[offsetWaveTablePrevious + 0x0]) & 0xFFFFFF;
 
-						if (ctl[offsetWaveTablePrevious] == 0x30)
-						{
-							//30 special somehow
-						}
 						alBank->inst[x]->sounds[y]->wavPrevious.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wavPrevious.len];
 
 						for (int  r = 0; r < alBank->inst[x]->sounds[y]->wavPrevious.len; r++)
@@ -9523,11 +12142,11 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 
 				unsigned long offsetWaveTable = ctlOffset + CharArrayToLong(&ctl[percussionItemOffset+0x4]);
 
-				alBank->alPercussion[percussionInNumber].unknown1A = ctl[percussionItemOffset+0x0];
-				alBank->alPercussion[percussionInNumber].pan = ctl[percussionItemOffset+0x1];
-				alBank->alPercussion[percussionInNumber].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
+				alBank->eadPercussion[percussionInNumber].unknown1A = ctl[percussionItemOffset+0x0];
+				alBank->eadPercussion[percussionInNumber].pan = ctl[percussionItemOffset+0x1];
+				alBank->eadPercussion[percussionInNumber].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
 
-				alBank->alPercussion[percussionInNumber].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
+				alBank->eadPercussion[percussionInNumber].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
 
 				unsigned long offsetADRSData = CharArrayToLong(&ctl[percussionItemOffset + 0xC]);
 				if (offsetADRSData != 0)
@@ -9536,33 +12155,28 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 
 					for (int z = 0; z < 8; z++)
 					{
-						alBank->alPercussion[percussionInNumber].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
+						alBank->eadPercussion[percussionInNumber].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
 					}
 				}
 
-				alBank->alPercussion[percussionInNumber].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
-				alBank->alPercussion[percussionInNumber].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
-				alBank->alPercussion[percussionInNumber].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF;
-				alBank->alPercussion[percussionInNumber].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
-				alBank->alPercussion[percussionInNumber].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
-				alBank->alPercussion[percussionInNumber].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+				alBank->eadPercussion[percussionInNumber].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+				alBank->eadPercussion[percussionInNumber].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF;
+				alBank->eadPercussion[percussionInNumber].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
+				alBank->eadPercussion[percussionInNumber].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
 
-				if (ctl[ctlOffset] == 0x03)
+				alBank->eadPercussion[percussionInNumber].wav.wavData = new unsigned char[alBank->eadPercussion[percussionInNumber].wav.len];
+
+				for (int  r = 0; r < alBank->eadPercussion[percussionInNumber].wav.len; r++)
 				{
-					// special but not sure what
+					alBank->eadPercussion[percussionInNumber].wav.wavData[r] = tbl[alBank->eadPercussion[percussionInNumber].wav.base + r];
 				}
 
-				alBank->alPercussion[percussionInNumber].wav.wavData = new unsigned char[alBank->alPercussion[percussionInNumber].wav.len];
+				alBank->eadPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
+				alBank->eadPercussion[percussionInNumber].wav.flags = 0;
 
-				for (int  r = 0; r < alBank->alPercussion[percussionInNumber].wav.len; r++)
-				{
-					alBank->alPercussion[percussionInNumber].wav.wavData[r] = tbl[alBank->alPercussion[percussionInNumber].wav.base + r];
-				}
-
-				alBank->alPercussion[percussionInNumber].wav.type = AL_ADPCM_WAVE;
-				alBank->alPercussion[percussionInNumber].wav.flags = 0;
-
-				alBank->alPercussion[percussionInNumber].wav.adpcmWave = new ALADPCMWaveInfo();
+				alBank->eadPercussion[percussionInNumber].wav.adpcmWave = new ALADPCMWaveInfo();
 				unsigned long loopOffset;
 				unsigned long predictorOffset;
 				
@@ -9573,42 +12187,42 @@ ALBank* CN64AIFCAudio::ReadAudioStarFox(unsigned char* ctl, int ctlSize, int ctl
 				{
 					loopOffset = ctlOffset + loopOffset;
 
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop = new ALADPCMloop();
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop = new ALADPCMloop();
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
 
-					if (alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->start != 0)
+					if (alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->start != 0)
 					{
 						for (int z = 0; z < 0x10; z++)
 						{
-							alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
+							alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
 						}
 					}
 				}
 				else
 				{
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->loop = NULL;
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->loop = NULL;
 				}
 
 				if (predictorOffset != 0)
 				{
 					predictorOffset = ctlOffset + predictorOffset;
 
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book = new ALADPCMBook();
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->predictors = new signed short[alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8];
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book = new ALADPCMBook();
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->predictors = new signed short[alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8];
 
-					for (int z = 0; z < alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8; z++)
+					for (int z = 0; z < alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->order * alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->npredictors * 8; z++)
 					{
-						alBank->alPercussion[percussionInNumber].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+						alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
 					}
 				}
 				else
 				{
-					alBank->alPercussion[percussionInNumber].wav.adpcmWave->book = NULL;
+					alBank->eadPercussion[percussionInNumber].wav.adpcmWave->book = NULL;
 				}
 				continue;
 			}
@@ -9649,8 +12263,8 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 		alBank->count = CharArrayToLong(&ctl[offsetInstrument]);
 		alBank->inst = new ALInst*[alBank->count];
 
-		alBank->countPercussion = CharArrayToLong(&ctl[offsetInstrument+4]);
-		alBank->alPercussion = NULL;
+		alBank->countEADPercussion = CharArrayToLong(&ctl[offsetInstrument+4]);
+		alBank->eadPercussion = NULL;
 
 		for (int x = 0; x < alBank->count; x++)
 		{
@@ -9953,24 +12567,24 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 			}
 		}
 
-		if (alBank->countPercussion > 0)
+		if (alBank->countEADPercussion > 0)
 		{
 			unsigned long percussionOffset = offsetSoundData + CharArrayToLong(&ctl[offsetInstrument+0x10]);
-			alBank->alPercussion = new ALPercussion[alBank->countPercussion];
+			alBank->eadPercussion = new EADPercussion[alBank->countEADPercussion];
 
-			for (int y = 0; y < alBank->countPercussion; y++)
+			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
-				alBank->alPercussion[y].wav.type = AL_ADPCM_WAVE;
+				alBank->eadPercussion[y].wav.type = AL_ADPCM_WAVE;
 
 				unsigned long percussionItemOffset = offsetSoundData + CharArrayToLong(&ctl[percussionOffset+(4*y)]);
 				
 				unsigned long offsetWaveTable = offsetSoundData + CharArrayToLong(&ctl[percussionItemOffset+0x4]);
 
-				alBank->alPercussion[y].unknown1A = ctl[percussionItemOffset+0x0];
-				alBank->alPercussion[y].pan = ctl[percussionItemOffset+0x1];
-				alBank->alPercussion[y].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
+				alBank->eadPercussion[y].unknown1A = ctl[percussionItemOffset+0x0];
+				alBank->eadPercussion[y].pan = ctl[percussionItemOffset+0x1];
+				alBank->eadPercussion[y].unknown1C = CharArrayToShort(&ctl[percussionItemOffset+0x2]);
 
-				alBank->alPercussion[y].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
+				alBank->eadPercussion[y].keyBase = CharArrayToLong(&ctl[percussionItemOffset+0x8]);
 
 				unsigned long offsetADRSData = CharArrayToLong(&ctl[percussionItemOffset + 0xC]);
 				if (offsetADRSData != 0)
@@ -9979,38 +12593,38 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 
 					for (int z = 0; z < 8; z++)
 					{
-						alBank->alPercussion[y].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
+						alBank->eadPercussion[y].adsrEAD[z] = CharArrayToShort(&ctl[offsetADRSData + z*2]);
 					}
 				}
 
-				alBank->alPercussion[y].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
-				alBank->alPercussion[y].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
-				alBank->alPercussion[y].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
-				alBank->alPercussion[y].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
-				alBank->alPercussion[y].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
-				alBank->alPercussion[y].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
+				alBank->eadPercussion[y].wav.unknown1 = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
+				alBank->eadPercussion[y].wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+				alBank->eadPercussion[y].wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+				alBank->eadPercussion[y].wav.unknown2 = CharArrayToLong(&ctl[offsetWaveTable + 0x14]);
+				alBank->eadPercussion[y].wav.unknown3 = CharArrayToLong(&ctl[offsetWaveTable + 0x18]);
+				alBank->eadPercussion[y].wav.unknown4 = CharArrayToLong(&ctl[offsetWaveTable + 0x1C]);
 
-				alBank->alPercussion[y].wav.wavData = new unsigned char[alBank->alPercussion[y].wav.len];
+				alBank->eadPercussion[y].wav.wavData = new unsigned char[alBank->eadPercussion[y].wav.len];
 
-				for (int  r = 0; r < alBank->alPercussion[y].wav.len; r++)
+				for (int  r = 0; r < alBank->eadPercussion[y].wav.len; r++)
 				{
-					alBank->alPercussion[y].wav.wavData[r] = tbl[offsetTbl + alBank->alPercussion[y].wav.base + r];
+					alBank->eadPercussion[y].wav.wavData[r] = tbl[offsetTbl + alBank->eadPercussion[y].wav.base + r];
 				}
 
 				if (outDebug != NULL)
 				{
-					fprintf(outDebug, "Percussion %02X Length %08X ", y, alBank->alPercussion[y].wav.len);
-					for (int  r = 0; r < alBank->alPercussion[y].wav.len; r++)
+					fprintf(outDebug, "Percussion %02X Length %08X ", y, alBank->eadPercussion[y].wav.len);
+					for (int  r = 0; r < alBank->eadPercussion[y].wav.len; r++)
 					{
-						fprintf(outDebug, "%02X", alBank->alPercussion[y].wav.wavData[r]);
+						fprintf(outDebug, "%02X", alBank->eadPercussion[y].wav.wavData[r]);
 					}
 					fprintf(outDebug, "\n");
 				}
 				
-				alBank->alPercussion[y].wav.type = AL_ADPCM_WAVE;
-				alBank->alPercussion[y].wav.flags = 0;
+				alBank->eadPercussion[y].wav.type = AL_ADPCM_WAVE;
+				alBank->eadPercussion[y].wav.flags = 0;
 
-				alBank->alPercussion[y].wav.adpcmWave = new ALADPCMWaveInfo();
+				alBank->eadPercussion[y].wav.adpcmWave = new ALADPCMWaveInfo();
 				unsigned long loopOffset;
 				unsigned long predictorOffset;
 				if (marioKartStyle)
@@ -10034,48 +12648,48 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 				{
 					loopOffset = offsetSoundData + loopOffset;
 
-					alBank->alPercussion[y].wav.adpcmWave->loop = new ALADPCMloop();
-					alBank->alPercussion[y].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
-					alBank->alPercussion[y].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
-					alBank->alPercussion[y].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
-					alBank->alPercussion[y].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
+					alBank->eadPercussion[y].wav.adpcmWave->loop = new ALADPCMloop();
+					alBank->eadPercussion[y].wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+					alBank->eadPercussion[y].wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+					alBank->eadPercussion[y].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+					alBank->eadPercussion[y].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
 
-					if (alBank->alPercussion[y].wav.adpcmWave->loop->start != 0)
+					if (alBank->eadPercussion[y].wav.adpcmWave->loop->start != 0)
 					{
 						for (int z = 0; z < 0x10; z++)
 						{
-							alBank->alPercussion[y].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
+							alBank->eadPercussion[y].wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0x10 + z * 2]);
 						}
 					}
 				}
 				else
 				{
-					alBank->alPercussion[y].wav.adpcmWave->loop = NULL;
+					alBank->eadPercussion[y].wav.adpcmWave->loop = NULL;
 				}
 
 				if (predictorOffset != 0)
 				{
 					predictorOffset = offsetSoundData + predictorOffset;
 
-					alBank->alPercussion[y].wav.adpcmWave->book = new ALADPCMBook();
-					alBank->alPercussion[y].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
-					alBank->alPercussion[y].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
-					alBank->alPercussion[y].wav.adpcmWave->book->predictors = new signed short[alBank->alPercussion[y].wav.adpcmWave->book->order * alBank->alPercussion[y].wav.adpcmWave->book->npredictors * 8];
+					alBank->eadPercussion[y].wav.adpcmWave->book = new ALADPCMBook();
+					alBank->eadPercussion[y].wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+					alBank->eadPercussion[y].wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+					alBank->eadPercussion[y].wav.adpcmWave->book->predictors = new signed short[alBank->eadPercussion[y].wav.adpcmWave->book->order * alBank->eadPercussion[y].wav.adpcmWave->book->npredictors * 8];
 
-					for (int z = 0; z < alBank->alPercussion[y].wav.adpcmWave->book->order * alBank->alPercussion[y].wav.adpcmWave->book->npredictors * 8; z++)
+					for (int z = 0; z < alBank->eadPercussion[y].wav.adpcmWave->book->order * alBank->eadPercussion[y].wav.adpcmWave->book->npredictors * 8; z++)
 					{
-						alBank->alPercussion[y].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+						alBank->eadPercussion[y].wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
 					}
 				}
 				else
 				{
-					alBank->alPercussion[y].wav.adpcmWave->book = NULL;
+					alBank->eadPercussion[y].wav.adpcmWave->book = NULL;
 				}
 			}
 		}
 		else
 		{
-			alBank->alPercussion = NULL;
+			alBank->eadPercussion = NULL;
 		}
 	}
 
@@ -10126,8 +12740,8 @@ ALBank* CN64AIFCAudio::ReadAudioRawTest(unsigned char* rawData, int size)
 	alBank->percussion = 0;
 	
 	alBank->inst = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
 	{
@@ -10240,8 +12854,8 @@ ALBank* CN64AIFCAudio::ReadAudioVox(unsigned char* ctl, int ctlSize, int ctlOffs
 	alBank->count = 1;
 	alBank->flags = 0;
 	alBank->percussion = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	int numberBanks = 1;
 	alBank->inst = new ALInst*[numberBanks];
@@ -10309,8 +12923,8 @@ ALBank* CN64AIFCAudio::ReadAudio64dd(unsigned char* ctl, int ctlSize, int ctlOff
 	alBank->count = numberWaveforms;
 	alBank->flags = 0;
 	alBank->percussion = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -10425,8 +13039,8 @@ ALBank* CN64AIFCAudio::ReadAudioConker(unsigned char* ctl, int ctlSize, int ctlO
 	alBank->count = CharArrayToShort(&ctlDecompressed[bankOffset+0x8]);
 	alBank->samplerate = CharArrayToShort(&ctlDecompressed[bankOffset+0xE]);
 
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -10592,8 +13206,8 @@ ALBank* CN64AIFCAudio::ReadAudioBanjoTooie(unsigned char* ctl, int ctlSize, int 
 	}
 
 	alBank->inst = NULL;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
 	{
@@ -10827,8 +13441,8 @@ ALBank* CN64AIFCAudio::ReadAudioMusyxSmallerTable(unsigned char* ctl, int ctlSiz
 	alBank->pad = 0;
 	alBank->samplerate = 0x2B11;
 	alBank->percussion = 0;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -10908,8 +13522,8 @@ ALBank* CN64AIFCAudio::ReadAudioMusyx(unsigned char* ctl, int ctlSize, int ctlOf
 	alBank->pad = 0;
 	alBank->samplerate = 0x2B11;
 	alBank->percussion = 0;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 
 	alBank->inst = new ALInst*[alBank->count];
 
@@ -10980,6 +13594,96 @@ ALBank* CN64AIFCAudio::ReadAudioMusyx(unsigned char* ctl, int ctlSize, int ctlOf
 	return alBank;
 }
 
+ALBank* CN64AIFCAudio::ReadAudioKonami(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	ALBank* alBank = ReadAudio(ROM, &ROM[0], ctlSize, ctlOffset, tbl, 0x0, 0xFFFFFFFF, 0);
+	alBank->soundBankFormat = KONAMICTL;
+
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		alBank->konamiADSR.clear();
+		for (int x = 0; x < (endInstrumentOffset - instrumentOffset) / 7; x++)
+		{
+			KonamiADSR adsr;
+			adsr.coarseTune = ROM[instrumentOffset + (x * 7)];
+			adsr.fineTune = ROM[instrumentOffset + (x * 7) + 1];
+			adsr.attackTime = ROM[instrumentOffset + (x * 7) + 2];
+			adsr.decayTime = ROM[instrumentOffset + (x * 7) + 3];
+			adsr.releaseTime = ROM[instrumentOffset + (x * 7) + 4];
+			adsr.unknownOne = ROM[instrumentOffset + (x * 7) + 5];
+			adsr.unknownTwo = ROM[instrumentOffset + (x * 7) + 6];
+
+			alBank->konamiADSR.push_back(adsr);
+		}
+
+		alBank->konamiDrumsADSR.clear();
+		if (endDrumOffset != 0x00000000)
+		{
+			for (int x = 0; x < (endDrumOffset - startDrumOffset) / 8; x++)
+			{
+				KonamiADSRDrum adsr;
+				adsr.instrumentLookup = ROM[startDrumOffset + (x * 8)];
+				adsr.coarseTune = ROM[startDrumOffset + (x * 8) + 1];
+				adsr.fineTune = ROM[startDrumOffset + (x * 8) + 2];
+				adsr.attackTime = ROM[startDrumOffset + (x * 8) + 3];
+				adsr.decayTime = ROM[startDrumOffset + (x * 8) + 4];
+				adsr.releaseTime = ROM[startDrumOffset + (x * 8) + 5];
+				adsr.unknownOne = ROM[startDrumOffset + (x * 8) + 6];
+				adsr.unknownTwo = ROM[startDrumOffset + (x * 8) + 7];
+
+				alBank->konamiDrumsADSR.push_back(adsr);
+			}
+		}
+	}
+
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioKonami8(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset)
+{
+	ALBank* alBank = ReadAudio(ROM, &ROM[0], ctlSize, ctlOffset, tbl, 0x0, 0xFFFFFFFF, 0);
+	alBank->soundBankFormat = KONAMI8CTL;
+
+	if (endInstrumentOffset != 0xFFFFFFFF)
+	{
+		alBank->konamiADSR.clear();
+		for (int x = 0; x < (endInstrumentOffset - instrumentOffset) / 8; x++)
+		{
+			KonamiADSR adsr;
+			adsr.coarseTune = ROM[instrumentOffset + (x * 8)];
+			adsr.fineTune = ROM[instrumentOffset + (x * 8) + 1];
+			adsr.attackTime = ROM[instrumentOffset + (x * 8) + 2];
+			adsr.decayTime = ROM[instrumentOffset + (x * 8) + 3];
+			adsr.releaseTime = ROM[instrumentOffset + (x * 8) + 4];
+			adsr.unknownOne = ROM[instrumentOffset + (x * 8) + 5];
+			adsr.unknownTwo = ROM[instrumentOffset + (x * 8) + 6];
+
+			alBank->konamiADSR.push_back(adsr);
+		}
+
+		alBank->konamiDrumsADSR.clear();
+		if (endDrumOffset != 0x00000000)
+		{
+			for (int x = 0; x < (endDrumOffset - startDrumOffset) / 0xA; x++)
+			{
+				KonamiADSRDrum adsr;
+				adsr.coarseTune = ROM[startDrumOffset + (x * 0xA)];
+				adsr.fineTune = ROM[startDrumOffset + (x * 0xA) + 1];
+				adsr.attackTime = ROM[startDrumOffset + (x * 0xA) + 2];
+				adsr.decayTime = ROM[startDrumOffset + (x * 0xA) + 3];
+				adsr.releaseTime = ROM[startDrumOffset + (x * 0xA) + 4];
+				adsr.unknownOne = ROM[startDrumOffset + (x * 0xA) + 5];
+				adsr.unknownTwo = ROM[startDrumOffset + (x * 0xA) + 6];
+				adsr.instrumentLookup = ROM[startDrumOffset + (x * 0xA) + 9];
+
+				alBank->konamiDrumsADSR.push_back(adsr);
+			}
+		}
+	}
+
+	return alBank;
+}
+
 ALBank* CN64AIFCAudio::ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask, int bankNumber)
 {
 	unsigned short numberBands = CharArrayToShort(&ctl[ctlOffset+0x2]);
@@ -10995,222 +13699,423 @@ ALBank* CN64AIFCAudio::ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctl
 	alBank->flags = CharArrayToShort(&ctl[bankOffset+2]);
 	alBank->pad = CharArrayToShort(&ctl[bankOffset+4]);
 	alBank->samplerate = CharArrayToShort(&ctl[bankOffset+6]);
-	alBank->percussion = CharArrayToLong(&ctl[bankOffset+8]);
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
-	
-	alBank->inst = NULL;
-
-	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
+	unsigned long offsetPercussion = CharArrayToLong(&ctl[bankOffset+8]);
+	if (offsetPercussion != NULL)
 	{
-		alBank->inst = new ALInst*[alBank->count];
+		alBank->percussion = new ALInst();
+		alBank->percussion->samplerate = 0;
+		alBank->percussion->sounds = NULL;
 
-		for (int x = 0; x < alBank->count; x++)
-		{
-			alBank->inst[x] = new ALInst();
-			alBank->inst[x]->samplerate = 0;
-			alBank->inst[x]->sounds = NULL;
-		}
+		if (alBank->flags == 0x0100)
+			offsetPercussion = ctlFlaggedOffset + (offsetPercussion - mask);
+		else
+			offsetPercussion = ctlOffset + offsetPercussion;
 
-		for (int x = 0; x < alBank->count; x++)
-		{
-			unsigned long offsetInstrument = CharArrayToLong(&ctl[bankOffset+ 0xC + x*4]);
-			if (offsetInstrument == 0x0000)
+		alBank->percussion->volume = ctl[offsetPercussion];
+		alBank->percussion->pan = ctl[offsetPercussion+1];
+		alBank->percussion->priority = ctl[offsetPercussion+2];
+		alBank->percussion->flags = ctl[offsetPercussion+3];
+		alBank->percussion->tremType = ctl[offsetPercussion+4];
+		alBank->percussion->tremRate = ctl[offsetPercussion+5];
+		alBank->percussion->tremDepth = ctl[offsetPercussion+6];
+		alBank->percussion->tremDelay = ctl[offsetPercussion+7];
+		alBank->percussion->vibType = ctl[offsetPercussion+8];
+		alBank->percussion->vibRate = ctl[offsetPercussion+9];
+		alBank->percussion->vibDepth = ctl[offsetPercussion+0xA];
+		alBank->percussion->vibDelay = ctl[offsetPercussion+0xB];
+		alBank->percussion->bendRange = CharArrayToShort(&ctl[offsetPercussion+0xC]);
+		alBank->percussion->soundCount = CharArrayToShort(&ctl[offsetPercussion+0xE]);
+
+		if ((alBank->percussion->flags == 0x0) || (alBank->percussion->flags == 0x1))
+		{	
+			alBank->percussion->sounds = new ALSound*[alBank->percussion->soundCount];
+
+			for (int y = 0; y < alBank->percussion->soundCount; y++)
 			{
-				alBank->inst[x]->soundCount = 0;
-				alBank->inst[x]->sounds = NULL;
-				continue;
+				alBank->percussion->sounds[y] = new ALSound();
+				alBank->percussion->sounds[y]->wav.wavData = NULL;
 			}
 
-			if (alBank->flags == 0x0100)
-				offsetInstrument = ctlFlaggedOffset + (offsetInstrument - mask);
-			else
-				offsetInstrument = ctlOffset + offsetInstrument;
+			for (int y = 0; y < alBank->percussion->soundCount; y++)
+			{
+				unsigned long offsetSound = CharArrayToLong(&ctl[offsetPercussion+ 0x10 + y*0x4]);
+				if (alBank->percussion->flags == 0x1)
+					offsetSound = ctlFlaggedOffset + (offsetSound - mask);
+				else
+					offsetSound = ctlOffset + offsetSound;
 
-			alBank->inst[x]->volume = ctl[offsetInstrument];
-			alBank->inst[x]->pan = ctl[offsetInstrument+1];
-			alBank->inst[x]->priority = ctl[offsetInstrument+2];
-			alBank->inst[x]->flags = ctl[offsetInstrument+3];
-			alBank->inst[x]->tremType = ctl[offsetInstrument+4];
-			alBank->inst[x]->tremRate = ctl[offsetInstrument+5];
-			alBank->inst[x]->tremDepth = ctl[offsetInstrument+6];
-			alBank->inst[x]->tremDelay = ctl[offsetInstrument+7];
-			alBank->inst[x]->vibType = ctl[offsetInstrument+8];
-			alBank->inst[x]->vibRate = ctl[offsetInstrument+9];
-			alBank->inst[x]->vibDepth = ctl[offsetInstrument+0xA];
-			alBank->inst[x]->vibDelay = ctl[offsetInstrument+0xB];
-			alBank->inst[x]->bendRange = CharArrayToShort(&ctl[offsetInstrument+0xC]);
-			alBank->inst[x]->soundCount = CharArrayToShort(&ctl[offsetInstrument+0xE]);
+				alBank->percussion->sounds[y]->samplePan = ctl[offsetSound+0xC];
+				alBank->percussion->sounds[y]->sampleVolume = ctl[offsetSound+0xD];
+				alBank->percussion->sounds[y]->flags = ctl[offsetSound+0xE];
 
-			if ((alBank->inst[x]->flags == 0x0) || (alBank->inst[x]->flags == 0x1))
-			{	
-				alBank->inst[x]->sounds = new ALSound*[alBank->inst[x]->soundCount];
-
-				for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+				
+				if ((alBank->percussion->sounds[y]->flags == 0x0) || (alBank->percussion->sounds[y]->flags == 0x1))
 				{
-					alBank->inst[x]->sounds[y] = new ALSound();
-					alBank->inst[x]->sounds[y]->wav.wavData = NULL;
-				}
-
-				for (int y = 0; y < alBank->inst[x]->soundCount; y++)
-				{
-					unsigned long offsetSound = CharArrayToLong(&ctl[offsetInstrument+ 0x10 + y*0x4]);
-					if (alBank->inst[x]->flags == 0x1)
-						offsetSound = ctlFlaggedOffset + (offsetSound - mask);
+					unsigned long offsetEnv = CharArrayToLong(&ctl[offsetSound+ 0x0]);
+					if (alBank->percussion->sounds[y]->flags == 0x1)
+						offsetEnv = ctlFlaggedOffset + (offsetEnv - mask);
 					else
-						offsetSound = ctlOffset + offsetSound;
+						offsetEnv = ctlOffset + offsetEnv;
 
-					alBank->inst[x]->sounds[y]->samplePan = ctl[offsetSound+0xC];
-					alBank->inst[x]->sounds[y]->sampleVolume = ctl[offsetSound+0xD];
-					alBank->inst[x]->sounds[y]->flags = ctl[offsetSound+0xE];
+					unsigned long offsetKeyMap = CharArrayToLong(&ctl[offsetSound+ 0x4]);
+					if (alBank->percussion->sounds[y]->flags == 0x1)
+						offsetKeyMap = ctlFlaggedOffset + (offsetKeyMap - mask);
+					else
+						offsetKeyMap = ctlOffset + offsetKeyMap;
 
-					
-					if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+					unsigned long offsetWaveTable = CharArrayToLong(&ctl[offsetSound+ 0x8]);
+					if (alBank->percussion->sounds[y]->flags == 0x1)
+						offsetWaveTable = ctlFlaggedOffset + (offsetWaveTable - mask);
+					else
+						offsetWaveTable = ctlOffset + offsetWaveTable;
+
+					alBank->percussion->sounds[y]->env.attackTime = CharArrayToLong(&ctl[offsetEnv + 0x0]);
+					alBank->percussion->sounds[y]->env.decayTime = CharArrayToLong(&ctl[offsetEnv + 0x4]);
+					alBank->percussion->sounds[y]->env.releaseTime = CharArrayToLong(&ctl[offsetEnv + 0x8]);
+					alBank->percussion->sounds[y]->env.attackVolume = ctl[offsetEnv + 0xC];
+					alBank->percussion->sounds[y]->env.decayVolume = ctl[offsetEnv + 0xD];
+					alBank->percussion->sounds[y]->env.zeroPad = CharArrayToShort(&ctl[offsetEnv + 0xE]);
+
+					alBank->percussion->sounds[y]->key.velocitymin = ctl[offsetKeyMap];
+					alBank->percussion->sounds[y]->key.velocitymax = ctl[offsetKeyMap+0x1];
+					alBank->percussion->sounds[y]->key.keymin = ctl[offsetKeyMap+0x2];
+					alBank->percussion->sounds[y]->key.keymax = ctl[offsetKeyMap+0x3];
+					alBank->percussion->sounds[y]->key.keybase = ctl[offsetKeyMap+0x4];
+					alBank->percussion->sounds[y]->key.detune = ctl[offsetKeyMap+0x5];
+
+					unsigned char flag = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) >> 24; // hack for NUD-DSCJ-JPN, can't imagine impact others
+					if (flag == 0x40) // Means using 64DD IPL Bank
+						alBank->percussion->sounds[y]->wav.base = (CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF) + 0x140000;
+					else
+						alBank->percussion->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
+					alBank->percussion->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+					alBank->percussion->sounds[y]->wav.wavData = new unsigned char[alBank->percussion->sounds[y]->wav.len];
+
+					for (int  r = 0; r < alBank->percussion->sounds[y]->wav.len; r++)
 					{
-						unsigned long offsetEnv = CharArrayToLong(&ctl[offsetSound+ 0x0]);
-						if (alBank->inst[x]->sounds[y]->flags == 0x1)
-							offsetEnv = ctlFlaggedOffset + (offsetEnv - mask);
-						else
-							offsetEnv = ctlOffset + offsetEnv;
-
-						unsigned long offsetKeyMap = CharArrayToLong(&ctl[offsetSound+ 0x4]);
-						if (alBank->inst[x]->sounds[y]->flags == 0x1)
-							offsetKeyMap = ctlFlaggedOffset + (offsetKeyMap - mask);
-						else
-							offsetKeyMap = ctlOffset + offsetKeyMap;
-
-						unsigned long offsetWaveTable = CharArrayToLong(&ctl[offsetSound+ 0x8]);
-						if (alBank->inst[x]->sounds[y]->flags == 0x1)
-							offsetWaveTable = ctlFlaggedOffset + (offsetWaveTable - mask);
-						else
-							offsetWaveTable = ctlOffset + offsetWaveTable;
-
-						alBank->inst[x]->sounds[y]->env.attackTime = CharArrayToLong(&ctl[offsetEnv + 0x0]);
-						alBank->inst[x]->sounds[y]->env.decayTime = CharArrayToLong(&ctl[offsetEnv + 0x4]);
-						alBank->inst[x]->sounds[y]->env.releaseTime = CharArrayToLong(&ctl[offsetEnv + 0x8]);
-						alBank->inst[x]->sounds[y]->env.attackVolume = ctl[offsetEnv + 0xC];
-						alBank->inst[x]->sounds[y]->env.decayVolume = ctl[offsetEnv + 0xD];
-						alBank->inst[x]->sounds[y]->env.zeroPad = CharArrayToShort(&ctl[offsetEnv + 0xE]);
-
-						alBank->inst[x]->sounds[y]->key.velocitymin = ctl[offsetKeyMap];
-						alBank->inst[x]->sounds[y]->key.velocitymax = ctl[offsetKeyMap+0x1];
-						alBank->inst[x]->sounds[y]->key.keymin = ctl[offsetKeyMap+0x2];
-						alBank->inst[x]->sounds[y]->key.keymax = ctl[offsetKeyMap+0x3];
-						alBank->inst[x]->sounds[y]->key.keybase = ctl[offsetKeyMap+0x4];
-						alBank->inst[x]->sounds[y]->key.detune = ctl[offsetKeyMap+0x5];
-
-						unsigned char flag = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) >> 24; // hack for NUD-DSCJ-JPN, can't imagine impact others
-						if (flag == 0x40) // Means using 64DD IPL Bank
-							alBank->inst[x]->sounds[y]->wav.base = (CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF) + 0x140000;
-						else
-							alBank->inst[x]->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
-						alBank->inst[x]->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
-						alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
-
-						for (int  r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
+						if (flag == 0x40)
 						{
-							if (flag == 0x40)
-							{
-								alBank->inst[x]->sounds[y]->wav.wavData[r] = ROM[alBank->inst[x]->sounds[y]->wav.base + r];
-							}
-							else
-							{
-								alBank->inst[x]->sounds[y]->wav.wavData[r] = tbl[alBank->inst[x]->sounds[y]->wav.base + r];
-							}
+							alBank->percussion->sounds[y]->wav.wavData[r] = ROM[alBank->percussion->sounds[y]->wav.base + r];
 						}
-						
-
-						alBank->inst[x]->sounds[y]->wav.type = ctl[offsetWaveTable + 0x8];
-						alBank->inst[x]->sounds[y]->wav.flags = ctl[offsetWaveTable + 0x9];
-						// MUST PAD to 4s
-
-						if ((alBank->inst[x]->sounds[y]->wav.type == AL_ADPCM_WAVE) && ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1)))
+						else
 						{
-							alBank->inst[x]->sounds[y]->wav.adpcmWave = new ALADPCMWaveInfo();
-							unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
-							unsigned long predictorOffset = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
-
-							if (loopOffset != 0)
-							{
-								if (alBank->inst[x]->sounds[y]->flags == 0x1)
-									loopOffset = ctlFlaggedOffset + (loopOffset - mask);
-								else
-									loopOffset = ctlOffset + loopOffset;
-
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = new ALADPCMloop();
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
-								for (int z = 0; z < 0x10; z++)
-								{
-									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0xC + z * 2]);
-								}
-							}
-							else
-							{
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = NULL;
-							}
-
-							if (predictorOffset != 0)
-							{
-								if (alBank->inst[x]->sounds[y]->flags == 0x1)
-									predictorOffset = ctlFlaggedOffset + (predictorOffset - mask);
-								else
-									predictorOffset = ctlOffset + predictorOffset;
-
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->book = new ALADPCMBook();
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
-								alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors = new signed short[alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8];
-
-								for (int z = 0; z < alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8; z++)
-								{
-									alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
-								}
-							}
+							alBank->percussion->sounds[y]->wav.wavData[r] = tbl[alBank->percussion->sounds[y]->wav.base + r];
 						}
-						else if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+					}
+					
+
+					alBank->percussion->sounds[y]->wav.type = ctl[offsetWaveTable + 0x8];
+					alBank->percussion->sounds[y]->wav.flags = ctl[offsetWaveTable + 0x9];
+					// MUST PAD to 4s
+
+					if ((alBank->percussion->sounds[y]->wav.type == AL_ADPCM_WAVE) && ((alBank->percussion->sounds[y]->flags == 0x0) || (alBank->percussion->sounds[y]->flags == 0x1)))
+					{
+						alBank->percussion->sounds[y]->wav.adpcmWave = new ALADPCMWaveInfo();
+						unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+						unsigned long predictorOffset = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+
+						if (loopOffset != 0)
 						{
-							alBank->inst[x]->sounds[y]->wav.rawWave = new ALRAWWaveInfo();
-							unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
-
-							if (loopOffset != 0)
-							{
-								if (alBank->inst[x]->sounds[y]->flags == 0x1)
-									loopOffset = ctlFlaggedOffset + (loopOffset - mask);
-								else
-									loopOffset = ctlOffset + loopOffset;
-
-								alBank->inst[x]->sounds[y]->wav.rawWave->loop = new ALRawLoop();
-								alBank->inst[x]->sounds[y]->wav.rawWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
-								alBank->inst[x]->sounds[y]->wav.rawWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
-								alBank->inst[x]->sounds[y]->wav.rawWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);	
-							}
+							if (alBank->percussion->sounds[y]->flags == 0x1)
+								loopOffset = ctlFlaggedOffset + (loopOffset - mask);
 							else
+								loopOffset = ctlOffset + loopOffset;
+
+							alBank->percussion->sounds[y]->wav.adpcmWave->loop = new ALADPCMloop();
+							alBank->percussion->sounds[y]->wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+							alBank->percussion->sounds[y]->wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+							alBank->percussion->sounds[y]->wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+							for (int z = 0; z < 0x10; z++)
 							{
-								alBank->inst[x]->sounds[y]->wav.rawWave->loop = NULL;
+								alBank->percussion->sounds[y]->wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0xC + z * 2]);
 							}
 						}
 						else
 						{
-							DisposeALBank(alBank);
-							MessageBox(NULL, "Error", "Unsupported type in ALSound wav", NULL);
-							return NULL;
+							alBank->percussion->sounds[y]->wav.adpcmWave->loop = NULL;
+						}
+
+						if (predictorOffset != 0)
+						{
+							if (alBank->percussion->sounds[y]->flags == 0x1)
+								predictorOffset = ctlFlaggedOffset + (predictorOffset - mask);
+							else
+								predictorOffset = ctlOffset + predictorOffset;
+
+							alBank->percussion->sounds[y]->wav.adpcmWave->book = new ALADPCMBook();
+							alBank->percussion->sounds[y]->wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+							alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+							alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors = new signed short[alBank->percussion->sounds[y]->wav.adpcmWave->book->order * alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors * 8];
+
+							for (int z = 0; z < alBank->percussion->sounds[y]->wav.adpcmWave->book->order * alBank->percussion->sounds[y]->wav.adpcmWave->book->npredictors * 8; z++)
+							{
+								alBank->percussion->sounds[y]->wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+							}
+						}
+					}
+					else if ((alBank->percussion->sounds[y]->flags == 0x0) || (alBank->percussion->sounds[y]->flags == 0x1))
+					{
+						alBank->percussion->sounds[y]->wav.rawWave = new ALRAWWaveInfo();
+						unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+
+						if (loopOffset != 0)
+						{
+							if (alBank->percussion->sounds[y]->flags == 0x1)
+								loopOffset = ctlFlaggedOffset + (loopOffset - mask);
+							else
+								loopOffset = ctlOffset + loopOffset;
+
+							alBank->percussion->sounds[y]->wav.rawWave->loop = new ALRawLoop();
+							alBank->percussion->sounds[y]->wav.rawWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+							alBank->percussion->sounds[y]->wav.rawWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+							alBank->percussion->sounds[y]->wav.rawWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);	
+						}
+						else
+						{
+							alBank->percussion->sounds[y]->wav.rawWave->loop = NULL;
 						}
 					}
 					else
 					{
 						DisposeALBank(alBank);
-						MessageBox(NULL, "Error", "Unsupported type in ALSound", NULL);
+						MessageBox(NULL, "Error", "Unsupported type in ALSound wav", NULL);
 						return NULL;
 					}
 				}
+				else
+				{
+					DisposeALBank(alBank);
+					MessageBox(NULL, "Error", "Unsupported type in ALSound", NULL);
+					return NULL;
+				}
 			}
-			else
+		}
+		else
+		{
+			DisposeALBank(alBank);
+			MessageBox(NULL, "Error", "Unsupported inst type in ALInst", NULL);
+			return NULL;
+		}
+	}
+
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
+	
+	alBank->inst = NULL;
+
+	if ((alBank->flags == 0x0000) || (alBank->flags == 0x0100)) // offset
+	{
+		if (alBank->count > 0)
+		{
+			alBank->inst = new ALInst*[alBank->count];
+
+			for (int x = 0; x < alBank->count; x++)
 			{
-				DisposeALBank(alBank);
-				MessageBox(NULL, "Error", "Unsupported inst type in ALInst", NULL);
-				return NULL;
+				alBank->inst[x] = new ALInst();
+				alBank->inst[x]->samplerate = 0;
+				alBank->inst[x]->sounds = NULL;
+			}
+
+			for (int x = 0; x < alBank->count; x++)
+			{
+				unsigned long offsetInstrument = CharArrayToLong(&ctl[bankOffset + 0xC + x * 4]);
+				if (offsetInstrument == 0x0000)
+				{
+					alBank->inst[x]->soundCount = 0;
+					alBank->inst[x]->sounds = NULL;
+					continue;
+				}
+
+				if (alBank->flags == 0x0100)
+					offsetInstrument = ctlFlaggedOffset + (offsetInstrument - mask);
+				else
+					offsetInstrument = ctlOffset + offsetInstrument;
+
+				alBank->inst[x]->volume = ctl[offsetInstrument];
+				alBank->inst[x]->pan = ctl[offsetInstrument + 1];
+				alBank->inst[x]->priority = ctl[offsetInstrument + 2];
+				alBank->inst[x]->flags = ctl[offsetInstrument + 3];
+				alBank->inst[x]->tremType = ctl[offsetInstrument + 4];
+				alBank->inst[x]->tremRate = ctl[offsetInstrument + 5];
+				alBank->inst[x]->tremDepth = ctl[offsetInstrument + 6];
+				alBank->inst[x]->tremDelay = ctl[offsetInstrument + 7];
+				alBank->inst[x]->vibType = ctl[offsetInstrument + 8];
+				alBank->inst[x]->vibRate = ctl[offsetInstrument + 9];
+				alBank->inst[x]->vibDepth = ctl[offsetInstrument + 0xA];
+				alBank->inst[x]->vibDelay = ctl[offsetInstrument + 0xB];
+				alBank->inst[x]->bendRange = CharArrayToShort(&ctl[offsetInstrument + 0xC]);
+				alBank->inst[x]->soundCount = CharArrayToShort(&ctl[offsetInstrument + 0xE]);
+
+				if ((alBank->inst[x]->flags == 0x0) || (alBank->inst[x]->flags == 0x1))
+				{
+					alBank->inst[x]->sounds = new ALSound*[alBank->inst[x]->soundCount];
+
+					for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+					{
+						alBank->inst[x]->sounds[y] = new ALSound();
+						alBank->inst[x]->sounds[y]->wav.wavData = NULL;
+					}
+
+					for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+					{
+						unsigned long offsetSound = CharArrayToLong(&ctl[offsetInstrument + 0x10 + y * 0x4]);
+						if (alBank->inst[x]->flags == 0x1)
+							offsetSound = ctlFlaggedOffset + (offsetSound - mask);
+						else
+							offsetSound = ctlOffset + offsetSound;
+
+						alBank->inst[x]->sounds[y]->samplePan = ctl[offsetSound + 0xC];
+						alBank->inst[x]->sounds[y]->sampleVolume = ctl[offsetSound + 0xD];
+						alBank->inst[x]->sounds[y]->flags = ctl[offsetSound + 0xE];
+
+
+						if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+						{
+							unsigned long offsetEnv = CharArrayToLong(&ctl[offsetSound + 0x0]);
+							if (alBank->inst[x]->sounds[y]->flags == 0x1)
+								offsetEnv = ctlFlaggedOffset + (offsetEnv - mask);
+							else
+								offsetEnv = ctlOffset + offsetEnv;
+
+							unsigned long offsetKeyMap = CharArrayToLong(&ctl[offsetSound + 0x4]);
+							if (alBank->inst[x]->sounds[y]->flags == 0x1)
+								offsetKeyMap = ctlFlaggedOffset + (offsetKeyMap - mask);
+							else
+								offsetKeyMap = ctlOffset + offsetKeyMap;
+
+							unsigned long offsetWaveTable = CharArrayToLong(&ctl[offsetSound + 0x8]);
+							if (alBank->inst[x]->sounds[y]->flags == 0x1)
+								offsetWaveTable = ctlFlaggedOffset + (offsetWaveTable - mask);
+							else
+								offsetWaveTable = ctlOffset + offsetWaveTable;
+
+							alBank->inst[x]->sounds[y]->env.attackTime = CharArrayToLong(&ctl[offsetEnv + 0x0]);
+							alBank->inst[x]->sounds[y]->env.decayTime = CharArrayToLong(&ctl[offsetEnv + 0x4]);
+							alBank->inst[x]->sounds[y]->env.releaseTime = CharArrayToLong(&ctl[offsetEnv + 0x8]);
+							alBank->inst[x]->sounds[y]->env.attackVolume = ctl[offsetEnv + 0xC];
+							alBank->inst[x]->sounds[y]->env.decayVolume = ctl[offsetEnv + 0xD];
+							alBank->inst[x]->sounds[y]->env.zeroPad = CharArrayToShort(&ctl[offsetEnv + 0xE]);
+
+							alBank->inst[x]->sounds[y]->key.velocitymin = ctl[offsetKeyMap];
+							alBank->inst[x]->sounds[y]->key.velocitymax = ctl[offsetKeyMap + 0x1];
+							alBank->inst[x]->sounds[y]->key.keymin = ctl[offsetKeyMap + 0x2];
+							alBank->inst[x]->sounds[y]->key.keymax = ctl[offsetKeyMap + 0x3];
+							alBank->inst[x]->sounds[y]->key.keybase = ctl[offsetKeyMap + 0x4];
+							alBank->inst[x]->sounds[y]->key.detune = ctl[offsetKeyMap + 0x5];
+
+							unsigned char flag = CharArrayToLong(&ctl[offsetWaveTable + 0x0]) >> 24; // hack for NUD-DSCJ-JPN, can't imagine impact others
+							if (flag == 0x40) // Means using 64DD IPL Bank
+								alBank->inst[x]->sounds[y]->wav.base = (CharArrayToLong(&ctl[offsetWaveTable + 0x0]) & 0xFFFFFF) + 0x140000;
+							else
+								alBank->inst[x]->sounds[y]->wav.base = CharArrayToLong(&ctl[offsetWaveTable + 0x0]);
+							alBank->inst[x]->sounds[y]->wav.len = CharArrayToLong(&ctl[offsetWaveTable + 0x4]);
+							alBank->inst[x]->sounds[y]->wav.wavData = new unsigned char[alBank->inst[x]->sounds[y]->wav.len];
+
+							for (int r = 0; r < alBank->inst[x]->sounds[y]->wav.len; r++)
+							{
+								if (flag == 0x40)
+								{
+									alBank->inst[x]->sounds[y]->wav.wavData[r] = ROM[alBank->inst[x]->sounds[y]->wav.base + r];
+								}
+								else
+								{
+									alBank->inst[x]->sounds[y]->wav.wavData[r] = tbl[alBank->inst[x]->sounds[y]->wav.base + r];
+								}
+							}
+
+
+							alBank->inst[x]->sounds[y]->wav.type = ctl[offsetWaveTable + 0x8];
+							alBank->inst[x]->sounds[y]->wav.flags = ctl[offsetWaveTable + 0x9];
+							// MUST PAD to 4s
+
+							if ((alBank->inst[x]->sounds[y]->wav.type == AL_ADPCM_WAVE) && ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1)))
+							{
+								alBank->inst[x]->sounds[y]->wav.adpcmWave = new ALADPCMWaveInfo();
+								unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+								unsigned long predictorOffset = CharArrayToLong(&ctl[offsetWaveTable + 0x10]);
+
+								if (loopOffset != 0)
+								{
+									if (alBank->inst[x]->sounds[y]->flags == 0x1)
+										loopOffset = ctlFlaggedOffset + (loopOffset - mask);
+									else
+										loopOffset = ctlOffset + loopOffset;
+
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = new ALADPCMloop();
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+									for (int z = 0; z < 0x10; z++)
+									{
+										alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->state[z] = CharArrayToShort(&ctl[loopOffset + 0xC + z * 2]);
+									}
+								}
+								else
+								{
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->loop = NULL;
+								}
+
+								if (predictorOffset != 0)
+								{
+									if (alBank->inst[x]->sounds[y]->flags == 0x1)
+										predictorOffset = ctlFlaggedOffset + (predictorOffset - mask);
+									else
+										predictorOffset = ctlOffset + predictorOffset;
+
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->book = new ALADPCMBook();
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order = CharArrayToLong(&ctl[predictorOffset + 0x0]);
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors = CharArrayToLong(&ctl[predictorOffset + 0x4]);
+									alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors = new signed short[alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8];
+
+									for (int z = 0; z < alBank->inst[x]->sounds[y]->wav.adpcmWave->book->order * alBank->inst[x]->sounds[y]->wav.adpcmWave->book->npredictors * 8; z++)
+									{
+										alBank->inst[x]->sounds[y]->wav.adpcmWave->book->predictors[z] = (signed short)CharArrayToShort(&ctl[predictorOffset + 0x8 + z * 2]);
+									}
+								}
+							}
+							else if ((alBank->inst[x]->sounds[y]->flags == 0x0) || (alBank->inst[x]->sounds[y]->flags == 0x1))
+							{
+								alBank->inst[x]->sounds[y]->wav.rawWave = new ALRAWWaveInfo();
+								unsigned long loopOffset = CharArrayToLong(&ctl[offsetWaveTable + 0xC]);
+
+								if (loopOffset != 0)
+								{
+									if (alBank->inst[x]->sounds[y]->flags == 0x1)
+										loopOffset = ctlFlaggedOffset + (loopOffset - mask);
+									else
+										loopOffset = ctlOffset + loopOffset;
+
+									alBank->inst[x]->sounds[y]->wav.rawWave->loop = new ALRawLoop();
+									alBank->inst[x]->sounds[y]->wav.rawWave->loop->start = CharArrayToLong(&ctl[loopOffset + 0x0]);
+									alBank->inst[x]->sounds[y]->wav.rawWave->loop->end = CharArrayToLong(&ctl[loopOffset + 0x4]);
+									alBank->inst[x]->sounds[y]->wav.rawWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
+								}
+								else
+								{
+									alBank->inst[x]->sounds[y]->wav.rawWave->loop = NULL;
+								}
+							}
+							else
+							{
+								DisposeALBank(alBank);
+								MessageBox(NULL, "Error", "Unsupported type in ALSound wav", NULL);
+								return NULL;
+							}
+						}
+						else
+						{
+							DisposeALBank(alBank);
+							MessageBox(NULL, "Error", "Unsupported type in ALSound", NULL);
+							return NULL;
+						}
+					}
+				}
+				else
+				{
+					DisposeALBank(alBank);
+					MessageBox(NULL, "Error", "Unsupported inst type in ALInst", NULL);
+					return NULL;
+				}
 			}
 		}
 	}
@@ -11236,8 +14141,8 @@ ALBank* CN64AIFCAudio::ReadAudioMarioParty2E(unsigned char* ROM, unsigned char* 
 	alBank->pad = 0;
 	alBank->samplerate = 22050;
 	alBank->percussion = 0;
-	alBank->alPercussion = NULL;
-	alBank->countPercussion = 0;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
 	
 	alBank->inst = NULL;
 
@@ -11558,8 +14463,25 @@ static const short itable[16] =
 	-8,-7,-6,-5,-4,-3,-2,-1,
 };
 
+static const short itable_half[4] =
+{
+	0,1,
+	-2,-1,
+};
+
 //#define ENCODE
 
+signed short SignExtend(unsigned b, // number of bits representing the number in x
+						int x      // sign extend this b-bit number to r
+)
+{
+	
+
+	int m = 1 << (b - 1); // mask can be pre-computed if b is fixed
+
+	x = x & ((1 << b) - 1);  // (Skip this if bits in x above position b are already zero.)
+	return (x ^ m) - m;
+}
 
 void CN64AIFCAudio::decode_8( unsigned char *in, signed short *out , int index, signed short * pred1, signed short lastsmp[8])
 {
@@ -11575,7 +14497,66 @@ void CN64AIFCAudio::decode_8( unsigned char *in, signed short *out , int index, 
 	for(i=0; i<8; i++)
 	{
 		tmp[i] = itable[(i&1) ? (*in++ & 0xf) : ((*in >> 4) & 0xf)] << index;
+		tmp[i] = SignExtend(index+4, tmp[i]);
 	}
+
+	for(i=0; i<8; i++)
+	{
+		total = (pred1[i] * lastsmp[6]);
+		total+= (pred2[i] * lastsmp[7]);
+
+		if (i>0)
+		{
+			for(int x=i-1; x>-1; x--)
+			{
+				total += ( tmp[((i-1)-x)] * pred2[x] );
+				//printf("sample: %x - pred: %x - _smp: %x\n" , ((i-1)-x) , pred2[x] , tmp[((i-1)-x)]);
+			}
+		}
+
+		//printf("pred = %x | total = %x\n" , pred2[0] , total);
+		float result = ((tmp[i] << 0xb) + total) >> 0xb;
+		if (result > 32767)
+			sample = 32767;
+		else if (result < -32768)
+			sample = -32768;
+		else
+			sample = (signed short)result;
+
+		out[i] = sample;
+	}
+	// update the last sample set for subsequent iterations
+	memcpy(lastsmp, out, sizeof(signed short)*8);
+}
+
+void CN64AIFCAudio::decode_8_half( unsigned char *in, signed short *out , int index, signed short * pred1, signed short lastsmp[8])
+{
+	int i;
+	signed short tmp[8];
+	signed long total = 0;
+	signed short sample =0;
+	memset(out, 0, sizeof(signed short)*8);
+
+	signed short *pred2 = (pred1 + 8);
+
+	//printf("pred2[] = %x\n" , pred2[0]);
+
+	tmp[0] = (((((*in) & 0xC0) >> 6) & 0x3)) << (index);
+	tmp[0] = SignExtend(index+2, tmp[0]);
+	tmp[1] = (((((*in) & 0x30) >> 4) & 0x3)) << (index);
+	tmp[1] = SignExtend(index+2, tmp[1]);
+	tmp[2] = (((((*in) & 0x0C) >> 2) & 0x3)) << (index);
+	tmp[2] = SignExtend(index+2, tmp[2]);
+	tmp[3] = ((((*in++) & 0x03) & 0x3)) << (index);
+	tmp[3] = SignExtend(index+2, tmp[3]);
+	tmp[4] = (((((*in) & 0xC0) >> 6) & 0x3)) << (index);
+	tmp[4] = SignExtend(index+2, tmp[4]);
+	tmp[5] = (((((*in) & 0x30) >> 4) & 0x3)) << (index);
+	tmp[5] = SignExtend(index+2, tmp[5]);
+	tmp[6] = (((((*in) & 0x0C) >> 2) & 0x3)) << (index);
+	tmp[6] = SignExtend(index+2, tmp[6]);
+	tmp[7] = ((((*in++) & 0x03) & 0x3)) << (index);
+	tmp[7] = SignExtend(index+2, tmp[7]);
 
 	for(i=0; i<8; i++)
 	{
@@ -11692,6 +14673,11 @@ unsigned long CN64AIFCAudio::decodemusyxadpcm( unsigned char *in, signed short *
 
         unsigned char c2 = in[i+0x8];
 
+		c2 = c2 % 0x80;
+
+		//if ((c2 & 0xf0) > (book->order * book->npredictors * 8))
+			//return samples;
+
 		signed short* bookPredictors = (c2 & 0xf0) + book->predictors;
         unsigned int rshift = (c2 & 0x0f);
 
@@ -11707,6 +14693,11 @@ unsigned long CN64AIFCAudio::decodemusyxadpcm( unsigned char *in, signed short *
 		samples += 32;
 
 		c2 = in[i+0x18];
+
+		c2 = c2 % 0x80;
+
+		//if ((c2 & 0xf0) > (book->order * book->npredictors * 8))
+			//return samples;
 
         bookPredictors = (c2 & 0xf0) + book->predictors;
         rshift = (c2 & 0x0f);
@@ -11726,7 +14717,7 @@ unsigned long CN64AIFCAudio::decodemusyxadpcm( unsigned char *in, signed short *
 	return samples;
 }
 
-unsigned long CN64AIFCAudio::decode( unsigned char *in, signed short *out, unsigned long len, ALADPCMBook *book )
+unsigned long CN64AIFCAudio::decode( unsigned char *in, signed short *out, unsigned long len, ALADPCMBook *book, bool decode8Only )
 {
 	signed short lastsmp[8];
 
@@ -11743,40 +14734,158 @@ unsigned long CN64AIFCAudio::decode( unsigned char *in, signed short *out, unsig
 	int total = 0;
 	int _tmp;
 
-	int _len = (len / 9) * 9;	//make sure length was actually a multiple of 9
 	int samples = 0;
 
 	// flip the predictors
 	signed short *preds = (signed short*)malloc( 32 * book->npredictors );
-	for(int p=0; p<(16*book->npredictors); p++)
+	for (int p = 0; p < (8 * book->order * book->npredictors); p++)
 	{
 		preds[p] = book->predictors[p];
 	}
 
-	while(_len)
+	if (!decode8Only)
 	{
-		index = (*in >> 4) & 0xf;
-		pred = (*in & 0xf);
+		int _len = (len / 9) * 9;	//make sure length was actually a multiple of 9
 
-		// to not make zelda crash but doesn't fix it
-		if (pred >= (book->npredictors * book->order))
-			pred -= (book->npredictors * book->order);
-		_len--;
+		while(_len > 0)
+		{
+			index = (*in >> 4) & 0xf;
+			pred = (*in & 0xf);
 
-		signed short * pred1 = &preds[ pred * 16] ;
+			// to not make zelda crash but doesn't fix it
+			pred = pred % (book->npredictors);
 
-		decode_8(++in, out, index, pred1, lastsmp);
-		in+=4;	_len-=4;	out+=8;
+			_len--;
 
-		decode_8(in, out, index, pred1, lastsmp);
-		in+=4;	_len-=4;	out+=8;
+			signed short * pred1 = &preds[ pred * 16] ;
 
-		samples += 16;
+			decode_8(++in, out, index, pred1, lastsmp);
+			in+=4;	_len-=4;	out+=8;
+
+			decode_8(in, out, index, pred1, lastsmp);
+			in+=4;	_len-=4;	out+=8;
+
+			samples += 16;
+		}
+	}
+	else
+	{
+		int _len = (len / 5) * 5;	//make sure length was actually a multiple of 5
+
+		while(_len > 0)
+		{
+			index = (*in >> 4) & 0xf;
+			pred = (*in & 0xf);
+
+			// to not make zelda crash but doesn't fix it
+			pred = pred % (book->npredictors);
+
+			_len--;
+
+			signed short * pred1 = &preds[ pred * 16] ;
+
+			decode_8_half(++in, out, index, pred1, lastsmp);
+			in+=2;	_len-=2;	out+=8;
+
+			decode_8_half(in, out, index, pred1, lastsmp);
+			in+=2;	_len-=2;	out+=8;
+
+			samples += 16;
+		}
 	}
 
 	free(preds);
 
 	return samples;
+}
+
+int CN64AIFCAudio::determineBestEncodeIndexAndPredictor_half(signed short* predictors, int numPredictors, signed short* lastSampleSet, signed short* inPCMSamples, float& bestFitIndex, int& predictorIndex)
+{
+        predictorIndex = 0;
+        float bestPredIndex = 99999999999.0f;
+ 
+        int bestEncodeIndex = 0;
+       
+        for(int p = 0; p < numPredictors; p++)
+        {
+                signed short* tempSampleSet = new signed short[8];
+                signed short* tmp = new signed short[8];
+ 
+                int index = 0;
+                bestFitIndex = 99999999999.0f;
+ 
+                signed short* pred1 = &predictors[p*0x10 + 0];
+                signed short* pred2 = &predictors[p*0x10 + 8];
+ 
+                for (int testIndex = 0; testIndex < 16; testIndex++)
+                {
+                        for (int x = 0; x < 8; x++)
+                        {
+                                tempSampleSet[x] = lastSampleSet[x];
+                        }
+ 
+                        float tempFitIndex = 0;
+                        for (int r = 0; r < 2; r++)
+                        {
+                                for (int i = 0; i < 8; i++)
+                                {
+                                        signed short sample = inPCMSamples[(r*8)+i];
+ 
+                                        signed long total = pred1[i] * tempSampleSet[6];
+                                        total += (pred2[i] * tempSampleSet[7]);
+ 
+                                        if (i>0)
+                                        {
+                                                for(int x=i-1; x>-1; x--)
+                                                {
+                                                        total += ( tmp[((i-1)-x)] * pred2[x] );
+                                                }
+                                        }
+ 
+                                        float bestFit = 9999999999;
+                                        int bestMatch = 0;
+ 
+                                        for (int x = 0; x < 4; x++)
+                                        {
+                                                signed short tmpValue = (itable_half[x] << testIndex);
+                                                float newValue = (((tmpValue << 0xB) + total) >> 0xB);
+                                                if ((fabs((float)(sample - newValue))) < bestFit)
+                                                {
+                                                        bestFit = (fabs((float)(sample - newValue)));
+                                                        bestMatch = x;
+                                                }
+                                        }
+ 
+                                        tmp[i] = (itable_half[bestMatch] << testIndex);
+                                        tempFitIndex += bestFit;
+                                }
+ 
+                       
+                                for (int x = 0; x < 8; x++)
+                                {
+                                        tempSampleSet[x] = inPCMSamples[(r*8)+x];
+                                }
+                        }
+ 
+                        if (tempFitIndex < bestFitIndex)
+                        {
+                                bestFitIndex = tempFitIndex;
+                                index = testIndex;
+                        }
+                }
+ 
+                if (bestFitIndex < bestPredIndex)
+                {
+                        bestPredIndex = bestFitIndex;
+                        predictorIndex = p;
+                        bestEncodeIndex = index;
+                }
+               
+                delete [] tmp;
+                delete [] tempSampleSet;
+        }
+ 
+        return bestEncodeIndex;
 }
 
 int CN64AIFCAudio::determineBestEncodeIndexAndPredictor(signed short* predictors, int numPredictors, signed short* lastSampleSet, signed short* inPCMSamples, float& bestFitIndex, int& predictorIndex)
@@ -11870,7 +14979,7 @@ int CN64AIFCAudio::determineBestEncodeIndexAndPredictor(signed short* predictors
 
 signed short* CN64AIFCAudio::determineBestPredictors(ALBank* alBank, unsigned long& npredictors, unsigned long& norder, signed short* inPCMSamples, int numberSamplesIn)
 {
-	int numPredTests = 0xB;
+	int numPredTests = 0xC;
 	
 	signed short** predictors = new signed short*[numPredTests];
 	float* entropySet = new float[numPredTests];
@@ -12135,6 +15244,33 @@ signed short* CN64AIFCAudio::determineBestPredictors(ALBank* alBank, unsigned lo
 	delete [] vadpcmData;
 	predNum++;
 
+	predictors[predNum][0] = 0x0000;
+	predictors[predNum][1] = 0x0000;
+	predictors[predNum][2] = 0x0000;
+	predictors[predNum][3] = 0x0000;
+	predictors[predNum][4] = 0x0000;
+	predictors[predNum][5] = 0x0000;
+	predictors[predNum][6] = 0x0000;
+	predictors[predNum][7] = 0x0000;
+	predictors[predNum][8] = 0x0000;
+	predictors[predNum][9] = 0x0000;
+	predictors[predNum][10] = 0x0000;
+	predictors[predNum][11] = 0x0000;
+	predictors[predNum][12] = 0x0000;
+	predictors[predNum][13] = 0x0000;
+	predictors[predNum][14] = 0x0000;
+	predictors[predNum][15] = 0x0000;
+
+	vadpcmData = new unsigned char[numberSamplesIn];
+
+	book.npredictors = 1;
+	book.order = 2;
+	book.predictors = predictors[predNum];
+	entropySet[predNum] = encode(inPCMSamples, numberSamplesIn, vadpcmData, vadpcmOutputLength, &book);
+
+	delete [] vadpcmData;
+	predNum++;
+
 	predictors[predNum][0] = 0xFA92;
 	predictors[predNum][1] = 0xF99C;
 	predictors[predNum][2] = 0xFC2B;
@@ -12362,6 +15498,109 @@ int CN64AIFCAudio::determineBestEncodeIndex(signed short* pred1, signed short* p
 	delete [] tempSampleSet;
 
 	return index;
+}
+
+float CN64AIFCAudio::encode_half(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book)
+{
+	float entropy = 0.0f;
+
+	signed short* lastSampleSet = new signed short[8];
+	for (int x = 0; x < 8; x++)
+		lastSampleSet[x] = 0x0;
+
+	signed short* tmp = new signed short[8];
+
+	lenOut = 0;
+
+	for (int y = 0; y < numberSamplesIn; y += 16)
+	{
+		float totalBestFitDelta = 0;
+
+		signed short* pred1;
+		signed short* pred2;
+
+		int predictor = 0;
+		int index = 0;
+
+		index = determineBestEncodeIndexAndPredictor_half(book->predictors, book->npredictors, lastSampleSet, &inPCMSamples[y], totalBestFitDelta, predictor);
+
+		pred1 = &book->predictors[predictor*0x10 + 0];
+		pred2 = &book->predictors[predictor*0x10 + 8];
+
+		outVADPCM[lenOut++] = ((index << 4) | predictor);
+
+		for (int r = 0; r < 2; r++)
+		{
+			signed short resultingValue[8];
+			for (int i = 0; i < 8; i++)
+			{
+				signed short sample = 0;
+				if ((y + (r * 8) + i) < numberSamplesIn)
+                {
+					sample = inPCMSamples[y+(r*8)+i];
+				}
+
+				signed long total = pred1[i] * lastSampleSet[6];
+				total += (pred2[i] * lastSampleSet[7]);
+
+				if (i>0)
+				{
+					for(int x=i-1; x>-1; x--)
+					{
+						total += ( tmp[((i-1)-x)] * pred2[x] );
+					}
+				}
+
+				float bestFit = 9999999999;
+				int bestMatch = 0;
+				
+
+				for (int x = 0; x < 4; x++)
+				{
+					signed short newValue = ((((itable_half[x] << index) << 0xB) + total) >> 0xB);
+					if ((fabs((float)(sample - newValue))) < bestFit)
+					{
+						bestFit = (fabs((float)(sample - newValue)));
+						bestMatch = x;
+						resultingValue[i] = newValue;
+					}
+				}
+
+				tmp[i] = (itable_half[bestMatch] << index);
+
+				if ((i % 4) == 0)
+					outVADPCM[lenOut] = ((bestMatch << 6) & 0xC0);
+				else if ((i % 4) == 1)
+					outVADPCM[lenOut] |= ((bestMatch << 4) & 0x30);
+				else if ((i % 4) == 2)
+					outVADPCM[lenOut] |= ((bestMatch << 2) & 0x0C);
+				else
+				{
+					outVADPCM[lenOut] = (outVADPCM[lenOut] | (bestMatch & 0x3));
+					lenOut++;
+				}
+
+				entropy += bestFit;
+			}
+
+			for (int x = 0; x < 8; x++)
+			{
+				//lastSampleSet[x] = inPCMSamples[y+(r*8)+x];
+				lastSampleSet[x] = resultingValue[x];
+			}
+		}
+	}
+
+
+	if ((numberSamplesIn % 16) != 0)
+	{
+		// just cut it off for now
+	}
+
+	delete [] lastSampleSet;
+	delete [] tmp;
+
+	return entropy;
 }
 
 float CN64AIFCAudio::encode(signed short* inPCMSamples, int numberSamplesIn, unsigned char* outVADPCM, unsigned long& lenOut, ALADPCMBook *book)
