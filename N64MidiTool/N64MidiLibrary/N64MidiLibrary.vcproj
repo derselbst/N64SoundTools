@@ -161,6 +161,22 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\ASMICDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\BlitzDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\FLA2Decoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\flzh_rn.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\GECompression.cpp"
 				>
 			</File>
@@ -169,7 +185,27 @@
 				>
 			</File>
 			<File
+				RelativePath=".\LZARIDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\MarioTennisDecoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\MidiParse.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\MidwayDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\n643docompression.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\NaganoDecoder.cpp"
 				>
 			</File>
 			<File
@@ -177,7 +213,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\RugratsDecoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\SharedFunctions.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\SnowDecoder.cpp"
 				>
 			</File>
 			<File
@@ -208,6 +252,18 @@
 				RelativePath=".\TetrisphereDecoder.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\TigDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\VigilanteDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\yay0.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -215,11 +271,35 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\ASMICDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\BlitzDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\FLA2Decoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\flzh_rn.h"
+				>
+			</File>
+			<File
 				RelativePath=".\GECompression.h"
 				>
 			</File>
 			<File
 				RelativePath=".\H20Decoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\LZARIDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MarioTennisDecoder.h"
 				>
 			</File>
 			<File
@@ -231,6 +311,18 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MidwayDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\n643docompression.h"
+				>
+			</File>
+			<File
+				RelativePath=".\NaganoDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Resource.h"
 				>
 			</File>
@@ -239,7 +331,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\RugratsDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\SharedFunctions.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SnowDecoder.h"
 				>
 			</File>
 			<File
@@ -256,6 +356,18 @@
 			</File>
 			<File
 				RelativePath=".\TetrisphereDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\TigDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\VigilanteDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\yay0.h"
 				>
 			</File>
 		</Filter>

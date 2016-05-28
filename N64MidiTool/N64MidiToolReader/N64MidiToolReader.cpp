@@ -5,7 +5,19 @@
 #include "..\N64MidiLibrary\H20Decoder.h"
 #include "..\N64MidiLibrary\TetrisphereDecoder.h"
 #include "..\N64MidiLibrary\GECompression.h"
-
+#include "..\N64MidiLibrary\MidwayDecoder.h"
+#include "..\N64MidiLibrary\BlitzDecoder.h"
+#include "..\N64MidiLibrary\MarioTennisDecoder.h"
+#include "..\N64MidiLibrary\yay0.h"
+#include "..\N64MidiLibrary\VigilanteDecoder.h"
+#include "..\N64MidiLibrary\FLA2Decoder.h"
+#include "..\N64MidiLibrary\RugratsDecoder.h"
+#include "..\N64MidiLibrary\flzh_rn.h"
+#include "..\N64MidiLibrary\n643docompression.h"
+#include "..\N64MidiLibrary\LZARIDecoder.h"
+#include "..\N64MidiLibrary\SnowDecoder.h"
+#include "..\N64MidiLibrary\ASMICDecoder.h"
+#include "..\N64MidiLibrary\NaganoDecoder.h"
 
 CMidiParse CN64MidiToolReader::midiParse;
 GECompression CN64MidiToolReader::compress;
@@ -93,12 +105,14 @@ unsigned short CN64MidiToolReader::Flip16Bit(unsigned short ShortValue)
 
 unsigned long CN64MidiToolReader::StringHexToLong(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 8)
 	{
 		CString tempStr = inString;
+		int tempStrLength = tempStr.GetLength();
 		inString = "";
-		for (int x = 0; x < (8-tempStr.GetLength()); x++)
+		for (int x = 0; x < (8-tempStrLength); x++)
 		{
 			inString = inString + "0";
 		}
@@ -207,11 +221,70 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 			if (curLineStr.Find(":type=") != -1)
 			{
 				gameType = curLineStr.Mid((curLineStr.Find(":type=") + 6), (curLineStr.GetLength() - curLineStr.Find(":type=") - 6));
+				gameType.Trim();
 			}
 		}
 		else if (currentLine[0] == '|')
 		{
 			nameCount++;
+		}
+		else if (currentLine[0] == '{')
+		{
+			CString line;
+			line.Format("%s", currentLine);
+
+			line.Replace("{", "");
+			line.Replace("}", "");
+			line.Replace(" ", "");
+
+			if ((line.Find("TrackOffset")) != -1)
+			{
+				line.Replace("TrackOffset", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.trackOffset = StringHexToLong(line);
+			}
+			else if ((line.Find("TrackIncrement")) != -1)
+			{
+				line.Replace("TrackIncrement", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.trackIncrement = StringHexToLong(line);
+			}
+			else if ((line.Find("CompressedFileOffset")) != -1)
+			{
+				line.Replace("CompressedFileOffset", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.compressedFileOffset = StringHexToLong(line);
+			}
+			else if ((line.Find("CompressedFileEndOffset")) != -1)
+			{
+				line.Replace("CompressedFileEndOffset", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.compressedFileEndOffset = StringHexToLong(line);
+			}
+			else if ((line.Find("TrackAddressOffset")) != -1)
+			{
+				line.Replace("TrackAddressOffset", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.trackAddressOffset = StringHexToLong(line);
+			}
+			else if ((line.Find("TrackAddressEndsOffset")) != -1)
+			{
+				line.Replace("TrackAddressEndsOffset", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.trackAddressEndsOffset = StringHexToLong(line);
+			}
+			else if ((line.Find("ZlbCompressed")) != -1)
+			{
+				line.Replace("ZlbCompressed", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.zlbCompressed = true;
+			}
+			else if ((line.Find("NaganoCompressed")) != -1)
+			{
+				line.Replace("NaganoCompressed", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.naganoCompressed = true;
+			}
 		}
 		else
 		{
@@ -233,6 +306,7 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 				gameConfig[countGames].gameName = lastGameNew;
 				gameConfig[countGames].gameName.Replace("\r", "");
 				gameConfig[countGames].gameName.Replace("\n", "");
+				gameConfig[countGames].gameName.Trim();
 			}
 
 
@@ -242,7 +316,9 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 			gameConfig[countGames].gameName = lastGameNew;
 			gameConfig[countGames].gameName.Replace("\r", "");
 			gameConfig[countGames].gameName.Replace("\n", "");
+			gameConfig[countGames].gameName.Trim();
 			gameConfig[countGames].gameType = gameType;
+			gameConfig[countGames].gameType.Trim();
 		}
 	}
 
@@ -253,6 +329,7 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 		if (nameCount > 0)
 			gameConfig[countGames].midiNames = new CString[nameCount];
 		gameConfig[countGames].gameType = gameType;
+		gameConfig[countGames].gameType.Trim();
 		countGames++;
 	}
 
@@ -326,14 +403,14 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 
 				gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].start = StringHexToLong(first);
 				gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].end = StringHexToLong(second);
-				/*if (third.GetLength() > 0)
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = CSharedFunctions::StringHexToLong(third);
+				if (third.GetLength() > 0)
+					gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].extra = StringHexToLong(third);
 				else
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = -1;
+					gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].extra = 0x00000000;
 				if (fourth.GetLength() > 0)
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = CSharedFunctions::StringHexToLong(fourth);
+					gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].extra2 = StringHexToLong(fourth);
 				else
-					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = -1;*/
+					gameConfig[countGames].midiBanks[gameConfig[countGames].numberMidis].extra2 = 0x00000000;
 				gameConfig[countGames].numberMidis++;
 				midiCount++;
 			}
@@ -363,14 +440,28 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 	fclose(inIni);
 }
 
-void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber, std::vector<CString>& addMidiStrings, int& numberMidiStrings, int& numberInstruments, bool& compressed, unsigned char* buffer, int bufferSize, unsigned long& startSpot, unsigned long& endSpot, bool calculateInstrumentCount)
+int CN64MidiToolReader::GetSizeFile(CString filename)
+{
+	FILE* inFile = fopen(filename, "rb");
+	
+	if (inFile == 0)
+		return 0;
+
+	fseek(inFile, 0, SEEK_END);
+	int fileSize = ftell(inFile);
+	fclose(inFile);
+	return fileSize;
+}
+
+void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber, std::vector<CString>& addMidiStrings, int& numberMidiStrings, int& numberInstruments, bool& compressed, unsigned char* buffer, int bufferSize, unsigned long& startSpot, unsigned long& endSpot, bool calculateInstrumentCount, bool separateByInstrument, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo)
 {
 	numberInstruments = 0;
 
-	if (gameConfig[gameNumber].gameType.Find("GoldenEye") == 0)
+	CString gameName = gameConfig[gameNumber].gameType;
+	gameName.Trim();
+
+	if (gameName.CompareNoCase("GoldenEye") == 0)
 	{
-		// TODO
-		//midiParse.ImportMidiConfig("gemidiconfig.txt");
 		compress.SetGame(GOLDENEYE);
 		compressed = true;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
@@ -398,7 +489,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 					bool hasLoopPoint = false;
 					int loopStart = 0;
 					int loopEnd = 0;
-					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, compressedSize, "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, compressedSize, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 					if (numberInstTemp > numberInstruments)
 						numberInstruments = numberInstTemp;
 					::DeleteFile("asdasdaw43.mid");
@@ -411,7 +502,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 
 		
 	}
-	else if (gameConfig[gameNumber].gameType.Find("Glover") == 0)
+	else if (gameName.CompareNoCase("Glover") == 0)
 	{
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
 		{
@@ -441,7 +532,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 					bool hasLoopPoint = false;
 					int loopStart = 0;
 					int loopEnd = 0;
-					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, (start + midiLocation), (midiEnd - midiLocation), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, midiDivison, compressed, hasLoopPoint, loopStart, loopEnd);
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, (start + midiLocation), (midiEnd - midiLocation), "asdasdaw43.mid", gameName, numberInstTemp, midiDivison, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 					if (numberInstTemp > numberInstruments)
 						numberInstruments = numberInstTemp;
 					::DeleteFile("asdasdaw43.mid");
@@ -449,7 +540,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			}
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("PerfectDark") == 0)
+	else if (gameName.CompareNoCase("PerfectDark") == 0)
 	{
 		compress.SetGame(PD);
 		compressed = true;
@@ -478,7 +569,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 					bool hasLoopPoint = false;
 					int loopStart = 0;
 					int loopEnd = 0;
-					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, compressedSize, "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, compressedSize, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 					if (numberInstTemp > numberInstruments)
 						numberInstruments = numberInstTemp;
 					::DeleteFile("asdasdaw43.mid");
@@ -491,7 +582,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			}
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("BanjoKazooie") == 0)
+	else if (gameName.CompareNoCase("BanjoKazooie") == 0)
 	{
 		compress.SetGame(BANJOKAZOOIE);
 		compressed = true;
@@ -509,14 +600,14 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
 				::DeleteFile("asdasdaw43.mid");
 			}
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("MIDx") == 0)
+	else if (gameName.CompareNoCase("MIDx") == 0)
 	{
 		compressed = false;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
@@ -533,37 +624,77 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
 				::DeleteFile("asdasdaw43.mid");
 			}
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("MML") == 0)
+	else if (gameName.CompareNoCase("Sng") == 0)
 	{
 		compressed = false;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
 		{
 			CString tempSpotStr;
-			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			if (gameConfig[gameNumber].midiBanks[x].extra != 0)
+				tempSpotStr.Format("%08X:%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), gameConfig[gameNumber].midiBanks[x].extra);
+			else
+				tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
 			addMidiStrings.push_back(tempSpotStr);
 			numberMidiStrings++;
 
 			if (calculateInstrumentCount)
 			{
 				int numberInstTemp = 0;
+				
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
 				::DeleteFile("asdasdaw43.mid");
 			}
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("BanjoTooie") == 0)
+	else if (gameName.CompareNoCase("Konami") == 0)
+	{
+		compressed = true;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			if ((gameConfig[gameNumber].midiBanks[x].extra != 0) && (gameConfig[gameNumber].midiBanks[x].extra2 != 0))
+				tempSpotStr.Format("%08X:%08X:%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2);
+			else if (gameConfig[gameNumber].midiBanks[x].extra != 0)
+				tempSpotStr.Format("%08X:%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), gameConfig[gameNumber].midiBanks[x].extra);
+			else
+				tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start;
+				CNaganoDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				/*FILE* a = fopen("C:\\temp\\a.bin", "wb");
+				fwrite(outputDecompressed, 1, expectedSize, a);
+				fclose(a);*/
+
+				midiParse.KonamiToMidi(buffer, bufferSize, outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("BanjoTooie") == 0)
 	{
 		compress.SetGame(BANJOTOOIE);
 		compressed = true;
@@ -585,7 +716,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
 				::DeleteFile("asdasdaw43.mid");
@@ -594,7 +725,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 
 		
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DonkeyKong") == 0)
+	else if (gameName.CompareNoCase("DonkeyKong") == 0)
 	{
 		compress.SetGame(DONKEYKONG64);
 		compressed  = true;
@@ -644,7 +775,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 					bool hasLoopPoint = false;
 					int loopStart = 0;
 					int loopEnd = 0;
-					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", gameConfig[gameNumber].gameType, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 					if (numberInstTemp > numberInstruments)
 						numberInstruments = numberInstTemp;
 					::DeleteFile("asdasdaw43.mid");
@@ -655,7 +786,663 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			}
 		}	
 	}
-	else if (gameConfig[gameNumber].gameType.Find("Midi") == 0)
+	else if (gameName.CompareNoCase("RNCSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				RncDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.unpackM1(&buffer[gameConfig[gameNumber].midiBanks[x].start], outputDecompressed, 0x0000, fileSizeCompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ASMICSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				CASMICDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("SnowSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start;
+				CSnowDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ArmySargeSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				
+				int fileSizeCompressed = -1;
+				n643docompression decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.uncompressedSize(&buffer[gameConfig[gameNumber].midiBanks[x].start], true);
+
+				expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], expectedSize, outputDecompressed, fileSizeCompressed, true, false);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ArmySarge2Sng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				
+				int fileSizeCompressed = -1;
+				n643docompression decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.uncompressedSize(&buffer[gameConfig[gameNumber].midiBanks[x].start], true);
+
+				expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], expectedSize, outputDecompressed, fileSizeCompressed, true, true);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("TazSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				CString inTempFileName;
+				inTempFileName.Format("tempASAS%08X.mus", gameConfig[gameNumber].midiBanks[x].start);
+
+				CString outTempFileName;
+				outTempFileName.Format("tempASAS%08X.musb", gameConfig[gameNumber].midiBanks[x].start);
+
+				::DeleteFile(inTempFileName);
+				::DeleteFile(outTempFileName);
+
+				FILE* outTempIn = fopen(inTempFileName, "wb");
+				if (outTempIn == NULL)
+				{
+					continue;
+				}
+
+				int musSize = gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start;
+
+				unsigned long expectedSize = CharArrayToLong(&buffer[gameConfig[gameNumber].midiBanks[x].start+4]) - 0x14;
+				fwrite(&expectedSize, 1, 4, outTempIn);
+				fwrite(&buffer[gameConfig[gameNumber].midiBanks[x].start+0x14], 1, musSize-0x14, outTempIn);
+				fflush(outTempIn);
+				fclose(outTempIn);
+
+				flzh huffman;
+				huffman.infile = fopen(inTempFileName, "rb");
+				if (huffman.infile == NULL)
+				{
+					::DeleteFile(inTempFileName);
+					return;
+				}
+
+				huffman.outfile = fopen(outTempFileName, "wb");
+				if (huffman.outfile == NULL)
+				{
+					return;
+				}
+
+				huffman.Decode();
+
+				fflush(huffman.outfile);
+				fclose(huffman.infile);
+				fclose(huffman.outfile);
+
+				musSize = GetSizeFile(outTempFileName);
+
+				FILE* inTempIn = fopen(outTempFileName, "rb");
+				if (inTempIn == NULL)
+				{
+					return;
+				}
+				
+				unsigned char* outputDecompressed = new unsigned char[musSize];
+				fread(outputDecompressed, 1, musSize, inTempIn);
+
+				fclose(inTempIn);
+
+				::DeleteFile(inTempFileName);
+				::DeleteFile(outTempFileName);
+
+
+				int numberInstTemp = 0;
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ARISng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				CString inTempFileName;
+				inTempFileName.Format("tempASAS%08X.mus", gameConfig[gameNumber].midiBanks[x].start);
+
+				CString outTempFileName;
+				outTempFileName.Format("tempASAS%08X.musb", gameConfig[gameNumber].midiBanks[x].start);
+
+				::DeleteFile(inTempFileName);
+				::DeleteFile(outTempFileName);
+
+				FILE* outTempIn = fopen(inTempFileName, "wb");
+				if (outTempIn == NULL)
+				{
+					continue;
+				}
+
+				int musSize = gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start;
+
+				unsigned long expectedSize = CharArrayToLong(&buffer[gameConfig[gameNumber].midiBanks[x].start-4]);
+				fwrite(&expectedSize, 1, 4, outTempIn);
+				fwrite(&buffer[gameConfig[gameNumber].midiBanks[x].start], 1, musSize, outTempIn);
+				fclose(outTempIn);
+
+				CLZARIDecoder lzari;
+				lzari.infile = fopen(inTempFileName, "rb");
+				if (lzari.infile == NULL)
+				{
+					::DeleteFile(inTempFileName);
+					return;
+				}
+
+				lzari.outfile = fopen(outTempFileName, "wb");
+				if (lzari.outfile == NULL)
+				{
+					return;
+				}
+
+				lzari.Decode();
+
+				fclose(lzari.infile);
+				fclose(lzari.outfile);
+
+				musSize = GetSizeFile(outTempFileName);
+
+				FILE* inTempIn = fopen(outTempFileName, "rb");
+				if (inTempIn == NULL)
+				{
+					return;
+				}
+				
+				unsigned char* outputDecompressed = new unsigned char[musSize];
+				fread(outputDecompressed, 1, musSize, inTempIn);
+
+				fclose(inTempIn);
+
+				::DeleteFile(inTempFileName);
+				::DeleteFile(outTempFileName);
+
+
+				int numberInstTemp = 0;
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("FLA2Sng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				CFLA2Decoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+
+				int expectedSizeUncompressed = Flip32Bit(CharArrayToLong(&buffer[gameConfig[gameNumber].midiBanks[x].start+4]));
+
+				int expectedSize = decode.decFLA2(&buffer[gameConfig[gameNumber].midiBanks[x].start+8], fileSizeCompressed, expectedSizeUncompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("RNCSngOffset") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				RncDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.unpackM1(&buffer[gameConfig[gameNumber].midiBanks[x].start], outputDecompressed, 0x0000, fileSizeCompressed);
+
+				unsigned long offset = CharArrayToLong(&outputDecompressed[0]);
+
+				midiParse.SngToMidi(&outputDecompressed[offset], expectedSize - offset, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("Yay0Sng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				YAY0 decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.decodeAll(&buffer[gameConfig[gameNumber].midiBanks[x].start], outputDecompressed, fileSizeCompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("BlitzSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				CBlitzDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], outputDecompressed, fileSizeCompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("MarioTennisSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = -1;
+				CMarioTennisDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ZLibSng") == 0)
+	{
+		compress.SetGame(NOHEADER);
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("ZLibIndexedSng") == 0)
+	{
+		compress.SetGame(NOHEADER);
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end);
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			/*if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false);
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				::DeleteFile("asdasdaw43.mid");
+			}*/
+		}
+	}
+	else if (gameName.CompareNoCase("MultiPartTigSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				// TODO
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("LZSS_0BSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start);
+				CMidwayDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start+4], fileSizeCompressed, outputDecompressed, "LZSS_0");
+				
+				/*FILE* a = fopen("C:\\temp\\a.bin", "wb");
+				fwrite(outputDecompressed, 1, expectedSize, a);
+				fclose(a);*/
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("AVL_0Sng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start);
+				CMidwayDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed, "LZSS");
+				
+				/*FILE* a = fopen("C:\\temp\\a.bin", "wb");
+				fwrite(outputDecompressed, 1, expectedSize, a);
+				fclose(a);*/
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("VigilanteSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start);
+				CVigilanteDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("RugratsSng") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start);
+				CRugratsDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
+
+				midiParse.SngToMidi(outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("MidiLZSSWilliams") == 0)
+	{
+		compressed = true;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			int numberMidi = CharArrayToShort(&buffer[gameConfig[gameNumber].midiBanks[x].start+2]);
+
+			for (int y = 0; y < numberMidi; y++)
+			{
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start + CharArrayToLong(&buffer[gameConfig[gameNumber].midiBanks[x].start + 4 + (y * 8)]), CharArrayToLong(&buffer[gameConfig[gameNumber].midiBanks[x].start + 4 + (y * 8) + 4]));
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("Midi") == 0)
 	{
 		compressed = false;
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
@@ -667,7 +1454,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("Seq64") == 0)
+	else if (gameName.CompareNoCase("Seq64") == 0)
 	{
 		compressed = false;
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
@@ -679,7 +1466,19 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("MultipartZLibXMFastTracker2") == 0)
+	else if (gameName.CompareNoCase("ZipSng") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
 		compressed = true;
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
@@ -691,7 +1490,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("DCM") == 0)
+	else if (gameName.CompareNoCase("DCM") == 0)
 	{
 		compressed = true;
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
@@ -703,7 +1502,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("LZSamplesDCM") == 0)
+	else if (gameName.CompareNoCase("LZSamplesDCM") == 0)
 	{
 		compressed = true;
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
@@ -715,7 +1514,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("TitusMidi") == 0)
+	else if (gameName.CompareNoCase("TitusMidi") == 0)
 	{
 		compressed = true;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
@@ -726,7 +1525,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			numberMidiStrings++;
 		}
 	}
-	else if (gameConfig[gameNumber].gameType.Find("RNCMidi") == 0)
+	else if (gameName.CompareNoCase("RNCMidi") == 0)
 	{
 		compressed = true;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
@@ -735,6 +1534,31 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
 			addMidiStrings.push_back(tempSpotStr);
 			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("RNCSeq") == 0)
+	{
+		compressed = true;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			int fileSizeCompressed = -1;
+			RncDecoder decode;
+			unsigned char* outputDecompressed = new unsigned char[0x100000];
+			int expectedSize = decode.unpackM1(&buffer[gameConfig[gameNumber].midiBanks[x].start], outputDecompressed, 0x0000, fileSizeCompressed);
+
+			unsigned long offsetMidis = CharArrayToLong(&outputDecompressed[0x8]);
+			int numberMidis = CharArrayToLong(&outputDecompressed[offsetMidis]);
+
+			for (int y = 0; y < numberMidis; y++)
+			{
+				unsigned long offsetMidiData = offsetMidis + (4 * (y + 1));
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, offsetMidiData);
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+			}
+
+			delete [] outputDecompressed;
 		}
 	}
 	else
@@ -743,7 +1567,7 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 		//midiParse.ImportMidiConfig("aerofightersassault.txt");
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
 		{
-			ParseUncompressedType(buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, addMidiStrings, numberMidiStrings, numberInstruments, compressed, buffer, calculateInstrumentCount);
+			ParseUncompressedType(buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, addMidiStrings, numberMidiStrings, numberInstruments, compressed, buffer, calculateInstrumentCount, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 		}
 	}
 
@@ -774,7 +1598,7 @@ unsigned long CN64MidiToolReader::ReadAddiuAddress(unsigned char* GEROM, unsigne
 	}
 }
 
-void CN64MidiToolReader::ParseUncompressedType(unsigned char* gamebuffer, int gamebufferSize, unsigned long start, unsigned long endSpot, std::vector<CString>& addMidiStrings, int& numberMidiStrings, int& numberInstruments, bool& compressed, unsigned char* buffer, bool calculateInstrumentCount)
+void CN64MidiToolReader::ParseUncompressedType(unsigned char* gamebuffer, int gamebufferSize, unsigned long start, unsigned long endSpot, std::vector<CString>& addMidiStrings, int& numberMidiStrings, int& numberInstruments, bool& compressed, unsigned char* buffer, bool calculateInstrumentCount, bool separateByInstrument, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo)
 {
 	unsigned long  currentSpot = start;
 
@@ -865,7 +1689,9 @@ void CN64MidiToolReader::ParseUncompressedType(unsigned char* gamebuffer, int ga
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				midiParse.ExportToMidi("Unknown", gamebuffer, gamebufferSize, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", "Uncompressed", numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd);
+				unsigned long extra = 0;
+				unsigned long extra2 = 0;
+				midiParse.ExportToMidi("Unknown", gamebuffer, gamebufferSize, startCurrentSpot, (currentSpot - startCurrentSpot), "asdasdaw43.mid", "Uncompressed", numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, separateByInstrument, false, extra, extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
 				::DeleteFile("asdasdaw43.mid");

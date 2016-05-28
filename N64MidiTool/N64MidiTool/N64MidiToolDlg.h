@@ -11,6 +11,8 @@
 #include "..\N64MidiLibrary\rnc_deco.h"
 #include "..\N64MidiLibrary\H20Decoder.h"
 #include "..\N64MidiLibrary\TetrisphereDecoder.h"
+#include "..\N64MidiLibrary\MidwayDecoder.h"
+#include "..\N64MidiLibrary\ASMICDecoder.h"
 
 #include "afxwin.h"
 
@@ -37,9 +39,6 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-private:
-	CMidiParse midiParse;
-	GECompression compress;
 public:
 	CComboBox m_game;
 	CComboBox m_spot;
@@ -85,4 +84,17 @@ public:
 	CEdit mLoopPoint;
 	CButton mNoRepeaters;
 	afx_msg void OnBnClickedButton4();
+	afx_msg void OnBnClickedButtongenmidis();
+	CButton mSeparateByInstrument;
+	CButton mDebugTextFile;
+	CButton mShowEffectsGames;
+	afx_msg void OnBnClickedCheckshowbfx();
+	CStatic mMasterTrackEffectLabel;
+	CComboBox mMasterTrackEffect;
+	CButton mOutputLoop;
+	CEdit mOutputLoopCount;
+	int CEditControlToDecimalValue(CEdit* editControl);
+	CButton mExtendSmallerTracksToEnd;
+	afx_msg void OnBnClickedCheckextendloopstohighesttrack();
+	afx_msg void OnBnClickedCheckoutputloop();
 };

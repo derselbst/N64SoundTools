@@ -77,6 +77,7 @@ int CSharedFunctions::HexToInt(char inChar)
 
 unsigned short CSharedFunctions::StringToUnsignedShort(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 4)
 	{
@@ -102,6 +103,7 @@ unsigned short CSharedFunctions::StringToUnsignedShort(CString inString)
 
 unsigned char CSharedFunctions::StringToSignedChar(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 2)
 	{
@@ -127,6 +129,7 @@ unsigned char CSharedFunctions::StringToSignedChar(CString inString)
 
 unsigned char CSharedFunctions::StringToUnsignedChar(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 2)
 	{
@@ -152,6 +155,7 @@ unsigned char CSharedFunctions::StringToUnsignedChar(CString inString)
 
 unsigned long CSharedFunctions::StringHexToLong(CString inString)
 {
+	inString.Trim();
 	int tempA = inString.GetLength();
 	if (inString.GetLength() < 8)
 	{
