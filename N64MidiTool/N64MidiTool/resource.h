@@ -34,9 +34,8 @@
 #define IDC_COMBOMASTERTRACKEFFECT      1026
 #define IDC_EDITOUTPUTLOOPCOUNT         1027
 #define IDC_CHECKOUTPUTLOOP             1028
+#define IDC_CHECKSEPARATEBYISNTRUMENT2  1029
 #define IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK 1029
-#define IDC_MIDITYPE                    1030
-#define IDC_COMBOMASTERTRACKEFFECT2     1031
 
 // Next default values for new objects
 // 
@@ -44,7 +43,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        131
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1031
+#define _APS_NEXT_CONTROL_VALUE         1028
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -264,10 +264,6 @@
 				RelativePath=".\yay0.cpp"
 				>
 			</File>
-			<File
-				RelativePath=".\yaz0.cpp"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -372,10 +368,6 @@
 			</File>
 			<File
 				RelativePath=".\yay0.h"
-				>
-			</File>
-			<File
-				RelativePath=".\yaz0.h"
 				>
 			</File>
 		</Filter>
