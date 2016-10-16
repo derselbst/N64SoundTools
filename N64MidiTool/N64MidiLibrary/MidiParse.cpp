@@ -718,7 +718,7 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 								loopNumbers.pop_back();
 							}
 
-							// Fake loop start, controller 103
+							// Fake loop end, controller 103
 							trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
 							trackEventsSub[trackEventCountSub].contentSize = 2;
 							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
