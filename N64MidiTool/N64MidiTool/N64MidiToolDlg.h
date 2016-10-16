@@ -97,4 +97,6 @@ public:
 	CButton mExtendSmallerTracksToEnd;
 	afx_msg void OnBnClickedCheckextendloopstohighesttrack();
 	afx_msg void OnBnClickedCheckoutputloop();
+	CStatic mMidiType;
+	CComboBox mMasterTrackEffect2;
 };

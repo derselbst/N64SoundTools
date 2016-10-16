@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include "..\N64MidiLibrary\SharedFunctions.h"
 #include "..\N64MidiToolReader\N64MidiToolReader.h"
+#include "..\N64MidiLibrary\NaganoDecoder.h"
+#include "..\N64MidiLibrary\NintendoEncoder.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -42,6 +44,8 @@ void CN64MidiToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_CHECKOUTPUTLOOP, mOutputLoop);
 	DDX_Control(pDX, IDC_EDITOUTPUTLOOPCOUNT, mOutputLoopCount);
 	DDX_Control(pDX, IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK, mExtendSmallerTracksToEnd);
+	DDX_Control(pDX, IDC_MIDITYPE, mMidiType);
+	DDX_Control(pDX, IDC_COMBOMASTERTRACKEFFECT2, mMasterTrackEffect2);
 }
 
 BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
@@ -73,6 +77,84 @@ END_MESSAGE_MAP()
 BOOL CN64MidiToolDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	// TEST CODE
+	/*CNintendoEncoder ninEnc;
+	
+	CString sourceTestSr = "C:\\temp\\yay.bin";
+	int sizeSource = GetSizeFile(sourceTestSr);
+	FILE* inSource = fopen(sourceTestSr, "rb");
+	unsigned char* sourceTest = new unsigned char[sizeSource];
+	fread(sourceTest, 1, sizeSource, inSource);
+	fclose(inSource);
+
+	unsigned char* outputBuffer = new unsigned char[0x500000];
+	int decodeSize = ninEnc.decode(sourceTest, sizeSource, outputBuffer);
+
+	CString inputEncodedStr = "C:\\temp\\re.test";
+	FILE* outRe = fopen(inputEncodedStr, "wb");
+	fwrite(outputBuffer, 1, decodeSize, outRe);
+	fclose(outRe);*/
+
+	/*CString sourceTestSr = "C:\\temp\\mio0.bin.bin";
+	int decodeSize = GetSizeFile(sourceTestSr);
+	FILE* inSource = fopen(sourceTestSr, "rb");
+	unsigned char* outputBuffer = new unsigned char[decodeSize];
+	fread(outputBuffer, 1, decodeSize, inSource);
+	fclose(inSource);
+
+	unsigned char* recompressed = new unsigned char[0x500000];
+	int encodedSize = ninEnc.encode(outputBuffer, decodeSize, recompressed, "Yay0");
+
+	CString reEncodedStr = "C:\\temp\\re.bin";
+	FILE* outRe2 = fopen(reEncodedStr, "wb");
+	fwrite(recompressed, 1, encodedSize, outRe2);
+	fclose(outRe2);
+
+	delete [] outputBuffer;
+	delete [] recompressed;*/
+	//delete [] sourceTest;
+
+	/*CNaganoDecoder naganoDecoder;
+
+	CString sourceTestSr = "C:\\temp\\KonamiSong.bin";
+	int sizeSource = GetSizeFile(sourceTestSr);
+	FILE* inSource = fopen(sourceTestSr, "rb");
+	unsigned char* sourceTest = new unsigned char[sizeSource];
+	fread(sourceTest, 1, sizeSource, inSource);
+	fclose(inSource);
+	
+	unsigned char* outputBuffer = new unsigned char[0x500000];
+	int compressedSize = -1;
+	int compSize = naganoDecoder.EncodeKonamiLZW(sourceTest, sizeSource, outputBuffer, 0x500000, compressedSize, 3);
+
+	CString inputEncodedStr = "C:\\temp\\re.test";
+	FILE* outRe = fopen(inputEncodedStr, "wb");
+	fwrite(outputBuffer, 1, compressedSize, outRe);
+	fclose(outRe);
+
+	int sizeInput = GetSizeFile(inputEncodedStr);
+	FILE* inInput = fopen(inputEncodedStr, "rb");
+	unsigned char* compressedTest = new unsigned char[sizeInput];
+	fread(compressedTest, 1, sizeInput, inInput);
+	fclose(inInput);
+
+	unsigned char* output = new unsigned char[0x500000];
+	int decompressedSize = naganoDecoder.dec(compressedTest, sizeInput, output);
+
+	FILE* outFile = fopen("C:\\temp\\dec.bin", "wb");
+	fwrite(output, 1, decompressedSize, outFile);
+	fclose(outFile);
+
+	delete [] compressedTest;
+	delete [] output;
+
+	delete [] sourceTest;*/
+
+	
+
+	// END TEST
+	
 
 	mSeparateByInstrument.SetCheck(false);
 	mOutputLoop.SetCheck(false);
@@ -363,6 +445,9 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			}
 		}
 
+		mMidiType.ShowWindow(SW_SHOW);
+		mMidiType.SetWindowText(gameConfig[gameNumber].gameName + " - " + gameConfig[gameNumber].gameType);
+
 		std::vector<CString> addMidiStrings;
 		int numberMidiStrings = 0;
 		int numberInstruments = 0;
@@ -375,6 +460,14 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		tempInstrStr.Format("%02X", numberInstruments);
 		m_numberInstruments.SetWindowText(tempInstrStr);
 
+		if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
+		{
+			mExtendSmallerTracksToEnd.SetWindowText("Combine Sub-segments");
+		}
+		else
+		{
+			mExtendSmallerTracksToEnd.SetWindowText("Extend Smaller Tracks to End");
+		}
 		if ((gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("RNCSng") == 0)
@@ -399,20 +492,61 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			)
 		{
 			mMasterTrackEffect.SetCurSel(0);
+			mMasterTrackEffectLabel.SetWindowText("Master Track Effect");
+			mMasterTrackEffect.ResetContent();
+			mMasterTrackEffect.AddString("00 = None");
+			mMasterTrackEffect.AddString("01 = Small Room");
+			mMasterTrackEffect.AddString("02 = Big Room");
+			mMasterTrackEffect.AddString("03 = Chorus");
+			mMasterTrackEffect.AddString("04 = Flange");
+			mMasterTrackEffect.AddString("05 = Echo");
 			mMasterTrackEffectLabel.ShowWindow(SW_SHOW);
 			mMasterTrackEffect.ShowWindow(SW_SHOW);
+			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
 		}
 		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0))
 		{
+			mMasterTrackEffectLabel.ShowWindow(SW_SHOW);
+			mMasterTrackEffectLabel.SetWindowText("Separation Amt\r\nEcho Length");
+
+			mMasterTrackEffect.ResetContent();
+			mMasterTrackEffect2.ResetContent();
+
+			for (int x = 0; x < 0x100; x++)
+			{
+				CString tempStr;
+				tempStr.Format("%02X", x);
+				mMasterTrackEffect.AddString(tempStr);
+				mMasterTrackEffect2.AddString(tempStr);
+			}
+
+			mMasterTrackEffect.SetCurSel(0);
+			mMasterTrackEffect.ShowWindow(SW_SHOW);
+			mMasterTrackEffect2.SetCurSel(0);
+			mMasterTrackEffect2.ShowWindow(SW_SHOW);
+			
+			mSeparateByInstrument.ShowWindow(SW_SHOW);
+		}
+		else if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
+		{
+			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffect.ShowWindow(SW_SHOW);
+			mMasterTrackEffect2.ShowWindow(SW_SHOW);
+			mSeparateByInstrument.ShowWindow(SW_SHOW);
+		}
+		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Factor5Zlb") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5LZGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbNoHeaderGCStyle") == 0))
+		{
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
 		}
 		else
 		{
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_HIDE);
 		}
 
@@ -453,6 +587,23 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mOutputLoopCount.ShowWindow(SW_HIDE);
 
 			mExtendSmallerTracksToEnd.ShowWindow(SW_HIDE);
+		}
+		else if (
+			(gameConfig[gameNumber].gameType.CompareNoCase("Yaz0Seq64") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("Midi") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MidiLZSSWilliams") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("MIDx") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
+			)
+		{
+			mOutputLoop.ShowWindow(SW_HIDE);
+			mOutputLoopCount.ShowWindow(SW_HIDE);
+
+			mExtendSmallerTracksToEnd.ShowWindow(SW_SHOW);
 		}
 		else
 		{
@@ -776,10 +927,47 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		}
 	}
 
+	int midiIndex = m_spot.GetCurSel();
+
+	CString outputName;
+	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
+	{
+		outputName.Format("%s%s %08X %08X.xm", "", gameName, midiIndex, address);
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
+	{
+		outputName.Format("%s%s %08X %08X.dcm", "", gameName, midiIndex, address);
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0)
+	{
+		outputName.Format("%s%s %08X %08X.dcm", "", gameName, midiIndex, address);
+	}
+	else
+	{
+		if (midiIndex < gameConfig[gameNumber].numberMidiNames)
+		{
+			CString midiName = gameConfig[gameNumber].midiNames[midiIndex];
+			midiName.Trim();
+			midiName.Replace("\n", "");
+			midiName.Replace("\r", "");
+			midiName.Replace("*", "");
+			midiName.Replace("?", "");
+			midiName.Replace("<", "");
+			midiName.Replace(">", "");
+			midiName.Replace("|", "");
+
+			outputName.Format("%s%s %08X %08X %s.mid", "", gameName, midiIndex, address, midiName);
+		}
+		else
+		{
+			outputName.Format("%s%s %08X %08X.mid", "", gameName, midiIndex, address);
+		}
+	}
+
 	bool generateDebugTextFile = mDebugTextFile.GetCheck();
 	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
-		CFileDialog m_svFile(FALSE, "xm", "FastTracker2.xm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Xm File (*.xm)|*.xm|", this);
+		CFileDialog m_svFile(FALSE, "xm", outputName, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Xm File (*.xm)|*.xm|", this);
 
 		int statusFileOpen = (int) m_svFile.DoModal();
 
@@ -805,9 +993,9 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		int loopEnd = 0;
 		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
 	}
-	else if (gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0)
+	else if ((gameConfig[gameNumber].gameType.CompareNoCase("DCM") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("LZSamplesDCM") == 0))
 	{
-		CFileDialog m_svFile(FALSE, "dcm", "song.dcm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Dcm File (*.dcm)|*.dcm|", this);
+		CFileDialog m_svFile(FALSE, "dcm", outputName, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Dcm File (*.dcm)|*.dcm|", this);
 
 		int statusFileOpen = (int) m_svFile.DoModal();
 
@@ -841,7 +1029,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 		if (m_spot.GetCount() == 0)
 			return;
 
-		CFileDialog m_svFile(FALSE, "mid", "Midi.mid", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Midi File (*.mid)|*.mid|", this);
+		CFileDialog m_svFile(FALSE, "mid", outputName, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Midi File (*.mid)|*.mid|", this);
 
 		int statusFileOpen = (int) m_svFile.DoModal();
 
@@ -968,27 +1156,275 @@ void CN64MidiToolDlg::ConvertIntoSpot(CString inputFile)
 
 	if (compressed)
 	{
-		CompressGZipFile(inputFile, mainFolder + "tempAS734esa.gz", false, (gameConfig[gameNumber].gameType));
-
-		int sizeCompressed = GetSizeFile(mainFolder + "tempAS734esa.gz");
-
-		if (sizeCompressed > size)
+		if (gameConfig[gameNumber].gameType == "Konami")
 		{
-			CString errorStr;
-			errorStr.Format("Cannot import, %08X is larger than %08X", sizeCompressed, size);
-			MessageBox(errorStr);
+			int sizeInputFile = GetSizeFile(inputFile);
+
+			FILE* inFile = fopen(inputFile, "rb");
+			if (inFile == NULL)
+			{
+				MessageBox("Error reading file");
+				return;
+			}
+
+			unsigned char* sourceBuffer = new unsigned char[sizeInputFile];
+			fread(sourceBuffer, 1, sizeInputFile, inFile);
+			fclose(inFile);
+
+			CNaganoDecoder naganoDecoder;
+			unsigned char* outputBuffer = new unsigned char[0x500000];
+			int compressedSize = -1;
+			int compressedRealSize = -1;
+			int compSize = naganoDecoder.EncodeKonamiLZW(sourceBuffer, sizeInputFile, outputBuffer, 0x500000, compressedSize, compressedRealSize, 3);
+
+			if (compSize <= 0)
+			{
+				MessageBox("Unsuccessful compression");
+				delete [] outputBuffer;
+				return;
+			}
+
+			unsigned char* testRe = new unsigned char[0x500000];
+			int reSize = naganoDecoder.dec(outputBuffer, compressedSize, testRe);
+
+			if (reSize == 0)
+			{
+				delete [] sourceBuffer;
+				delete [] outputBuffer;
+				delete [] testRe;
+				MessageBox("Invalid compression, can't reoutput");
+				return;
+			}
+
+			for (int x = 0; x < sizeInputFile; x++)
+			{
+				if (testRe[x] != sourceBuffer[x])
+				{
+					delete [] sourceBuffer;
+					delete [] outputBuffer;
+					delete [] testRe;
+					MessageBox("Invalid compression, not equal to start");
+					return;
+				}
+			}
+			delete [] testRe;
+			delete [] sourceBuffer;
+			
+			signed long change = (compSize - size);
+
+			unsigned long fileAddress = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + ((extra) * 4);
+			unsigned long fileAddressData = CharArrayToLong(&buffer[fileAddress]);
+
+			unsigned long nextAddress = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + ((extra + 1) * 4);
+			unsigned long nextEndAddress = gameConfig[gameNumber].extraGameMidiInfo.trackAddressEndsOffset + ((extra + 1) * 4);
+
+			unsigned long lastAddress = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + ((gameConfig[gameNumber].numberMidis) * 4);
+
+			
+			unsigned long lastEndAddress = gameConfig[gameNumber].extraGameMidiInfo.trackAddressEndsOffset + ((gameConfig[gameNumber].numberMidis) * 4);
+
+			unsigned long endSpot = gameConfig[gameNumber].extraGameMidiInfo.tracksEnd;
+
+			if (compSize == size)
+			{
+
+			}
+			else if (compSize < size)
+			{
+				for (unsigned long addressOffset = nextAddress; addressOffset < lastAddress; addressOffset += 4)
+				{
+					unsigned long address = CharArrayToLong(&buffer[addressOffset]);
+
+					CN64MidiToolReader::midiParse.WriteLongToBuffer(buffer, addressOffset, address + change);
+				}
+
+				memcpy(&buffer[address + compSize], &buffer[address + size], (endSpot - (address + size)));
+				for (int x = (address + compSize + (endSpot - (address + size))); x < endSpot; x++)
+				{
+					buffer[x] = 0x00;
+				}
+
+				for (unsigned long addressOffset = nextEndAddress; addressOffset < lastEndAddress; addressOffset += 4)
+				{
+					unsigned long address = CharArrayToLong(&buffer[addressOffset]);
+
+					CN64MidiToolReader::midiParse.WriteLongToBuffer(buffer, addressOffset, (signed long)address + change);
+				}
+			}
+			else// if (compSize > size)
+			{
+				unsigned long trueEnd = CharArrayToLong(&buffer[lastEndAddress - 4]);
+
+				if (((signed long)trueEnd + change) > gameConfig[gameNumber].extraGameMidiInfo.tracksEnd)
+				{
+					delete [] outputBuffer;
+					MessageBox("Too big, songs would overtake end of song data");
+					return;
+				}
+
+				for (unsigned long addressOffset = nextAddress; addressOffset < lastAddress; addressOffset += 4)
+				{
+					unsigned long address = CharArrayToLong(&buffer[addressOffset]);
+
+					CN64MidiToolReader::midiParse.WriteLongToBuffer(buffer, addressOffset, (signed long)address + change);
+				}
+
+				for (int x = ((signed long)trueEnd + change); x >= (fileAddressData + compSize); x--)
+				{
+					buffer[x] = buffer[x-change];
+				}
+
+				for (unsigned long addressOffset = nextEndAddress; addressOffset < lastEndAddress; addressOffset += 4)
+				{
+					unsigned long address = CharArrayToLong(&buffer[addressOffset]);
+
+					CN64MidiToolReader::midiParse.WriteLongToBuffer(buffer, addressOffset, (signed long)address + change);
+				}
+			}
+
+			memcpy(&buffer[address], outputBuffer, compSize);
+
+			unsigned long startOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + (extra * 4);
+			unsigned long currentStartOffset = CharArrayToLong(&buffer[startOffsetWritten]);
+
+			unsigned long endOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressEndsOffset + (extra * 4);
+
+			unsigned long newEndOffset = (currentStartOffset + compSize);
+			CN64MidiToolReader::midiParse.WriteLongToBuffer(buffer, endOffsetWritten, newEndOffset);
+
+			delete [] outputBuffer;
+
+			int spotSel = m_spot.GetCurSel();
+
+			m_spot.ResetContent();
+			for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+			{
+				unsigned long startOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + (gameConfig[gameNumber].midiBanks[x].extra * 4);
+				unsigned long start = CharArrayToLong(&buffer[startOffsetWritten]);
+
+				unsigned long endOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressEndsOffset + (gameConfig[gameNumber].midiBanks[x].extra * 4);
+				unsigned long end = CharArrayToLong(&buffer[endOffsetWritten]);
+
+				if ((end % 0x10) != 0)
+				{
+					end = end + (0x10 - (end % 0x10));
+				}
+
+				CString tempSpotStr;
+				if ((gameConfig[gameNumber].midiBanks[x].extra != 0) && (gameConfig[gameNumber].midiBanks[x].extra2 != 0))
+					tempSpotStr.Format("%08X:%08X:%08X:%08X", start, (end - start), gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2);
+				else if (gameConfig[gameNumber].midiBanks[x].extra != 0)
+					tempSpotStr.Format("%08X:%08X:%08X", start, (end - start), gameConfig[gameNumber].midiBanks[x].extra);
+				else
+					tempSpotStr.Format("%08X:%08X", start, (end - start));
+				m_spot.AddString(tempSpotStr);
+			}
+
+			m_spot.SetCurSel(spotSel);
+		}
+		else if (gameConfig[gameNumber].gameType == "Yay0Sng")
+		{
+			int sizeInputFile = GetSizeFile(inputFile);
+
+			FILE* inFile = fopen(inputFile, "rb");
+			if (inFile == NULL)
+			{
+				MessageBox("Error reading file");
+				return;
+			}
+
+			unsigned char* sourceBuffer = new unsigned char[sizeInputFile];
+			fread(sourceBuffer, 1, sizeInputFile, inFile);
+			fclose(inFile);
+
+			CNintendoEncoder ninEnc;
+			unsigned char* outputBuffer = new unsigned char[0x500000];
+
+			int sizeCompressed = ninEnc.encode(sourceBuffer, sizeInputFile, outputBuffer, "Yay0");
+
+			if (sizeCompressed <= 0)
+			{
+				MessageBox("Unsuccessful compression");
+				delete [] sourceBuffer;
+				delete [] outputBuffer;
+				return;
+			}
+
+			if (sizeCompressed > size)
+			{
+				CString errorStr;
+				errorStr.Format("Cannot import, %08X is larger than %08X", sizeCompressed, size);
+				MessageBox(errorStr);
+				delete [] sourceBuffer;
+				delete [] outputBuffer;
+				return;
+			}
+
+			memcpy(&buffer[address], outputBuffer, sizeCompressed);
+
+			delete [] sourceBuffer;
+			delete [] outputBuffer;
+		}
+		else if (
+			(gameConfig[gameNumber].gameType == "RNCSng") ||
+			(gameConfig[gameNumber].gameType == "ASMICSng") ||
+			(gameConfig[gameNumber].gameType == "SnowSng") ||
+			(gameConfig[gameNumber].gameType == "ArmySargeSng") ||
+			(gameConfig[gameNumber].gameType == "ArmySarge2Sng") ||
+			(gameConfig[gameNumber].gameType == "TazSng") ||
+			(gameConfig[gameNumber].gameType == "ARISng") ||
+			(gameConfig[gameNumber].gameType == "FLA2Sng") ||
+			(gameConfig[gameNumber].gameType == "RNCSngOffset") ||
+			(gameConfig[gameNumber].gameType == "BlitzSng") ||
+			(gameConfig[gameNumber].gameType == "MarioTennisSng") ||
+			(gameConfig[gameNumber].gameType == "ZLibSng") ||
+			(gameConfig[gameNumber].gameType == "Factor5Zlb") ||
+			(gameConfig[gameNumber].gameType == "Factor5ZlbGCStyle") ||
+			(gameConfig[gameNumber].gameType == "Factor5LZGCStyle") ||
+			(gameConfig[gameNumber].gameType == "Factor5ZlbNoHeaderGCStyle") ||
+			(gameConfig[gameNumber].gameType == "ZLibIndexedSng") ||
+			(gameConfig[gameNumber].gameType == "MultiPartTigSng") ||
+			(gameConfig[gameNumber].gameType == "LZSS_0BSng") ||
+			(gameConfig[gameNumber].gameType == "AVL_0Sng") ||
+			(gameConfig[gameNumber].gameType == "VigilanteSng") ||
+			(gameConfig[gameNumber].gameType == "RugratsSng") ||
+			(gameConfig[gameNumber].gameType == "MidiLZSSWilliams") ||
+			(gameConfig[gameNumber].gameType == "TitusMidi") ||
+			(gameConfig[gameNumber].gameType == "RNCMidi") ||
+			(gameConfig[gameNumber].gameType == "RNCSeq") ||
+			(gameConfig[gameNumber].gameType == "MultipartZLibXMFastTracker2") ||
+			(gameConfig[gameNumber].gameType == "DCM") ||
+			(gameConfig[gameNumber].gameType == "LZSamplesDCM")
+			)
+
+		{
+			MessageBox("Unsupported Compression");
 			return;
 		}
-
-		FILE* inFile = fopen((mainFolder + "tempAS734esa.gz"), "rb");
-		if (inFile == NULL)
+		else
 		{
-			MessageBox("Error reading file");
-			return;
+			CompressGZipFile(inputFile, mainFolder + "tempAS734esa.gz", false, (gameConfig[gameNumber].gameType));
+
+			int sizeCompressed = GetSizeFile(mainFolder + "tempAS734esa.gz");
+
+			if (sizeCompressed > size)
+			{
+				CString errorStr;
+				errorStr.Format("Cannot import, %08X is larger than %08X", sizeCompressed, size);
+				MessageBox(errorStr);
+				return;
+			}
+
+			FILE* inFile = fopen((mainFolder + "tempAS734esa.gz"), "rb");
+			if (inFile == NULL)
+			{
+				MessageBox("Error reading file");
+				return;
+			}
+			fread(&buffer[address], 1, sizeCompressed, inFile);
+			fclose(inFile);
+			::DeleteFile(mainFolder + "tempAS734esa.gz");
 		}
-		fread(&buffer[address], 1, sizeCompressed, inFile);
-		fclose(inFile);
-		::DeleteFile(mainFolder + "tempAS734esa.gz");
 	}
 	else
 	{
@@ -1458,11 +1894,6 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 		MessageBox("Unsupported RNCSng import");
 		return;
 	}
-	else if (gameConfig[gameNumber].gameType.CompareNoCase("Yay0Sng") == 0)
-	{
-		MessageBox("Unsupported Yay0Sng import");
-		return;
-	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
 	{
 		MessageBox("Unsupported BlitzSng import");
@@ -1476,6 +1907,11 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("ZLibSng") == 0)
 	{
 		MessageBox("Unsupported ZLibSng import");
+		return;
+	}
+	else if ((gameConfig[gameNumber].gameType.CompareNoCase("Factor5Zlb") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5LZGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbNoHeaderGCStyle") == 0))
+	{
+		MessageBox("Unsupported Factor5Zlb import");
 		return;
 	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0)
@@ -1493,6 +1929,11 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 		outputFilename = m_ldFile.GetPathName();
 	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0)
+	{
+		MessageBox("Unsupported Compressed import - you must use Seq64 GUI to do this");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Yaz0Seq64") == 0)
 	{
 		MessageBox("Unsupported Compressed import");
 		return;
@@ -1520,8 +1961,11 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0)
 	{
-		MessageBox("Unsupported Konami Compressed import");
-		return;
+		if (gameConfig[gameNumber].extraGameMidiInfo.naganoCompressed || gameConfig[gameNumber].extraGameMidiInfo.zlbCompressed)
+		{
+			MessageBox("Unsupported as of yet setting track numbers, so can't import");
+			return;
+		}
 
 		if (buffer == NULL)
 			return;
@@ -1552,10 +1996,22 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 		mLoopPoint.GetWindowText(tempStr);
 		int loop = atoi(tempStr);
 
-		if (!CN64MidiToolReader::midiParse.MidiToKonami(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop))
+		int numberTracks = 0;
+		if (!CN64MidiToolReader::midiParse.MidiToKonami(m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop, numberTracks, mMasterTrackEffect.GetCurSel(), mMasterTrackEffect2.GetCurSel()))
 			return;
+
+		unsigned long trackCountOffset = gameConfig[gameNumber].extraGameMidiInfo.trackOffset + (extra * gameConfig[gameNumber].extraGameMidiInfo.trackIncrement);
+		buffer[trackCountOffset] = numberTracks & 0xFF;
 	}
-	else if (gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
+	{
+		MessageBox("Unsupported PaperMario Compressed import");
+		return;
+	}
+	else if (
+		(gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
+		|| (gameConfig[gameNumber].gameType.CompareNoCase("Yay0Sng") == 0)
+		)
 	{
 		if (buffer == NULL)
 			return;
@@ -1697,7 +2153,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 			}
 		}
 
-		if ((size > 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0))
+		if ((size > 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Yaz0Seq64") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZipSng") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("ZLibIndexedSng") == 0))
 		{
 			CString outputName;
 			if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
@@ -1714,7 +2170,24 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 			}
 			else
 			{
-				outputName.Format("%s%s %08X %08X.mid", tempPath, gameName, x, address);
+				if (x < gameConfig[gameNumber].numberMidiNames)
+				{
+					CString midiName = gameConfig[gameNumber].midiNames[x];
+					midiName.Trim();
+					midiName.Replace("\n", "");
+					midiName.Replace("\r", "");
+					midiName.Replace("*", "");
+					midiName.Replace("?", "");
+					midiName.Replace("<", "");
+					midiName.Replace(">", "");
+					midiName.Replace("|", "");
+
+					outputName.Format("%s%s %08X %08X %s.mid", tempPath, gameName, x, address, midiName);
+				}
+				else
+				{
+					outputName.Format("%s%s %08X %08X.mid", tempPath, gameName, x, address);
+				}
 			}
 			try
 			{
@@ -1869,7 +2342,8 @@ void CN64MidiToolDlg::OnBnClickedButtonwriterom()
 
 	if ((isFileOpened2 != IDCANCEL) && (m_svFileOutROM.GetFileName() != ""))
 	{
-		FILE* outFile = fopen(m_svFileOutROM.GetPathName(), "wb");
+		CString romOutName = m_svFileOutROM.GetPathName();
+		FILE* outFile = fopen(romOutName, "wb");
 		if (outFile == NULL)
 		{
 			MessageBox("Bad output file");
@@ -1878,6 +2352,24 @@ void CN64MidiToolDlg::OnBnClickedButtonwriterom()
 
 		fwrite(buffer, 1, romSize, outFile);
 		fclose(outFile);
+
+		if (GetSizeFile((mainFolder + "rn64crc.exe")) == 0)
+		{
+			MessageBox("Warning, rn64crc.exe not found in main folder, could not re-crc ROM, if needed");
+			return;
+		}
+
+		CString RN64dir = romOutName.Mid(0, (romOutName.ReverseFind('\\')+1));
+		CString RN64name = romOutName.Mid((romOutName.ReverseFind('\\')+1), (romOutName.GetLength() - (romOutName.ReverseFind('\\')+1)));
+
+		if (RN64dir != mainFolder)
+			::CopyFile((mainFolder + "rn64crc.exe"), (RN64dir + "rn64crc.exe"), false);
+
+		::SetCurrentDirectory(RN64dir);
+
+		CString tempStr;
+		tempStr.Format("rn64crc.exe -u \"%s\"", RN64name);
+		hiddenExec(_T(tempStr.GetBuffer()), RN64dir);
 	}
 }
 
@@ -2379,8 +2871,8 @@ void CN64MidiToolDlg::OnBnClickedButtonriproms()
 	{
 		CString gameName = (tempPath + gameConfig[y].gameName + " [!].z64");
 
-		if (gameConfig[y].gameType.Find("Konami") == -1)
-			continue;
+		//if (gameConfig[y].gameType.Find("Konami") == -1)
+			//continue;
 
 		//if (gameConfig[y].gameType.Find("Sng") == -1)
 			//continue;
@@ -2529,10 +3021,15 @@ void CN64MidiToolDlg::OnBnClickedButton4()
 
 void CN64MidiToolDlg::OnBnClickedButtongenmidis()
 {
-	CN64MidiToolReader::midiParse.GenerateTestPattern(0, "\\\\mitchellnas\\Goldeneye\\TempShare\\a.mid");
+	/*CN64MidiToolReader::midiParse.GenerateTestPattern(0, "\\\\mitchellnas\\Goldeneye\\TempShare\\a.mid");
 	CN64MidiToolReader::midiParse.GenerateTestPattern(1, "\\\\mitchellnas\\Goldeneye\\TempShare\\b.mid");
 	CN64MidiToolReader::midiParse.GenerateTestPattern(2, "\\\\mitchellnas\\Goldeneye\\TempShare\\c.mid");
-	CN64MidiToolReader::midiParse.GenerateTestPattern(3, "\\\\mitchellnas\\Goldeneye\\TempShare\\d.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(3, "\\\\mitchellnas\\Goldeneye\\TempShare\\d.mid");*/
+
+	CN64MidiToolReader::midiParse.GenerateTestPattern(0, "C:\\temp\\a.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(1, "C:\\temp\\b.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(2, "C:\\temp\\c.mid");
+	CN64MidiToolReader::midiParse.GenerateTestPattern(3, "C:\\temp\\d.mid");
 }
 
 void CN64MidiToolDlg::OnBnClickedCheckshowbfx()

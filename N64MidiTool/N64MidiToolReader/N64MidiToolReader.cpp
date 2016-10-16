@@ -273,6 +273,25 @@ void CN64MidiToolReader::InitializeSpecificGames(CString iniPath, int& countGame
 				line.Replace(":", "");
 				gameConfig[countGames].extraGameMidiInfo.trackAddressEndsOffset = StringHexToLong(line);
 			}
+			else if ((line.Find("Checksum1")) != -1)
+			{
+				line.Replace("Checksum1", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.checksum1 = StringHexToLong(line);
+			}
+			else if ((line.Find("Checksum2")) != -1)
+			{
+				line.Replace("Checksum2", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.checksum2 = StringHexToLong(line);
+			}
+			else if ((line.Find("TracksEnd")) != -1)
+			{
+				line.Replace("TracksEnd", "");
+				line.Replace(":", "");
+				gameConfig[countGames].extraGameMidiInfo.tracksEnd = StringHexToLong(line);
+			}
+			
 			else if ((line.Find("ZlbCompressed")) != -1)
 			{
 				line.Replace("ZlbCompressed", "");
@@ -660,7 +679,68 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 	}
 	else if (gameName.CompareNoCase("Konami") == 0)
 	{
+		bool checksumMatch = true;
+
+		if (gameConfig[gameNumber].extraGameMidiInfo.checksum1 != 0x00000000)
+		{
+			if (CharArrayToLong(&buffer[0x10]) != gameConfig[gameNumber].extraGameMidiInfo.checksum1)
+				checksumMatch = false;
+		}
+
 		compressed = true;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			unsigned long start = gameConfig[gameNumber].midiBanks[x].start;
+			unsigned long end = gameConfig[gameNumber].midiBanks[x].end;
+
+			if (!checksumMatch)
+			{
+				unsigned long startOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressOffset + (gameConfig[gameNumber].midiBanks[x].extra * 4);
+				start = CharArrayToLong(&buffer[startOffsetWritten]);
+
+				unsigned long endOffsetWritten = gameConfig[gameNumber].extraGameMidiInfo.trackAddressEndsOffset + (gameConfig[gameNumber].midiBanks[x].extra * 4);
+				end = CharArrayToLong(&buffer[endOffsetWritten]);
+			}
+
+			if ((end % 0x10) != 0)
+			{
+				end = end + (0x10 - (end % 0x10));
+			}
+
+			CString tempSpotStr;
+			if ((gameConfig[gameNumber].midiBanks[x].extra != 0) && (gameConfig[gameNumber].midiBanks[x].extra2 != 0))
+				tempSpotStr.Format("%08X:%08X:%08X:%08X", start, (end - start), gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2);
+			else if (gameConfig[gameNumber].midiBanks[x].extra != 0)
+				tempSpotStr.Format("%08X:%08X:%08X", start, (end - start), gameConfig[gameNumber].midiBanks[x].extra);
+			else
+				tempSpotStr.Format("%08X:%08X", start, (end - start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				int fileSizeCompressed = end - start;
+				CNaganoDecoder decode;
+				unsigned char* outputDecompressed = new unsigned char[0x50000];
+				int expectedSize = decode.dec(&buffer[start], fileSizeCompressed, outputDecompressed);
+
+				/*FILE* a = fopen("C:\\temp\\a.bin", "wb");
+				fwrite(outputDecompressed, 1, expectedSize, a);
+				fclose(a);*/
+
+				midiParse.KonamiToMidi(buffer, bufferSize, outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, gameConfig[gameNumber].midiBanks[x].extra);
+
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				delete [] outputDecompressed;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
+	else if (gameName.CompareNoCase("PaperMario") == 0)
+	{
+		compressed = false;
 		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
 		{
 			CString tempSpotStr;
@@ -676,20 +756,13 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			if (calculateInstrumentCount)
 			{
 				int numberInstTemp = 0;
-				int fileSizeCompressed = gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start;
-				CNaganoDecoder decode;
-				unsigned char* outputDecompressed = new unsigned char[0x50000];
-				int expectedSize = decode.dec(&buffer[gameConfig[gameNumber].midiBanks[x].start], fileSizeCompressed, outputDecompressed);
-
-				/*FILE* a = fopen("C:\\temp\\a.bin", "wb");
-				fwrite(outputDecompressed, 1, expectedSize, a);
-				fclose(a);*/
-
-				midiParse.KonamiToMidi(buffer, bufferSize, outputDecompressed, expectedSize, "asdasdaw43.mid", numberInstTemp, true, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, gameConfig[gameNumber].midiBanks[x].extra);
-
+				
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
 				if (numberInstTemp > numberInstruments)
 					numberInstruments = numberInstTemp;
-				delete [] outputDecompressed;
 				::DeleteFile("asdasdaw43.mid");
 			}
 		}
@@ -1266,6 +1339,31 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			}
 		}
 	}
+	else if ((gameName.CompareNoCase("Factor5Zlb") == 0) || (gameName.CompareNoCase("Factor5ZlbGCStyle") == 0) || (gameName.CompareNoCase("Factor5LZGCStyle") == 0) || (gameName.CompareNoCase("Factor5ZlbNoHeaderGCStyle") == 0))
+	{
+		compress.SetGame(STUNTRACER64);
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+
+			if (calculateInstrumentCount)
+			{
+				int numberInstTemp = 0;
+				bool hasLoopPoint = false;
+				int loopStart = 0;
+				int loopEnd = 0;
+				midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+				if (numberInstTemp > numberInstruments)
+					numberInstruments = numberInstTemp;
+				::DeleteFile("asdasdaw43.mid");
+			}
+		}
+	}
 	else if (gameName.CompareNoCase("ZLibIndexedSng") == 0)
 	{
 		compress.SetGame(NOHEADER);
@@ -1462,6 +1560,18 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 		{
 			CString tempSpotStr;
 			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("Yaz0Seq64") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start), gameConfig[gameNumber].midiBanks[x].extra);
 			addMidiStrings.push_back(tempSpotStr);
 			numberMidiStrings++;
 		}
