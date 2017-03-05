@@ -49,11 +49,34 @@ struct SoundGameConfig
 	CString gameName;
 	CtlTblConfig* soundBanks;
 
+	bool isCompressedZeldaCtlTblTables;
+	unsigned long compressedZeldaCtlTblTableStart;
+	unsigned long compressedZeldaCtlTblTableEnd;
+
+	unsigned long offsetZeldaCtlTable;
+	unsigned long offsetZeldaTblTable;
+	unsigned long startZeldaCtlData;
+	unsigned long startZeldaTblData;
+	unsigned long endZeldaCtlData;
+	unsigned long endZeldaTblData;
+
 	SoundGameConfig()
 	{
 		soundBanks = NULL;
 
 		numberSoundBanks = 0;
+
+		isCompressedZeldaCtlTblTables = false;
+		offsetZeldaCtlTable = 0;
+		offsetZeldaTblTable = 0;
+		startZeldaCtlData = 0;
+		startZeldaTblData = 0;
+		endZeldaCtlData = 0;
+		endZeldaTblData = 0;
+
+		isCompressedZeldaCtlTblTables = false;
+		compressedZeldaCtlTblTableStart = 0x00000000;
+		compressedZeldaCtlTblTableEnd = 0x00000000;
 	}
 };
 

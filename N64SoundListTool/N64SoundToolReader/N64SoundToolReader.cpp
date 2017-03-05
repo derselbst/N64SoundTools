@@ -289,6 +289,68 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].overrideSamplingRate = true;
 				gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks-1].samplingRate = atoi(line);
 			}
+			else if ((line.Find("OffsetZeldaCtlTable")) != -1)
+			{
+				line.Replace("OffsetZeldaCtlTable", "");
+				line.Replace(":", "");
+				gameConfig[countGames].offsetZeldaCtlTable = StringHexToLong(line);
+			}
+			else if ((line.Find("OffsetZeldaTblTable")) != -1)
+			{
+				line.Replace("OffsetZeldaTblTable", "");
+				line.Replace(":", "");
+				gameConfig[countGames].offsetZeldaTblTable = StringHexToLong(line);
+			}
+			else if ((line.Find("StartZeldaCtlData")) != -1)
+			{
+				line.Replace("StartZeldaCtlData", "");
+				line.Replace(":", "");
+				gameConfig[countGames].startZeldaCtlData = StringHexToLong(line);
+			}
+			else if ((line.Find("StartZeldaTblData")) != -1)
+			{
+				line.Replace("StartZeldaTblData", "");
+				line.Replace(":", "");
+				gameConfig[countGames].startZeldaTblData = StringHexToLong(line);
+			}
+			else if ((line.Find("EndZeldaCtlData")) != -1)
+			{
+				line.Replace("EndZeldaCtlData", "");
+				line.Replace(":", "");
+				gameConfig[countGames].endZeldaCtlData = StringHexToLong(line);
+			}
+			else if ((line.Find("EndZeldaTblData")) != -1)
+			{
+				line.Replace("EndZeldaTblData", "");
+				line.Replace(":", "");
+				gameConfig[countGames].endZeldaTblData = StringHexToLong(line);
+			}
+			else if ((line.Find("IsCompressedZeldaCtlTblTables")) != -1)
+			{
+				line.Replace("IsCompressedZeldaCtlTblTables", "");
+				line.Replace(":", "");
+				line.Trim();
+				if ((line.Find("true") != -1) || (line.Find("True") != -1) || (line.Find("1") != -1))
+				{
+					gameConfig[countGames].isCompressedZeldaCtlTblTables = true;
+				}
+				else
+				{
+					gameConfig[countGames].isCompressedZeldaCtlTblTables = false;
+				}
+			}
+			else if ((line.Find("CompressedZeldaCtlTblTableStart")) != -1)
+			{
+				line.Replace("CompressedZeldaCtlTblTableStart", "");
+				line.Replace(":", "");
+				gameConfig[countGames].compressedZeldaCtlTblTableStart = StringHexToLong(line);
+			}
+			else if ((line.Find("CompressedZeldaCtlTblTableEnd")) != -1)
+			{
+				line.Replace("CompressedZeldaCtlTblTableEnd", "");
+				line.Replace(":", "");
+				gameConfig[countGames].compressedZeldaCtlTblTableEnd = StringHexToLong(line);
+			}
 		}
 		else
 		{
@@ -554,11 +616,11 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			}
 			else if (gameConfig.gameType.CompareNoCase("SF64Uncompressed") == 0)
 			{
-				results[numberResults].bank = n64AudioLibrary.ReadAudioStarFox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask);
+				results[numberResults].bank = n64AudioLibrary.ReadAudioStarFox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, results[numberResults].tblOffset, gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, &ROM[0], romSize, gameConfig.offsetZeldaCtlTable, gameConfig.offsetZeldaTblTable, gameConfig.startZeldaCtlData, gameConfig.startZeldaTblData, numberResults, gameConfig.isCompressedZeldaCtlTblTables, gameConfig.compressedZeldaCtlTblTableStart, gameConfig.compressedZeldaCtlTblTableEnd);
 			}
 			else if (gameConfig.gameType.CompareNoCase("ZeldaUncompressed") == 0)
 			{
-				results[numberResults].bank = n64AudioLibrary.ReadAudioZelda(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, &ROM[0]);
+				results[numberResults].bank = n64AudioLibrary.ReadAudioZelda(results, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, results[numberResults].tblOffset, gameConfig.soundBanks[x].numberInstruments, gameConfig.soundBanks[x].mask, &ROM[0], romSize, gameConfig.offsetZeldaCtlTable, gameConfig.offsetZeldaTblTable, gameConfig.startZeldaCtlData, gameConfig.startZeldaTblData, numberResults, gameConfig.isCompressedZeldaCtlTblTables, gameConfig.compressedZeldaCtlTblTableStart, gameConfig.compressedZeldaCtlTblTableEnd);
 			}
 			else if (gameConfig.gameType.CompareNoCase("TurokUncompressed") == 0)
 			{
@@ -587,10 +649,6 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			else if (gameConfig.gameType.CompareNoCase("RNXCompressed") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadRNXAudio(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
-			}
-			else if (gameConfig.gameType.CompareNoCase("FZeroUncompressed") == 0)
-			{
-				results[numberResults].bank = n64AudioLibrary.ReadAudioFZero(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments, &ROM[0]);
 			}
 			else if (gameConfig.gameType.CompareNoCase("MegaManN64WavePtrTableV2") == 0)
 			{
@@ -686,7 +744,7 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			}
 			else if (gameConfig.gameType.CompareNoCase("MarioKart64") == 0)
 			{
-				results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, true, gameConfig.soundBanks[x].numberInstruments);
+				results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, gameConfig.soundBanks[x].numberInstruments);
 			}
 			else if (gameConfig.gameType.CompareNoCase("StandardRawAllowed") == 0)
 			{

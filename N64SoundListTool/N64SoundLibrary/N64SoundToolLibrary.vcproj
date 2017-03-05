@@ -169,6 +169,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\CalcCRC.cpp"
+				>
+			</File>
+			<File
 				RelativePath="EASportsDecoder.cpp"
 				>
 			</File>
@@ -210,6 +214,10 @@
 			</File>
 			<File
 				RelativePath="NinDec.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\NintendoEncoder.cpp"
 				>
 			</File>
 			<File
@@ -264,6 +272,10 @@
 				RelativePath="yay0.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\yaz0.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -276,6 +288,10 @@
 			</File>
 			<File
 				RelativePath="BlitzDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\CalcCRC.h"
 				>
 			</File>
 			<File
@@ -320,6 +336,10 @@
 			</File>
 			<File
 				RelativePath="NinDec.h"
+				>
+			</File>
+			<File
+				RelativePath=".\NintendoEncoder.h"
 				>
 			</File>
 			<File
@@ -368,6 +388,10 @@
 			</File>
 			<File
 				RelativePath="yay0.h"
+				>
+			</File>
+			<File
+				RelativePath=".\yaz0.h"
 				>
 			</File>
 		</Filter>

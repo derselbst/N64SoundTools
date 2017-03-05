@@ -47,6 +47,8 @@ public:
 	void SetCompressedBuffer(unsigned char* Buffer, int bufferSize);
 	unsigned char* OutputDecompressedBuffer(int& fileSize, int& compressedSize);
 	bool CompressGZipFile(CString inputFile, CString outputFile, bool byteFlipCompressed);
+	bool CompressGZipFileNoPad(CString inputFile, CString outputFile, bool byteFlipCompressed);
+	bool Compress7ZipFileNoPad(CString inputFile, CString outputFile, bool byteFlipCompressed);
 	int game;
 	CString mainFolder;
 	void SetGame(int replaceGame);

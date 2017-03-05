@@ -517,6 +517,548 @@ bool GECompression::CompressGZipFile(CString inputFile, CString outputFile, bool
 	}
 }
 
+bool GECompression::CompressGZipFileNoPad(CString inputFile, CString outputFile, bool byteFlipCompressed)
+{
+	CString gzipFileName = (mainFolder + "gzip.exe");
+	char tempFileExistName[1000];
+	strcpy(tempFileExistName, (mainFolder + "gzip.exe"));
+	if (IsFileExist(tempFileExistName) == false)
+	{
+		MessageBox(NULL, "gzip.exe not found!", "Error", NULL);
+		return false;
+	}
+
+	strcpy(tempFileExistName, inputFile);
+	if (IsFileExist(tempFileExistName))
+	{
+		FILE* tempInputFile = fopen(inputFile, "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size + 0x10];
+		for (int x = 0; x < (size + 0x10); x++)
+			tempBuffer[x] = 0;
+
+		fseek(tempInputFile, 0, SEEK_SET);
+
+
+		fread(tempBuffer, 1, size, tempInputFile);
+
+
+		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
+		if (tempOutputFile == 0)
+		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
+			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
+			return false;
+		}
+
+		unsigned long compressedSize = size;
+
+		fwrite(tempBuffer, 1, compressedSize, tempOutputFile);	
+
+		fclose(tempInputFile);
+		fclose(tempOutputFile);
+
+		delete [] tempBuffer;
+
+		::SetCurrentDirectory(mainFolder);
+		CString tempStr = ("gzip.exe -f -q -9 tempgh9.bin");
+		hiddenExec(_T(tempStr.GetBuffer()), (mainFolder));
+		CString outputGZippedName = (mainFolder+"TEMPGH9.BIZ");
+
+		strcpy(tempFileExistName, outputGZippedName);
+		if (!IsFileExist(tempFileExistName))
+		{
+			outputGZippedName = (mainFolder+"tempgh9.bin.gz");;
+		}
+
+		strcpy(tempFileExistName, outputGZippedName);
+		if (IsFileExist(tempFileExistName))
+		{
+			FILE* inputFileName = fopen(outputGZippedName, "rb");
+			int sizeNew = 0;
+			fseek(inputFileName, 0, SEEK_END);
+			sizeNew = ftell(inputFileName);
+			fseek(inputFileName, 0, SEEK_SET);
+
+			unsigned char* tempBufferNew;
+			tempBufferNew = new unsigned char[sizeNew];
+			fread(tempBufferNew, 1, sizeNew, inputFileName);
+
+			fclose(inputFileName);
+			DeleteFile((mainFolder+"TEMPGH9.BIZ"));
+			FILE* outputFileName = fopen(outputFile, "wb");
+			if (outputFileName == NULL)
+			{
+				delete [] tempBufferNew;
+				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
+				return false;
+			}
+
+			unsigned long start = 0x16;
+			if ((game == GOLDENEYE) || (game == KILLERINSTINCT))
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x72;
+			}
+			else if (game == PD)
+			{
+				start = start - 5;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x73;
+				tempBufferNew[start+2] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+3] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+4] = ((size) & 0xFF);
+			}
+			else if (game == BANJOKAZOOIE)
+			{
+				start = start - 6;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x72;
+				tempBufferNew[start+2] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+3] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+4] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+5] = ((size) & 0xFF);
+			}
+			else if ((game == DONKEYKONG64) || (game == BLASTCORPS))
+			{
+				start = start - 0xA;
+				tempBufferNew[start] = 0x1F;
+				tempBufferNew[start+1] = 0x8B;
+				tempBufferNew[start+2] = 0x08;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x00;
+				tempBufferNew[start+5] = 0x00;
+				tempBufferNew[start+6] = 0x00;
+				tempBufferNew[start+7] = 0x00;
+				tempBufferNew[start+8] = 0x02;
+				tempBufferNew[start+9] = 0x03;
+			}
+			else if (game == DONKEYKONG64KIOSK)
+			{
+				start = start - 0x12;
+				tempBufferNew[start] = 0x1F;
+				tempBufferNew[start+1] = 0x8B;
+				tempBufferNew[start+2] = 0x08;
+				tempBufferNew[start+3] = 0x08;
+				tempBufferNew[start+4] = 0x03;
+				tempBufferNew[start+5] = 0x45;
+				tempBufferNew[start+6] = 0x75;
+				tempBufferNew[start+7] = 0x37;
+				tempBufferNew[start+8] = 0x00;
+				tempBufferNew[start+9] = 0x03;
+				tempBufferNew[start+0xA] = 0x74;
+				tempBufferNew[start+0xB] = 0x6D;
+				tempBufferNew[start+0xC] = 0x70;
+				tempBufferNew[start+0xD] = 0x2E;
+				tempBufferNew[start+0xE] = 0x62;
+				tempBufferNew[start+0xF] = 0x69;
+				tempBufferNew[start+0x10] = 0x6E;
+				tempBufferNew[start+0x11] = 0x00;
+			}
+			else if (game == BANJOTOOIE)
+			{
+
+				start = start - 2;
+				// is this checksum, not sure?
+				tempBufferNew[start] = 0x0;
+				tempBufferNew[start+1] = 0x15;
+			}
+			else if (game == CONKER)
+			{
+				start = start - 4;
+				tempBufferNew[start] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+1] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+2] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+3] = ((size) & 0xFF);
+			}
+			else if (game == TOPGEARRALLY)
+			{
+				start = start - 0xE;
+				// compressed
+				tempBufferNew[start] = (((sizeNew-(start + 8)) >> 24) & 0xFF);
+				tempBufferNew[start+1] = (((sizeNew-(start + 8)) >> 16) & 0xFF);
+				tempBufferNew[start+2] = (((sizeNew-(start + 8)) >> 8) & 0xFF);
+				tempBufferNew[start+3] = (((sizeNew-(start + 8))) & 0xFF);
+				// uncompressed
+				tempBufferNew[start+4] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+5] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+6] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+7] = ((size) & 0xFF);
+				// ?
+				tempBufferNew[start+8] = 0x0;
+				tempBufferNew[start+9] = 0x0;
+				tempBufferNew[start+0xA] = 0x0;
+				tempBufferNew[start+0xB] = 0x0;
+				tempBufferNew[start+0xC] = 0x0;
+				tempBufferNew[start+0xD] = 0x0;
+			}
+			else if (game == MILO)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x78;
+				tempBufferNew[start+1] = 0x9C;
+			}
+			else if ((game == JFG) || (game == JFGKIOSK))
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if (game == DKR)
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if (game == MICKEYSPEEDWAY)
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if ((game == MORTALKOMBAT) || (game == GAUNTLETLEGENDS))
+			{
+				// for now 0
+			}
+			else if (game == ROGUESQUADRON)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x78;
+				tempBufferNew[start+1] = 0xDA;
+			}
+			else if (game == RESIDENTEVIL2)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x68;
+				tempBufferNew[start+1] = 0xDE;
+			}
+
+
+
+			if (byteFlipCompressed == true)
+			{
+				if ((sizeNew%2) == 1)
+				{
+					tempBufferNew[sizeNew-0x8] = 0;
+					sizeNew++;
+				}
+
+				for (int x = 0; x < sizeNew; x=x+2)
+				{
+					unsigned char tempSpot = tempBufferNew[x];
+					tempBufferNew[x] = tempBufferNew[x+1];
+					tempBufferNew[x+1] = tempSpot;
+				}
+			}
+
+			fwrite(&tempBufferNew[start], 1, (sizeNew-(start + 8)), outputFileName);	
+
+		
+
+			delete [] tempBufferNew;
+			fflush(outputFileName);
+			fclose(outputFileName);
+			return true;
+		}
+		else
+		{
+			MessageBox(NULL, "Error Compressing - GZip didn't spit out a file", "Error", NULL);
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool GECompression::Compress7ZipFileNoPad(CString inputFile, CString outputFile, bool byteFlipCompressed)
+{
+	CString gzipFileName = (mainFolder + "7z.exe");
+	char tempFileExistName[1000];
+	strcpy(tempFileExistName, (mainFolder + "7z.exe"));
+	if (IsFileExist(tempFileExistName) == false)
+	{
+		MessageBox(NULL, "7z.exe not found!", "Error", NULL);
+		return false;
+	}
+
+	strcpy(tempFileExistName, inputFile);
+	if (IsFileExist(tempFileExistName))
+	{
+		FILE* tempInputFile = fopen(inputFile, "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size + 0x10];
+		for (int x = 0; x < (size + 0x10); x++)
+			tempBuffer[x] = 0;
+
+		fseek(tempInputFile, 0, SEEK_SET);
+
+
+		fread(tempBuffer, 1, size, tempInputFile);
+
+
+		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
+		if (tempOutputFile == 0)
+		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
+			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
+			return false;
+		}
+
+		unsigned long compressedSize = size;
+
+		fwrite(tempBuffer, 1, compressedSize, tempOutputFile);	
+
+		fclose(tempInputFile);
+		fclose(tempOutputFile);
+
+		delete [] tempBuffer;
+
+		::DeleteFile(mainFolder+"TEMPGH9.BIZ");
+		::DeleteFile(mainFolder+"tempgh9.bin.gz");
+		::SetCurrentDirectory(mainFolder);
+		CString tempStr = ("7z.exe a -tgzip tempgh9.bin.gz tempgh9.bin");
+		hiddenExec(_T(tempStr.GetBuffer()), (mainFolder));
+		CString outputGZippedName = (mainFolder+"TEMPGH9.BIZ");
+
+		strcpy(tempFileExistName, outputGZippedName);
+		if (!IsFileExist(tempFileExistName))
+		{
+			outputGZippedName = (mainFolder+"tempgh9.bin.gz");;
+		}
+
+		strcpy(tempFileExistName, outputGZippedName);
+		if (IsFileExist(tempFileExistName))
+		{
+			FILE* inputFileName = fopen(outputGZippedName, "rb");
+			int sizeNew = 0;
+			fseek(inputFileName, 0, SEEK_END);
+			sizeNew = ftell(inputFileName);
+			fseek(inputFileName, 0, SEEK_SET);
+
+			unsigned char* tempBufferNew;
+			tempBufferNew = new unsigned char[sizeNew];
+			fread(tempBufferNew, 1, sizeNew, inputFileName);
+
+			fclose(inputFileName);
+			DeleteFile((mainFolder+"TEMPGH9.BIZ"));
+			FILE* outputFileName = fopen(outputFile, "wb");
+			if (outputFileName == NULL)
+			{
+				delete [] tempBufferNew;
+				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
+				return false;
+			}
+
+			unsigned long start = 0x16;
+			if ((game == GOLDENEYE) || (game == KILLERINSTINCT))
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x72;
+			}
+			else if (game == PD)
+			{
+				start = start - 5;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x73;
+				tempBufferNew[start+2] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+3] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+4] = ((size) & 0xFF);
+			}
+			else if (game == BANJOKAZOOIE)
+			{
+				start = start - 6;
+				tempBufferNew[start] = 0x11;
+				tempBufferNew[start+1] = 0x72;
+				tempBufferNew[start+2] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+3] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+4] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+5] = ((size) & 0xFF);
+			}
+			else if ((game == DONKEYKONG64) || (game == BLASTCORPS))
+			{
+				start = start - 0xA;
+				tempBufferNew[start] = 0x1F;
+				tempBufferNew[start+1] = 0x8B;
+				tempBufferNew[start+2] = 0x08;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x00;
+				tempBufferNew[start+5] = 0x00;
+				tempBufferNew[start+6] = 0x00;
+				tempBufferNew[start+7] = 0x00;
+				tempBufferNew[start+8] = 0x02;
+				tempBufferNew[start+9] = 0x03;
+			}
+			else if (game == DONKEYKONG64KIOSK)
+			{
+				start = start - 0x12;
+				tempBufferNew[start] = 0x1F;
+				tempBufferNew[start+1] = 0x8B;
+				tempBufferNew[start+2] = 0x08;
+				tempBufferNew[start+3] = 0x08;
+				tempBufferNew[start+4] = 0x03;
+				tempBufferNew[start+5] = 0x45;
+				tempBufferNew[start+6] = 0x75;
+				tempBufferNew[start+7] = 0x37;
+				tempBufferNew[start+8] = 0x00;
+				tempBufferNew[start+9] = 0x03;
+				tempBufferNew[start+0xA] = 0x74;
+				tempBufferNew[start+0xB] = 0x6D;
+				tempBufferNew[start+0xC] = 0x70;
+				tempBufferNew[start+0xD] = 0x2E;
+				tempBufferNew[start+0xE] = 0x62;
+				tempBufferNew[start+0xF] = 0x69;
+				tempBufferNew[start+0x10] = 0x6E;
+				tempBufferNew[start+0x11] = 0x00;
+			}
+			else if (game == BANJOTOOIE)
+			{
+
+				start = start - 2;
+				// is this checksum, not sure?
+				tempBufferNew[start] = 0x0;
+				tempBufferNew[start+1] = 0x15;
+			}
+			else if (game == CONKER)
+			{
+				start = start - 4;
+				tempBufferNew[start] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+1] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+2] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+3] = ((size) & 0xFF);
+			}
+			else if (game == TOPGEARRALLY)
+			{
+				start = start - 0xE;
+				// compressed
+				tempBufferNew[start] = (((sizeNew-(start + 8)) >> 24) & 0xFF);
+				tempBufferNew[start+1] = (((sizeNew-(start + 8)) >> 16) & 0xFF);
+				tempBufferNew[start+2] = (((sizeNew-(start + 8)) >> 8) & 0xFF);
+				tempBufferNew[start+3] = (((sizeNew-(start + 8))) & 0xFF);
+				// uncompressed
+				tempBufferNew[start+4] = ((size >> 24) & 0xFF);
+				tempBufferNew[start+5] = ((size >> 16) & 0xFF);
+				tempBufferNew[start+6] = ((size >> 8) & 0xFF);
+				tempBufferNew[start+7] = ((size) & 0xFF);
+				// ?
+				tempBufferNew[start+8] = 0x0;
+				tempBufferNew[start+9] = 0x0;
+				tempBufferNew[start+0xA] = 0x0;
+				tempBufferNew[start+0xB] = 0x0;
+				tempBufferNew[start+0xC] = 0x0;
+				tempBufferNew[start+0xD] = 0x0;
+			}
+			else if (game == MILO)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x78;
+				tempBufferNew[start+1] = 0x9C;
+			}
+			else if ((game == JFG) || (game == JFGKIOSK))
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if (game == DKR)
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if (game == MICKEYSPEEDWAY)
+			{
+				// unknown 5 bytes
+				start = start - 5;
+				tempBufferNew[start] = 0x04;
+				tempBufferNew[start+1] = 0x03;
+				tempBufferNew[start+2] = 0x00;
+				tempBufferNew[start+3] = 0x00;
+				tempBufferNew[start+4] = 0x09;
+			}
+			else if ((game == MORTALKOMBAT) || (game == GAUNTLETLEGENDS))
+			{
+				// for now 0
+			}
+			else if (game == ROGUESQUADRON)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x78;
+				tempBufferNew[start+1] = 0xDA;
+			}
+			else if (game == RESIDENTEVIL2)
+			{
+				start = start - 2;
+				tempBufferNew[start] = 0x68;
+				tempBufferNew[start+1] = 0xDE;
+			}
+
+
+
+			if (byteFlipCompressed == true)
+			{
+				if ((sizeNew%2) == 1)
+				{
+					tempBufferNew[sizeNew-0x8] = 0;
+					sizeNew++;
+				}
+
+				for (int x = 0; x < sizeNew; x=x+2)
+				{
+					unsigned char tempSpot = tempBufferNew[x];
+					tempBufferNew[x] = tempBufferNew[x+1];
+					tempBufferNew[x+1] = tempSpot;
+				}
+			}
+
+			fwrite(&tempBufferNew[start], 1, (sizeNew-(start + 8)), outputFileName);	
+
+		
+
+			delete [] tempBufferNew;
+			fflush(outputFileName);
+			fclose(outputFileName);
+			return true;
+		}
+		else
+		{
+			MessageBox(NULL, "Error Compressing - GZip didn't spit out a file", "Error", NULL);
+			return false;
+		}
+	}
+}
+
 unsigned char* GECompression::OutputDecompressedBuffer(int& fileSize, int& compressedSize)
 {
 	compressedSize = 0;

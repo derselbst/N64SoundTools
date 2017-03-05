@@ -16,6 +16,8 @@
 #include "..\N64SoundLibrary\TigDecoder.h"
 #include "..\N64SoundLibrary\SydneyDecoder.h"
 #include "..\N64SoundLibrary\NinDec.h"
+#include "..\N64SoundLibrary\NintendoEncoder.h"
+#include "..\N64SoundLibrary\CalcCRC.h"
 #include "KonamiADSRDlg.h"
 
 #ifdef _DEBUG
@@ -147,6 +149,14 @@ void CN64SoundListToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BUTTONDELETEINSTRUMENT, mDeleteInstrumentButton);
 	DDX_Control(pDX, IDC_BUTTONIMPORTSDKTOOLS, mImportFromSDKTools);
 	DDX_Control(pDX, IDC_BUTTONKONAMIADSRBUTTON, mKonamiADSREditorButton);
+	DDX_Control(pDX, IDC_STATICTBLINDEX, mLabelTableIndex);
+	DDX_Control(pDX, IDC_EDITTBLINDEX, mTableIndex);
+	DDX_Control(pDX, IDC_CHECKUNKNOWNEADFLAG, mCheckUnknownEADFlag);
+	DDX_Control(pDX, IDC_BUTTONVADPCMIMPORTSAMEPRED, m_import16BitADPCMSamePred);
+	DDX_Control(pDX, IDC_BUTTONDELETEPERCUSSIONBANK, mDeletePercussionBank);
+	DDX_Control(pDX, IDC_BUTTONADDPERCUSSIONBANK, mAddPercussionBank);
+	DDX_Control(pDX, IDC_BUTTONDELETESFXBANK, mDeleteSfxBank);
+	DDX_Control(pDX, IDC_BUTTONADDSFXBANK, mAddSfxBank);
 }
 
 BEGIN_MESSAGE_MAP(CN64SoundListToolDlg, CDialog)
@@ -227,6 +237,11 @@ BEGIN_MESSAGE_MAP(CN64SoundListToolDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTONDELETEINSTRUMENT, &CN64SoundListToolDlg::OnBnClickedButtondeleteinstrument)
 	ON_BN_CLICKED(IDC_BUTTONIMPORTSDKTOOLS, &CN64SoundListToolDlg::OnBnClickedButtonimportsdktools)
 	ON_BN_CLICKED(IDC_BUTTONKONAMIADSRBUTTON, &CN64SoundListToolDlg::OnBnClickedButtonkonamiadsrbutton)
+	ON_BN_CLICKED(IDC_BUTTONVADPCMIMPORTSAMEPRED, &CN64SoundListToolDlg::OnBnClickedButtonvadpcmimportsamepred)
+	ON_BN_CLICKED(IDC_BUTTONDELETEPERCUSSIONBANK, &CN64SoundListToolDlg::OnBnClickedButtondeletepercussionbank)
+	ON_BN_CLICKED(IDC_BUTTONADDPERCUSSIONBANK, &CN64SoundListToolDlg::OnBnClickedButtonaddpercussionbank)
+	ON_BN_CLICKED(IDC_BUTTONDELETESFXBANK, &CN64SoundListToolDlg::OnBnClickedButtondeletesfxbank)
+	ON_BN_CLICKED(IDC_BUTTONADDSFXBANK, &CN64SoundListToolDlg::OnBnClickedButtonaddsfxbank)
 END_MESSAGE_MAP()
 
 // CN64SoundListToolDlg message handlers
@@ -241,6 +256,56 @@ BOOL CN64SoundListToolDlg::OnInitDialog()
 	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
+
+	/*CString romName = "C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\Star Fox 64 (U) (V1.0) [!].z64";
+	int romSize = n64AudioLibrary.GetSizeFile(romName);
+
+	FILE* inTemp = fopen(romName, "rb");
+	unsigned char* rom = new unsigned char[romSize];
+	fread(rom, 1, romSize, inTemp);
+	fclose(inTemp);
+
+	unsigned long crc1a = CharArrayToLong(&rom[16]);
+	unsigned long crc2a = CharArrayToLong(&rom[20]);
+
+	std::map<unsigned char, CString> cicLookup;
+	cicLookup[0] = "starf";
+    cicLookup[0xD5] = "lylat";
+    cicLookup[0xDE] = "mario";
+    cicLookup[0xDB] = "diddy";
+    cicLookup[0xE4] = "aleck";
+    cicLookup[0x14] = "zelda";
+    cicLookup[0xEC] = "yoshi";
+
+	if (cicLookup.find(rom[0x173]) != cicLookup.end())
+	{
+		CString cic = cicLookup[rom[0x173]];
+		if (cic == "starf")
+		{
+            if (rom[0x16F]==0xDB)
+                cic = "ddipl";
+            else if (rom[0x16F]==0xD9)
+                cic = "dddev";
+		}
+
+		CalcCRC calcCRC;
+		calcCRC.calccrc(rom, romSize, cic, true);
+
+		unsigned long crc1b = CharArrayToLong(&rom[16]);
+		unsigned long crc2b = CharArrayToLong(&rom[20]);
+
+		if (crc1a != crc1b)
+		{
+			MessageBox("CRC Error 1");
+		}
+
+		if (crc2a != crc2b)
+		{
+			MessageBox("CRC Error 2");
+		}
+	}
+	
+	delete [] rom;*/
 
 	// TEST
 	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\NBA Jam 99 (U) [!].z64", "rb");
@@ -654,10 +719,8 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 				alBankCurrent->inst[instrumentSel]->sounds[soundSel]->sampleVolume = CSharedFunctions::StringToSignedChar(tempStr);
 				
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-				|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-				|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 				)
 				{
 					mAttackVolume.GetWindowText(tempStr);
@@ -702,10 +765,8 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 				alBankCurrent->inst[instrumentSel]->sounds[soundSel]->key.velocitymax = CSharedFunctions::StringToSignedChar(tempStr);
 
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-				|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-				|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 				)
 				{
 					mSamplePan.GetWindowText(tempStr);
@@ -731,6 +792,20 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 
 					mDetune.GetWindowText(tempStr);
 					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->adsrEAD[7] = CSharedFunctions::StringToUnsignedShort(tempStr);
+				}
+				else if (alBankCurrent->soundBankFormat == PAPERMARIO)
+				{
+					mSamplePan.GetWindowText(tempStr);
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 = (alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 & 0x00FFFFFF) | (CSharedFunctions::StringToUnsignedChar(tempStr) << 24);
+
+					mSampleVol.GetWindowText(tempStr);
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 = (alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 & 0xFF00FFFF) | (CSharedFunctions::StringToUnsignedChar(tempStr) << 16);
+
+					mVelMin.GetWindowText(tempStr);
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 = (alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 & 0xFFFF00FF) | (CSharedFunctions::StringToUnsignedChar(tempStr) << 8);
+
+					mVelMax.GetWindowText(tempStr);
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 = (alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.unknown1 & 0xFFFFFF00) | (CSharedFunctions::StringToUnsignedChar(tempStr));
 				}
 				else
 				{
@@ -968,10 +1043,8 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 				alBankCurrent->percussion->sounds[soundSel]->sampleVolume = CSharedFunctions::StringToSignedChar(tempStr);
 				
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-				|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-				|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 				)
 				{
 					mAttackVolume.GetWindowText(tempStr);
@@ -1016,10 +1089,8 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 				alBankCurrent->percussion->sounds[soundSel]->key.velocitymax = CSharedFunctions::StringToSignedChar(tempStr);
 
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-				|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-				|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 				)
 				{
 					mSamplePan.GetWindowText(tempStr);
@@ -1343,6 +1414,47 @@ void CN64SoundListToolDlg::UpdateTextBoxes()
 						mExportLoopPredictors.ShowWindow(SW_HIDE);
 					}
 				}
+
+				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
+				)
+				{
+					mSamplePan.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[0] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mSampleVol.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[1] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mVelMin.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[2] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mVelMax.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[3] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mKeyMin.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[4] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mKeyMax.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[5] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mKeyBase.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[6] = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+					mDetune.GetWindowText(tempStr);
+					alBankCurrent->eadPercussion[percussionSel].adsrEAD[7] = CSharedFunctions::StringToUnsignedShort(tempStr);
+				}
+			}
+			else if (percussionMode == SFX)
+			{
+				int sfxSel = mSfxChoice.GetCurSel();
+
+				if (sfxSel == -1)
+					return;
+
+				mReleaseTime.GetWindowText(tempStr);
+				float keyBase = atof(tempStr);
+				alBankCurrent->alSfx[sfxSel]->unknown1 = *reinterpret_cast<unsigned long*> (&keyBase);
 			}
 
 			UpdateSamplingRateKeyBaseList();
@@ -1360,10 +1472,8 @@ void CN64SoundListToolDlg::UpdateSamplingRateSelection()
 
 	CString tempStr;
 	if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-					|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 					|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 					|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-					|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 		)
 	{
 		mDecayTime.GetWindowText(tempStr);
@@ -1476,12 +1586,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	if (alBankCurrent->soundBankFormat == STANDARDFORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -1489,6 +1603,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_SHOW);
+		mAddPercussionBank.ShowWindow(SW_SHOW);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
@@ -1550,12 +1668,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == KONAMICTL)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -1563,6 +1685,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
@@ -1624,12 +1750,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == KONAMI8CTL)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -1637,6 +1767,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
@@ -1698,12 +1832,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == MARIOPARTY2E)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -1711,6 +1849,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -1772,12 +1914,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == STANDARDFORMATRAWALLOWED)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_SHOW);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -1785,6 +1931,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_SHOW);
+		mAddPercussionBank.ShowWindow(SW_SHOW);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
@@ -1845,6 +1995,9 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_SHOW);
+		mCheckUnknownEADFlag.ShowWindow(SW_SHOW);
+		mLabelTableIndex.ShowWindow(SW_SHOW);
+		mTableIndex.ShowWindow(SW_SHOW);
 		m_sampleAttackTimeStatic.SetWindowText("Key Prev");
 		m_sampleDecayTimeStatic.SetWindowText("Key");
 		m_sampleReleaseTimeStatic.SetWindowText("Key Sec");
@@ -1859,22 +2012,27 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleKeyBaseStatic.SetWindowText("ADSR 7");
 		m_sampleDetuneStatic.SetWindowText("ADSR 8");
 
-		m_injectInPlaceButton.ShowWindow(SW_HIDE);
+		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
+		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+		m_import16BitRawValues.ShowWindow(SW_SHOW);
+		m_importPredictors.ShowWindow(SW_SHOW);
+		ShowOfficialSDKImport();
 		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
+		m_add16BitADPCM.ShowWindow(SW_SHOW);
+		mAddInstrumentButton.ShowWindow(SW_SHOW);
+		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_SHOW);
+		mAddPercussionBank.ShowWindow(SW_SHOW);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
+		m_importGroupBox.ShowWindow(SW_SHOW);
+		m_addToEndGroupBox.ShowWindow(SW_SHOW);
+		m_deleteButton.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_HIDE);
 		m_tremGroupBox.ShowWindow(SW_HIDE);
@@ -1934,12 +2092,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == N64DD)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -1947,6 +2109,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2008,12 +2174,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == BANJOTOOIEAUDIO)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2021,6 +2191,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2082,12 +2256,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == MUSYX)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2095,6 +2273,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2156,12 +2338,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if ((alBankCurrent->soundBankFormat == MUSYXLZ) || (alBankCurrent->soundBankFormat == MUSYXZLIB) || (alBankCurrent->soundBankFormat == MUSYXSMALLZLIB))
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2169,6 +2355,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2230,12 +2420,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == BLASTCORPSZLBSTANDARD)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2243,6 +2437,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2300,25 +2498,33 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleAttackVolumeStatic.ShowWindow(SW_SHOW);
 		m_sampleDecayVolumeStatic.ShowWindow(SW_SHOW);
 	}
-	else if (alBankCurrent->soundBankFormat == CONKER)
+	else if (alBankCurrent->soundBankFormat == CONKERFORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
+		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+		m_import16BitRawValues.ShowWindow(SW_SHOW);
+		m_importPredictors.ShowWindow(SW_SHOW);
+		ShowOfficialSDKImport();
 		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
+		m_add16BitADPCM.ShowWindow(SW_SHOW);
+		mAddInstrumentButton.ShowWindow(SW_SHOW);
+		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
+		m_importGroupBox.ShowWindow(SW_SHOW);
+		m_addToEndGroupBox.ShowWindow(SW_SHOW);
+		m_deleteButton.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_SHOW);
 		m_tremGroupBox.ShowWindow(SW_SHOW);
 		m_vibrGroupBox.ShowWindow(SW_SHOW);
@@ -2377,12 +2583,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV1)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -2390,6 +2600,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
@@ -2448,17 +2662,22 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
 		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
 	}
-	else if ((alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2) || (alBankCurrent->soundBankFormat == RNCCOMPRESSEDN64PTR))
+	else if ((alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2) || (alBankCurrent->soundBankFormat == RNCCOMPRESSEDN64PTR)
+		|| (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2YAY0))
 	{
 		m_instrVolStatic.SetWindowText("C Tune");
 		m_instrPanStatic.SetWindowText("F Tune");
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -2466,85 +2685,13 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
-		m_miscGroupBox.ShowWindow(SW_HIDE);
-		m_tremGroupBox.ShowWindow(SW_HIDE);
-		m_vibrGroupBox.ShowWindow(SW_HIDE);
-		mVolume.ShowWindow(SW_SHOW);
-		mPan.ShowWindow(SW_SHOW);
-		mPriority.ShowWindow(SW_HIDE);
-		mTremType.ShowWindow(SW_HIDE);
-		mTremRate.ShowWindow(SW_HIDE);
-		mTremDepth.ShowWindow(SW_HIDE);
-		mTremDelay.ShowWindow(SW_HIDE);
-		mVibType.ShowWindow(SW_HIDE);
-		mVibRate.ShowWindow(SW_HIDE);
-		mVibDepth.ShowWindow(SW_HIDE);
-		mVibDelay.ShowWindow(SW_HIDE);
-		mBendRange.ShowWindow(SW_HIDE);
-		mSamplePan.ShowWindow(SW_HIDE);
-		mSampleVol.ShowWindow(SW_HIDE);
-		mAttackTime.ShowWindow(SW_HIDE);
-		mDecayTime.ShowWindow(SW_HIDE);
-		mReleaseTime.ShowWindow(SW_HIDE);
-		mAttackVolume.ShowWindow(SW_HIDE);
-		mDecayVolume.ShowWindow(SW_HIDE);
-		mVelMin.ShowWindow(SW_HIDE);
-		mVelMax.ShowWindow(SW_HIDE);
-		mKeyMin.ShowWindow(SW_HIDE);
-		mKeyMax.ShowWindow(SW_HIDE);
-		mKeyBase.ShowWindow(SW_HIDE);
-		mKeyBaseListCtrl.ShowWindow(SW_HIDE);
-		mDetune.ShowWindow(SW_HIDE);
-		m_instrVolStatic.ShowWindow(SW_SHOW);
-		m_instrPanStatic.ShowWindow(SW_SHOW);
-		m_InstrPriorityStatic.ShowWindow(SW_HIDE);
-		m_instrTremTypeStatic.ShowWindow(SW_HIDE);
-		m_instrTremRateStatic.ShowWindow(SW_HIDE);
-		m_instrTremDepthStatic.ShowWindow(SW_HIDE);
-		m_instrTremDelayStatic.ShowWindow(SW_HIDE);
-		m_instrVibrTypeStatic.ShowWindow(SW_HIDE);
-		m_InstrBendRangeStatic.ShowWindow(SW_HIDE);
-		m_instrVibrRateStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
-		m_samplePanStatic.ShowWindow(SW_HIDE);
-		m_sampleVolStatic.ShowWindow(SW_HIDE);
-		m_sampleVelMinStatic.ShowWindow(SW_HIDE);
-		m_sampleVelMaxStatic.ShowWindow(SW_HIDE);
-		m_sampleKeyMinStatic.ShowWindow(SW_HIDE);
-		m_sampleKeyMaxStatic.ShowWindow(SW_HIDE);
-		m_sampleKeyBaseStatic.ShowWindow(SW_HIDE);
-		m_sampleDetuneStatic.ShowWindow(SW_HIDE);
-		m_sampleAttackTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleDecayTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleReleaseTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
-		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
-	}
-	else if (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2YAY0)
-	{
-		m_instrVolStatic.SetWindowText("C Tune");
-		m_instrPanStatic.SetWindowText("F Tune");
-		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
-		m_injectInPlaceButton.ShowWindow(SW_HIDE);
-		m_playButton.ShowWindow(SW_SHOW);
-		m_stopButton.ShowWindow(SW_SHOW);
-		m_saveButton.ShowWindow(SW_SHOW);
-		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
-		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
 		m_miscGroupBox.ShowWindow(SW_HIDE);
 		m_tremGroupBox.ShowWindow(SW_HIDE);
 		m_vibrGroupBox.ShowWindow(SW_HIDE);
@@ -2605,12 +2752,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrVolStatic.SetWindowText("C Tune");
 		m_instrPanStatic.SetWindowText("F Tune");
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2618,6 +2769,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2682,12 +2837,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2695,6 +2854,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2759,12 +2922,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2772,6 +2939,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2836,12 +3007,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2849,6 +3024,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2910,12 +3089,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == TITUS)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -2923,6 +3106,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -2987,12 +3174,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3000,6 +3191,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3061,12 +3256,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == NINDEC)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3074,6 +3273,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3134,12 +3337,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == MKMYTHOLOGIES)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3147,6 +3354,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3211,12 +3422,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3224,6 +3439,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3288,12 +3507,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3301,6 +3524,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3362,12 +3589,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if ((alBankCurrent->soundBankFormat == H20RAW816) || (alBankCurrent->soundBankFormat == TETRISPHERERAW816))
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3375,6 +3606,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3436,12 +3671,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == BNKB)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3449,6 +3688,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3510,12 +3753,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == PAPERMARIO)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3523,6 +3770,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3541,15 +3792,15 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		mVibDepth.ShowWindow(SW_HIDE);
 		mVibDelay.ShowWindow(SW_HIDE);
 		mBendRange.ShowWindow(SW_HIDE);
-		mSamplePan.ShowWindow(SW_HIDE);
-		mSampleVol.ShowWindow(SW_HIDE);
+		mSamplePan.ShowWindow(SW_SHOW);
+		mSampleVol.ShowWindow(SW_SHOW);
 		mAttackTime.ShowWindow(SW_HIDE);
 		mDecayTime.ShowWindow(SW_HIDE);
 		mReleaseTime.ShowWindow(SW_HIDE);
 		mAttackVolume.ShowWindow(SW_HIDE);
 		mDecayVolume.ShowWindow(SW_HIDE);
-		mVelMin.ShowWindow(SW_HIDE);
-		mVelMax.ShowWindow(SW_HIDE);
+		mVelMin.ShowWindow(SW_SHOW);
+		mVelMax.ShowWindow(SW_SHOW);
 		mKeyMin.ShowWindow(SW_HIDE);
 		mKeyMax.ShowWindow(SW_HIDE);
 		mKeyBase.ShowWindow(SW_HIDE);
@@ -3567,10 +3818,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrVibrRateStatic.ShowWindow(SW_HIDE);
 		m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
 		m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
-		m_samplePanStatic.ShowWindow(SW_HIDE);
-		m_sampleVolStatic.ShowWindow(SW_HIDE);
-		m_sampleVelMinStatic.ShowWindow(SW_HIDE);
-		m_sampleVelMaxStatic.ShowWindow(SW_HIDE);
+		m_samplePanStatic.ShowWindow(SW_SHOW);
+		m_sampleVolStatic.ShowWindow(SW_SHOW);
+		m_sampleVelMinStatic.ShowWindow(SW_SHOW);
+		m_sampleVelMaxStatic.ShowWindow(SW_SHOW);
 		m_sampleKeyMinStatic.ShowWindow(SW_HIDE);
 		m_sampleKeyMaxStatic.ShowWindow(SW_HIDE);
 		m_sampleKeyBaseStatic.ShowWindow(SW_HIDE);
@@ -3580,16 +3831,25 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleReleaseTimeStatic.ShowWindow(SW_HIDE);
 		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
 		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
+
+		m_samplePanStatic.SetWindowText("?");
+		m_sampleVolStatic.SetWindowText("?");
+		m_sampleVelMinStatic.SetWindowText("Coarse Tune");
+		m_sampleVelMaxStatic.SetWindowText("Fine Tune");
 	}
 	else if (alBankCurrent->soundBankFormat == B0)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3597,6 +3857,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3661,12 +3925,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_instrPanStatic.SetWindowText("F Tune");
 
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3674,6 +3942,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3735,12 +4007,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == DUCKDODGERS)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3748,6 +4024,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3809,12 +4089,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == VOX)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3822,6 +4106,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3883,12 +4171,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == ZLIBSN64)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3896,6 +4188,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -3957,12 +4253,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == SN64)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -3970,6 +4270,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -4031,6 +4335,9 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_SHOW);
+		mCheckUnknownEADFlag.ShowWindow(SW_SHOW);
+		mLabelTableIndex.ShowWindow(SW_SHOW);
+		mTableIndex.ShowWindow(SW_SHOW);
 		m_sampleAttackTimeStatic.SetWindowText("Key Prev");
 		m_sampleDecayTimeStatic.SetWindowText("Key");
 		m_sampleReleaseTimeStatic.SetWindowText("Key Sec");
@@ -4045,22 +4352,27 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleKeyBaseStatic.SetWindowText("ADSR 7");
 		m_sampleDetuneStatic.SetWindowText("ADSR 8");
 
-		m_injectInPlaceButton.ShowWindow(SW_HIDE);
+		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
+		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+		m_import16BitRawValues.ShowWindow(SW_SHOW);
+		m_importPredictors.ShowWindow(SW_SHOW);
+		ShowOfficialSDKImport();
 		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
+		m_add16BitADPCM.ShowWindow(SW_SHOW);
+		mAddInstrumentButton.ShowWindow(SW_SHOW);
+		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_SHOW);
+		mAddPercussionBank.ShowWindow(SW_SHOW);
+		mDeleteSfxBank.ShowWindow(SW_SHOW);
+		mAddSfxBank.ShowWindow(SW_SHOW);
+		m_importGroupBox.ShowWindow(SW_SHOW);
+		m_addToEndGroupBox.ShowWindow(SW_SHOW);
+		m_deleteButton.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_HIDE);
 		m_tremGroupBox.ShowWindow(SW_HIDE);
@@ -4117,104 +4429,19 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleAttackVolumeStatic.ShowWindow(SW_SHOW);
 		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
 	}
-	else if (alBankCurrent->soundBankFormat == FZEROFORMAT)
-	{
-		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
-		m_sampleAttackTimeStatic.SetWindowText("Key Prev");
-		m_sampleDecayTimeStatic.SetWindowText("Key");
-		m_sampleReleaseTimeStatic.SetWindowText("Key Sec");
-		m_sampleAttackVolumeStatic.SetWindowText("Splits/RelTime");
-
-		m_samplePanStatic.SetWindowText("ADSR 1");
-		m_sampleVolStatic.SetWindowText("ADSR 2");
-		m_sampleVelMinStatic.SetWindowText("ADSR 3");
-		m_sampleVelMaxStatic.SetWindowText("ADSR 4");
-		m_sampleKeyMinStatic.SetWindowText("ADSR 5");
-		m_sampleKeyMaxStatic.SetWindowText("ADSR 6");
-		m_sampleKeyBaseStatic.SetWindowText("ADSR 7");
-		m_sampleDetuneStatic.SetWindowText("ADSR 8");
-
-		m_injectInPlaceButton.ShowWindow(SW_HIDE);
-		m_playButton.ShowWindow(SW_SHOW);
-		m_stopButton.ShowWindow(SW_SHOW);
-		m_saveButton.ShowWindow(SW_SHOW);
-		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
-		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
-		m_miscGroupBox.ShowWindow(SW_SHOW);
-		m_miscGroupBox.ShowWindow(SW_HIDE);
-		m_tremGroupBox.ShowWindow(SW_HIDE);
-		m_vibrGroupBox.ShowWindow(SW_HIDE);
-		mVolume.ShowWindow(SW_HIDE);
-		mPan.ShowWindow(SW_HIDE);
-		mPriority.ShowWindow(SW_HIDE);
-		mTremType.ShowWindow(SW_HIDE);
-		mTremRate.ShowWindow(SW_HIDE);
-		mTremDepth.ShowWindow(SW_HIDE);
-		mTremDelay.ShowWindow(SW_HIDE);
-		mVibType.ShowWindow(SW_HIDE);
-		mVibRate.ShowWindow(SW_HIDE);
-		mVibDepth.ShowWindow(SW_HIDE);
-		mVibDelay.ShowWindow(SW_HIDE);
-		mBendRange.ShowWindow(SW_HIDE);
-		mSamplePan.ShowWindow(SW_SHOW);
-		mSampleVol.ShowWindow(SW_SHOW);
-		mAttackTime.ShowWindow(SW_HIDE);
-		mDecayTime.ShowWindow(SW_HIDE);
-		mReleaseTime.ShowWindow(SW_HIDE);
-		mAttackVolume.ShowWindow(SW_HIDE);
-		mDecayVolume.ShowWindow(SW_HIDE);
-		mVelMin.ShowWindow(SW_SHOW);
-		mVelMax.ShowWindow(SW_SHOW);
-		mKeyMin.ShowWindow(SW_SHOW);
-		mKeyMax.ShowWindow(SW_SHOW);
-		mKeyBase.ShowWindow(SW_SHOW);
-		mKeyBaseListCtrl.ShowWindow(SW_HIDE);
-		mDetune.ShowWindow(SW_SHOW);
-		m_instrVolStatic.ShowWindow(SW_HIDE);
-		m_instrPanStatic.ShowWindow(SW_HIDE);
-		m_InstrPriorityStatic.ShowWindow(SW_HIDE);
-		m_instrTremTypeStatic.ShowWindow(SW_HIDE);
-		m_instrTremRateStatic.ShowWindow(SW_HIDE);
-		m_instrTremDepthStatic.ShowWindow(SW_HIDE);
-		m_instrTremDelayStatic.ShowWindow(SW_HIDE);
-		m_instrVibrTypeStatic.ShowWindow(SW_HIDE);
-		m_InstrBendRangeStatic.ShowWindow(SW_HIDE);
-		m_instrVibrRateStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
-		m_samplePanStatic.ShowWindow(SW_SHOW);
-		m_sampleVolStatic.ShowWindow(SW_SHOW);
-		m_sampleVelMinStatic.ShowWindow(SW_SHOW);
-		m_sampleVelMaxStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyMinStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyMaxStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyBaseStatic.ShowWindow(SW_SHOW);
-		m_sampleDetuneStatic.ShowWindow(SW_SHOW);
-		m_sampleAttackTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleDecayTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleReleaseTimeStatic.ShowWindow(SW_HIDE);
-		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
-		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
-	}
 	else if (alBankCurrent->soundBankFormat == TUROKFORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -4222,6 +4449,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -4283,12 +4514,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -4296,6 +4531,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -4356,12 +4595,16 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_playButton.ShowWindow(SW_SHOW);
 		m_stopButton.ShowWindow(SW_SHOW);
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
@@ -4369,6 +4612,10 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_HIDE);
 		mAddInstrumentButton.ShowWindow(SW_HIDE);
 		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		m_addToEndGroupBox.ShowWindow(SW_HIDE);
 		m_deleteButton.ShowWindow(SW_HIDE);
@@ -4429,6 +4676,9 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 	else if (alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
 		m_sampleAttackTimeStatic.SetWindowText("Key Prev");
 		m_sampleDecayTimeStatic.SetWindowText("Key");
 		m_sampleReleaseTimeStatic.SetWindowText("Key Sec");
@@ -4449,6 +4699,7 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_saveButton.ShowWindow(SW_SHOW);
 		m_import16BitRaw.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -4456,98 +4707,13 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_add16BitADPCM.ShowWindow(SW_SHOW);
 		mAddInstrumentButton.ShowWindow(SW_SHOW);
 		mDeleteInstrumentButton.ShowWindow(SW_SHOW);
+		mDeletePercussionBank.ShowWindow(SW_SHOW);
+		mAddPercussionBank.ShowWindow(SW_SHOW);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_SHOW);
 		m_addToEndGroupBox.ShowWindow(SW_SHOW);
 		m_deleteButton.ShowWindow(SW_SHOW);
-		m_miscGroupBox.ShowWindow(SW_SHOW);
-		m_miscGroupBox.ShowWindow(SW_HIDE);
-		m_tremGroupBox.ShowWindow(SW_HIDE);
-		m_vibrGroupBox.ShowWindow(SW_HIDE);
-		mVolume.ShowWindow(SW_HIDE);
-		mPan.ShowWindow(SW_HIDE);
-		mPriority.ShowWindow(SW_HIDE);
-		mTremType.ShowWindow(SW_HIDE);
-		mTremRate.ShowWindow(SW_HIDE);
-		mTremDepth.ShowWindow(SW_HIDE);
-		mTremDelay.ShowWindow(SW_HIDE);
-		mVibType.ShowWindow(SW_HIDE);
-		mVibRate.ShowWindow(SW_HIDE);
-		mVibDepth.ShowWindow(SW_HIDE);
-		mVibDelay.ShowWindow(SW_HIDE);
-		mBendRange.ShowWindow(SW_HIDE);
-		mSamplePan.ShowWindow(SW_SHOW);
-		mSampleVol.ShowWindow(SW_SHOW);
-		mAttackTime.ShowWindow(SW_SHOW);
-		mDecayTime.ShowWindow(SW_SHOW);
-		mReleaseTime.ShowWindow(SW_SHOW);
-		mAttackVolume.ShowWindow(SW_SHOW);
-		mDecayVolume.ShowWindow(SW_HIDE);
-		mVelMin.ShowWindow(SW_SHOW);
-		mVelMax.ShowWindow(SW_SHOW);
-		mKeyMin.ShowWindow(SW_SHOW);
-		mKeyMax.ShowWindow(SW_SHOW);
-		mKeyBase.ShowWindow(SW_SHOW);
-		mKeyBaseListCtrl.ShowWindow(SW_HIDE);
-		mDetune.ShowWindow(SW_SHOW);
-		m_instrVolStatic.ShowWindow(SW_HIDE);
-		m_instrPanStatic.ShowWindow(SW_HIDE);
-		m_InstrPriorityStatic.ShowWindow(SW_HIDE);
-		m_instrTremTypeStatic.ShowWindow(SW_HIDE);
-		m_instrTremRateStatic.ShowWindow(SW_HIDE);
-		m_instrTremDepthStatic.ShowWindow(SW_HIDE);
-		m_instrTremDelayStatic.ShowWindow(SW_HIDE);
-		m_instrVibrTypeStatic.ShowWindow(SW_HIDE);
-		m_InstrBendRangeStatic.ShowWindow(SW_HIDE);
-		m_instrVibrRateStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
-		m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
-		m_samplePanStatic.ShowWindow(SW_SHOW);
-		m_sampleVolStatic.ShowWindow(SW_SHOW);
-		m_sampleVelMinStatic.ShowWindow(SW_SHOW);
-		m_sampleVelMaxStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyMinStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyMaxStatic.ShowWindow(SW_SHOW);
-		m_sampleKeyBaseStatic.ShowWindow(SW_SHOW);
-		m_sampleDetuneStatic.ShowWindow(SW_SHOW);
-		m_sampleAttackTimeStatic.ShowWindow(SW_SHOW);
-		m_sampleDecayTimeStatic.ShowWindow(SW_SHOW);
-		m_sampleReleaseTimeStatic.ShowWindow(SW_SHOW);
-		m_sampleAttackVolumeStatic.ShowWindow(SW_SHOW);
-		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
-	}
-	else if (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
-	{
-		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
-		m_sampleAttackTimeStatic.SetWindowText("Key Prev");
-		m_sampleDecayTimeStatic.SetWindowText("Key");
-		m_sampleReleaseTimeStatic.SetWindowText("Key Sec");
-		m_sampleAttackVolumeStatic.SetWindowText("Splits/RelTime");
-
-		m_samplePanStatic.SetWindowText("ADSR 1");
-		m_sampleVolStatic.SetWindowText("ADSR 2");
-		m_sampleVelMinStatic.SetWindowText("ADSR 3");
-		m_sampleVelMaxStatic.SetWindowText("ADSR 4");
-		m_sampleKeyMinStatic.SetWindowText("ADSR 5");
-		m_sampleKeyMaxStatic.SetWindowText("ADSR 6");
-		m_sampleKeyBaseStatic.SetWindowText("ADSR 7");
-		m_sampleDetuneStatic.SetWindowText("ADSR 8");
-
-		m_injectInPlaceButton.ShowWindow(SW_HIDE);
-		m_playButton.ShowWindow(SW_SHOW);
-		m_stopButton.ShowWindow(SW_SHOW);
-		m_saveButton.ShowWindow(SW_SHOW);
-		m_import16BitRaw.ShowWindow(SW_HIDE);
-		m_import16BitADPCM.ShowWindow(SW_HIDE);
-		m_import16BitRawValues.ShowWindow(SW_HIDE);
-		m_importPredictors.ShowWindow(SW_HIDE);
-		mImportFromSDKTools.ShowWindow(SW_HIDE);
-		m_add16BitRaw.ShowWindow(SW_HIDE);
-		m_add16BitADPCM.ShowWindow(SW_HIDE);
-		mAddInstrumentButton.ShowWindow(SW_HIDE);
-		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-		m_importGroupBox.ShowWindow(SW_HIDE);
-		m_addToEndGroupBox.ShowWindow(SW_HIDE);
-		m_deleteButton.ShowWindow(SW_HIDE);
 		m_miscGroupBox.ShowWindow(SW_SHOW);
 		m_miscGroupBox.ShowWindow(SW_HIDE);
 		m_tremGroupBox.ShowWindow(SW_HIDE);
@@ -4608,9 +4774,6 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 
 void CN64SoundListToolDlg::ShowPercussionControls()
 {
-	mAddInstrumentButton.ShowWindow(SW_HIDE);
-	mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-
 	mAddPrevButton.ShowWindow(SW_HIDE);
 	mRemovePrevButton.ShowWindow(SW_HIDE);
 	mAddSecButton.ShowWindow(SW_HIDE);
@@ -4621,6 +4784,9 @@ void CN64SoundListToolDlg::ShowPercussionControls()
 	mDownArrowButton.ShowWindow(SW_SHOW);
 
 	mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+	mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+	mLabelTableIndex.ShowWindow(SW_HIDE);
+	mTableIndex.ShowWindow(SW_HIDE);
 
 	m_sampleAttackTimeStatic.SetWindowText("Attack Time");
 	m_sampleDecayTimeStatic.SetWindowText("Decay Time");
@@ -4642,6 +4808,7 @@ void CN64SoundListToolDlg::ShowPercussionControls()
 	m_saveButton.ShowWindow(SW_SHOW);
 	m_import16BitRaw.ShowWindow(SW_HIDE);
 	m_import16BitADPCM.ShowWindow(SW_SHOW);
+	m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 	m_import16BitRawValues.ShowWindow(SW_SHOW);
 	m_importPredictors.ShowWindow(SW_SHOW);
 	ShowOfficialSDKImport();
@@ -4708,9 +4875,6 @@ void CN64SoundListToolDlg::ShowPercussionControls()
 
 void CN64SoundListToolDlg::ShowEADPercussionControls()
 {
-	mAddInstrumentButton.ShowWindow(SW_HIDE);
-	mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-
 	mSubSound.ShowWindow(SW_HIDE);
 	mAddPrevButton.ShowWindow(SW_HIDE);
 	mRemovePrevButton.ShowWindow(SW_HIDE);
@@ -4722,11 +4886,37 @@ void CN64SoundListToolDlg::ShowEADPercussionControls()
 	mDownArrowButton.ShowWindow(SW_HIDE);
 
 	mHalfVADPCMPrecision.ShowWindow(SW_SHOW);
+	mCheckUnknownEADFlag.ShowWindow(SW_SHOW);
+	mLabelTableIndex.ShowWindow(SW_SHOW);
+	mTableIndex.ShowWindow(SW_SHOW);
 
 	if (alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
 	{
 		m_injectInPlaceButton.ShowWindow(SW_SHOW);
 		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+		m_import16BitRawValues.ShowWindow(SW_SHOW);
+		m_importPredictors.ShowWindow(SW_SHOW);
+		ShowOfficialSDKImport();
+		m_importGroupBox.ShowWindow(SW_SHOW);
+		mImportLoopPredictors.ShowWindow(SW_SHOW);
+	}
+	else if (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+	{
+		m_injectInPlaceButton.ShowWindow(SW_SHOW);
+		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+		m_import16BitRawValues.ShowWindow(SW_SHOW);
+		m_importPredictors.ShowWindow(SW_SHOW);
+		ShowOfficialSDKImport();
+		m_importGroupBox.ShowWindow(SW_SHOW);
+		mImportLoopPredictors.ShowWindow(SW_SHOW);
+	}
+	else if (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
+	{
+		m_injectInPlaceButton.ShowWindow(SW_SHOW);
+		m_import16BitADPCM.ShowWindow(SW_SHOW);
+		m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
 		m_import16BitRawValues.ShowWindow(SW_SHOW);
 		m_importPredictors.ShowWindow(SW_SHOW);
 		ShowOfficialSDKImport();
@@ -4737,12 +4927,14 @@ void CN64SoundListToolDlg::ShowEADPercussionControls()
 	{
 		m_injectInPlaceButton.ShowWindow(SW_HIDE);
 		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
 		m_import16BitRawValues.ShowWindow(SW_HIDE);
 		m_importPredictors.ShowWindow(SW_HIDE);
 		mImportFromSDKTools.ShowWindow(SW_HIDE);
 		m_importGroupBox.ShowWindow(SW_HIDE);
 		mImportLoopPredictors.ShowWindow(SW_HIDE);
 	}
+
 	m_playButton.ShowWindow(SW_SHOW);
 	m_stopButton.ShowWindow(SW_SHOW);
 	m_saveButton.ShowWindow(SW_SHOW);
@@ -4766,20 +4958,20 @@ void CN64SoundListToolDlg::ShowEADPercussionControls()
 	mVibDepth.ShowWindow(SW_HIDE);
 	mVibDelay.ShowWindow(SW_HIDE);
 	mBendRange.ShowWindow(SW_HIDE);
-	mSamplePan.ShowWindow(SW_HIDE);
-	mSampleVol.ShowWindow(SW_HIDE);
+	mSamplePan.ShowWindow(SW_SHOW);
+	mSampleVol.ShowWindow(SW_SHOW);
 	mAttackTime.ShowWindow(SW_HIDE);
 	mDecayTime.ShowWindow(SW_HIDE);
 	mReleaseTime.ShowWindow(SW_SHOW);
 	mAttackVolume.ShowWindow(SW_SHOW);
 	mDecayVolume.ShowWindow(SW_HIDE);
-	mVelMin.ShowWindow(SW_HIDE);
-	mVelMax.ShowWindow(SW_HIDE);
-	mKeyMin.ShowWindow(SW_HIDE);
-	mKeyMax.ShowWindow(SW_HIDE);
-	mKeyBase.ShowWindow(SW_HIDE);
+	mVelMin.ShowWindow(SW_SHOW);
+	mVelMax.ShowWindow(SW_SHOW);
+	mKeyMin.ShowWindow(SW_SHOW);
+	mKeyMax.ShowWindow(SW_SHOW);
+	mKeyBase.ShowWindow(SW_SHOW);
 	mKeyBaseListCtrl.ShowWindow(SW_HIDE);
-	mDetune.ShowWindow(SW_HIDE);
+	mDetune.ShowWindow(SW_SHOW);
 	m_instrVolStatic.ShowWindow(SW_HIDE);
 	m_instrPanStatic.ShowWindow(SW_HIDE);
 	m_InstrPriorityStatic.ShowWindow(SW_HIDE);
@@ -4792,19 +4984,28 @@ void CN64SoundListToolDlg::ShowEADPercussionControls()
 	m_instrVibrRateStatic.ShowWindow(SW_HIDE);
 	m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
 	m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
-	m_samplePanStatic.ShowWindow(SW_HIDE);
-	m_sampleVolStatic.ShowWindow(SW_HIDE);
-	m_sampleVelMinStatic.ShowWindow(SW_HIDE);
-	m_sampleVelMaxStatic.ShowWindow(SW_HIDE);
-	m_sampleKeyMinStatic.ShowWindow(SW_HIDE);
-	m_sampleKeyMaxStatic.ShowWindow(SW_HIDE);
-	m_sampleKeyBaseStatic.ShowWindow(SW_HIDE);
-	m_sampleDetuneStatic.ShowWindow(SW_HIDE);
+	m_samplePanStatic.ShowWindow(SW_SHOW);
+	m_sampleVolStatic.ShowWindow(SW_SHOW);
+	m_sampleVelMinStatic.ShowWindow(SW_SHOW);
+	m_sampleVelMaxStatic.ShowWindow(SW_SHOW);
+	m_sampleKeyMinStatic.ShowWindow(SW_SHOW);
+	m_sampleKeyMaxStatic.ShowWindow(SW_SHOW);
+	m_sampleKeyBaseStatic.ShowWindow(SW_SHOW);
+	m_sampleDetuneStatic.ShowWindow(SW_SHOW);
 	m_sampleAttackTimeStatic.ShowWindow(SW_HIDE);
 	m_sampleDecayTimeStatic.ShowWindow(SW_HIDE);
 	m_sampleReleaseTimeStatic.ShowWindow(SW_SHOW);
 	m_sampleAttackVolumeStatic.ShowWindow(SW_SHOW);
 	m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
+
+	m_samplePanStatic.SetWindowText("ADSR 1");
+	m_sampleVolStatic.SetWindowText("ADSR 2");
+	m_sampleVelMinStatic.SetWindowText("ADSR 3");
+	m_sampleVelMaxStatic.SetWindowText("ADSR 4");
+	m_sampleKeyMinStatic.SetWindowText("ADSR 5");
+	m_sampleKeyMaxStatic.SetWindowText("ADSR 6");
+	m_sampleKeyBaseStatic.SetWindowText("ADSR 7");
+	m_sampleDetuneStatic.SetWindowText("ADSR 8");
 
 	m_sampleReleaseTimeStatic.SetWindowText("Float Key");
 	m_sampleAttackVolumeStatic.SetWindowText("Pan");
@@ -4812,9 +5013,6 @@ void CN64SoundListToolDlg::ShowEADPercussionControls()
 
 void CN64SoundListToolDlg::ShowSfxControls()
 {
-	mAddInstrumentButton.ShowWindow(SW_HIDE);
-	mDeleteInstrumentButton.ShowWindow(SW_HIDE);
-
 	mSubSound.ShowWindow(SW_HIDE);
 	mAddPrevButton.ShowWindow(SW_HIDE);
 	mRemovePrevButton.ShowWindow(SW_HIDE);
@@ -4826,14 +5024,18 @@ void CN64SoundListToolDlg::ShowSfxControls()
 	mDownArrowButton.ShowWindow(SW_HIDE);
 
 	mHalfVADPCMPrecision.ShowWindow(SW_SHOW);
+	mCheckUnknownEADFlag.ShowWindow(SW_SHOW);
+	mLabelTableIndex.ShowWindow(SW_SHOW);
+	mTableIndex.ShowWindow(SW_SHOW);
 
-	m_injectInPlaceButton.ShowWindow(SW_HIDE);
-	m_import16BitADPCM.ShowWindow(SW_HIDE);
-	m_import16BitRawValues.ShowWindow(SW_HIDE);
-	m_importPredictors.ShowWindow(SW_HIDE);
-	mImportFromSDKTools.ShowWindow(SW_HIDE);
-	m_importGroupBox.ShowWindow(SW_HIDE);
-	mImportLoopPredictors.ShowWindow(SW_HIDE);
+	m_injectInPlaceButton.ShowWindow(SW_SHOW);
+	m_import16BitADPCM.ShowWindow(SW_SHOW);
+	m_import16BitADPCMSamePred.ShowWindow(SW_SHOW);
+	m_import16BitRawValues.ShowWindow(SW_SHOW);
+	m_importPredictors.ShowWindow(SW_SHOW);
+	ShowOfficialSDKImport();
+	m_importGroupBox.ShowWindow(SW_SHOW);
+	mImportLoopPredictors.ShowWindow(SW_SHOW);
 	
 	m_playButton.ShowWindow(SW_SHOW);
 	m_stopButton.ShowWindow(SW_SHOW);
@@ -4862,7 +5064,7 @@ void CN64SoundListToolDlg::ShowSfxControls()
 	mSampleVol.ShowWindow(SW_HIDE);
 	mAttackTime.ShowWindow(SW_HIDE);
 	mDecayTime.ShowWindow(SW_HIDE);
-	mReleaseTime.ShowWindow(SW_HIDE);
+	mReleaseTime.ShowWindow(SW_SHOW);
 	mAttackVolume.ShowWindow(SW_HIDE);
 	mDecayVolume.ShowWindow(SW_HIDE);
 	mVelMin.ShowWindow(SW_HIDE);
@@ -4894,9 +5096,11 @@ void CN64SoundListToolDlg::ShowSfxControls()
 	m_sampleDetuneStatic.ShowWindow(SW_HIDE);
 	m_sampleAttackTimeStatic.ShowWindow(SW_HIDE);
 	m_sampleDecayTimeStatic.ShowWindow(SW_HIDE);
-	m_sampleReleaseTimeStatic.ShowWindow(SW_HIDE);
+	m_sampleReleaseTimeStatic.ShowWindow(SW_SHOW);
 	m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
 	m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
+
+	m_sampleReleaseTimeStatic.SetWindowText("Float Key");
 }
 
 void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
@@ -4981,7 +5185,8 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
 				mPercussionLabel.ShowWindow(SW_HIDE);
 			}
 		}
-		else
+		else if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT) ||
+			(alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT))
 		{
 			for (int x = 0; x < alBankCurrent->countEADPercussion; x++)
 			{
@@ -4990,16 +5195,16 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
 				mPercussionChoice.AddString(tempStr);
 			}
 
+			mPercussionLabel.ShowWindow(SW_SHOW);
+
 			if (alBankCurrent->countEADPercussion > 0)
 			{
 				mPercussionChoice.SetCurSel(0);
 				mPercussionChoice.ShowWindow(SW_SHOW);
-				mPercussionLabel.ShowWindow(SW_SHOW);
 			}
 			else
 			{
 				mPercussionChoice.ShowWindow(SW_HIDE);
-				mPercussionLabel.ShowWindow(SW_HIDE);
 			}
 		}
 
@@ -5012,16 +5217,19 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
 			mSfxChoice.AddString(tempStr);
 		}
 
+		if (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+		{
+			mSfxLabel.ShowWindow(SW_SHOW);
+		}
+
 		if (alBankCurrent->countSfx > 0)
 		{
 			mSfxChoice.SetCurSel(0);
 			mSfxChoice.ShowWindow(SW_SHOW);
-			mSfxLabel.ShowWindow(SW_SHOW);
 		}
 		else
 		{
 			mSfxChoice.ShowWindow(SW_HIDE);
-			mSfxLabel.ShowWindow(SW_HIDE);
 		}
 
 		CString tempSampleStr;
@@ -5148,8 +5356,7 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 
 			if (alBankCurrent->inst[instrSel]->sounds[soundChoice] != NULL)
 			{
-
-				if (alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT) || (alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
 				{
 					if (alBankCurrent->inst[instrSel]->sounds[soundChoice]->hasWavePrevious)
 					{
@@ -5185,12 +5392,6 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 				mCheckRaw.SetCheck(alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.type);
 
 				CString tempStr;
-				tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.base);
-				mBase.SetWindowText(tempStr);
-
-				tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.len);
-				mLength.SetWindowText(tempStr);
-
 				tempStr.Format("%02X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->samplePan);
 				mSamplePan.SetWindowText(tempStr);
 
@@ -5199,10 +5400,8 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 
 
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-					|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 					|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 					|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-					|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 					)
 				{
 					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->unknown1);
@@ -5243,10 +5442,8 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 				mVelMax.SetWindowText(tempStr);
 
 				if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
-					|| (alBankCurrent->soundBankFormat == MARIOKART64FORMAT)
 					|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
 					|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
-					|| (alBankCurrent->soundBankFormat == FZEROFORMAT)
 					)
 				{
 					tempStr.Format("%04X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->adsrEAD[0]);
@@ -5272,6 +5469,20 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 
 					tempStr.Format("%04X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->adsrEAD[7]);
 					mDetune.SetWindowText(tempStr);
+				}
+				else if (alBankCurrent->soundBankFormat == PAPERMARIO)
+				{
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.unknown1 >> 24) & 0xFF));
+					mSamplePan.SetWindowText(tempStr);
+
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.unknown1 >> 16) & 0xFF));
+					mSampleVol.SetWindowText(tempStr);
+
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.unknown1 >> 8) & 0xFF));
+					mVelMin.SetWindowText(tempStr);
+
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.unknown1) & 0xFF));
+					mVelMax.SetWindowText(tempStr);
 				}
 				else
 				{
@@ -5964,7 +6175,7 @@ void CN64SoundListToolDlg::OnBnClickedButton1()
 					primSel = SECONDARY;
 
 				unsigned long samplingRate;
-				if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_RAW16_WAVE, primSel, false))
+				if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_RAW16_WAVE, primSel, false, false))
 					return;
 
 				float sampleRateRef = alBankCurrent->samplerate;
@@ -6016,7 +6227,7 @@ void CN64SoundListToolDlg::OnBnClickedButton1()
 					primSel = SECONDARY;
 
 				unsigned long samplingRate;
-				if (!n64AudioLibrary.ReplacePercussionWithWavData(alBankCurrent, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_RAW16_WAVE))
+				if (!n64AudioLibrary.ReplacePercussionWithWavData(alBankCurrent, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_RAW16_WAVE, false))
 					return;
 
 				float sampleRateRef = alBankCurrent->samplerate;
@@ -6058,11 +6269,14 @@ void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimport()
 
 				int instrSel = mInstrumentChoice.GetCurSel();
 				int soundChoice = mSoundChoice.GetCurSel();
-				if (alBankCurrent->inst[instrSel]->sounds[soundChoice] == NULL)
+
+				if (instrSel == -1)
 					return;
 
-
 				if (soundChoice == -1)
+					return;
+
+				if (alBankCurrent->inst[instrSel]->sounds[soundChoice] == NULL)
 					return;
 
 				CString subSoundStr;
@@ -6076,8 +6290,14 @@ void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimport()
 				else if (subSoundStr == "Secondary")
 					primSel = SECONDARY;
 
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
 				unsigned long samplingRate;
-				if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, primSel, false))
+				if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, primSel, decode8, false))
 					return;
 
 				float sampleRateRef = alBankCurrent->samplerate;
@@ -6131,7 +6351,7 @@ void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimport()
 					primSel = SECONDARY;
 
 				unsigned long samplingRate;
-				if (!n64AudioLibrary.ReplacePercussionWithWavData(alBankCurrent, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE))
+				if (!n64AudioLibrary.ReplacePercussionWithWavData(alBankCurrent, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, false))
 					return;
 
 				float sampleRateRef = alBankCurrent->samplerate;
@@ -6175,8 +6395,14 @@ void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimport()
 				if (percussionSel == -1)
 					return;
 
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
 				unsigned long samplingRate;
-				if (!n64AudioLibrary.ReplaceEADPercussionWithWavData(alBankCurrent, percussionSel, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE))
+				if (!n64AudioLibrary.ReplaceEADPercussionWithWavData(alBankCurrent, percussionSel, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, decode8, false))
 					return;
 
 				float sampleRateRef = alBankCurrent->samplerate;
@@ -6189,6 +6415,52 @@ void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimport()
 				}
 
 				OnCbnSelchangeCombopercussion();
+			}
+		}
+		else if (percussionMode == SFX)
+		{
+			CFileDialog m_ldFile(TRUE, "wav", "ExtractedSound.wav", OFN_HIDEREADONLY, "16-bit Raw Wave file (*.wav)|*.wav|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				FILE* inFile = fopen(m_ldFile.GetPathName(), "r");
+				if (inFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+					return;
+				}
+				fclose(inFile);
+
+				int sfxSel = mSfxChoice.GetCurSel();
+
+				if (sfxSel == -1)
+					return;
+
+				if (alBankCurrent->alSfx[sfxSel] == NULL)
+					return;
+
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
+				unsigned long samplingRate;
+				if (!n64AudioLibrary.ReplaceSfxWithWavData(alBankCurrent, sfxSel, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, decode8, false))
+					return;
+
+				float sampleRateRef = alBankCurrent->samplerate;
+
+				if (sampleRateRef != samplingRate)
+				{
+					CString tempStr;
+					tempStr.Format("Warning sampling rate of wav %d is not equal to sampling rate of %d", samplingRate, alBankCurrent->samplerate);
+					//MessageBox(tempStr, "Warning");
+				}
+
+				OnCbnSelchangeCombosfx();
 			}
 		}
 	}
@@ -6359,7 +6631,7 @@ void CN64SoundListToolDlg::OnBnClickedButtonaddsound2()
 					//MessageBox(tempStr, "Warning");
 				}
 
-				OnCbnSelchangeCombosound();
+				OnCbnSelchangeCombopercussion();
 
 				if (dontupdateitall)
 				{
@@ -6407,7 +6679,7 @@ void CN64SoundListToolDlg::OnBnClickedButtondeletesound()
 
 			n64AudioLibrary.DeletePercussion(alBankCurrent, soundChoice);
 
-			OnCbnSelchangeCombosound();
+			OnCbnSelchangeCombopercussion();
 
 			if (dontupdateitall)
 			{
@@ -6416,6 +6688,7 @@ void CN64SoundListToolDlg::OnBnClickedButtondeletesound()
 					mSoundChoice.SetCurSel(soundChoice-1);
 				dontupdateitall = true;
 			}
+
 			OnCbnSelchangeCombosound2();
 		}
 	}
@@ -6585,32 +6858,67 @@ void CN64SoundListToolDlg::OnFileSave()
 		{
 			CString romOutName = m_svFileOutROM.GetPathName();
 
-			FILE* outFile = fopen(m_svFileOutROM.GetPathName(), "wb");
-			if (outFile == NULL)
+			std::map<unsigned char, CString> cicLookup;
+			cicLookup[0] = "starf";
+			cicLookup[0xD5] = "lylat";
+			cicLookup[0xDE] = "mario";
+			cicLookup[0xDB] = "diddy";
+			cicLookup[0xE4] = "aleck";
+			cicLookup[0x14] = "zelda";
+			cicLookup[0xEC] = "yoshi";
+
+			if (cicLookup.find(ROM[0x173]) != cicLookup.end())
 			{
-				MessageBox(LoadResourceText(IDS_STRINGERROROPENINGROMOUTPUT));
-				return;
-			}
-			fwrite(ROM, 1, romSize, outFile);
-			fclose(outFile);
+				CString cic = cicLookup[ROM[0x173]];
+				if (cic == "starf")
+				{
+					if (ROM[0x16F]==0xDB)
+						cic = "ddipl";
+					else if (ROM[0x16F]==0xD9)
+						cic = "dddev";
+				}
 
-			if (n64AudioLibrary.GetSizeFile((mainFolder + "rn64crc.exe")) == 0)
+				CalcCRC calcCRC;
+				calcCRC.calccrc(ROM, romSize, cic, true);
+
+				FILE* outFile = fopen(m_svFileOutROM.GetPathName(), "wb");
+				if (outFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENINGROMOUTPUT));
+					return;
+				}
+				fwrite(ROM, 1, romSize, outFile);
+				fclose(outFile);
+			}
+			else
 			{
-				MessageBox("Warning, rn64crc.exe not found in main folder, could not re-crc ROM, if needed");
-				return;
+				FILE* outFile = fopen(m_svFileOutROM.GetPathName(), "wb");
+				if (outFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENINGROMOUTPUT));
+					return;
+				}
+				fwrite(ROM, 1, romSize, outFile);
+				fclose(outFile);
+
+				if (n64AudioLibrary.GetSizeFile((mainFolder + "rn64crc.exe")) == 0)
+				{
+					MessageBox("Warning, rn64crc.exe not found in main folder, could not re-crc ROM, if needed");
+					return;
+				}
+
+				CString RN64dir = romOutName.Mid(0, (romOutName.ReverseFind('\\')+1));
+				CString RN64name = romOutName.Mid((romOutName.ReverseFind('\\')+1), (romOutName.GetLength() - (romOutName.ReverseFind('\\')+1)));
+
+				if (RN64dir != mainFolder)
+					::CopyFile((mainFolder + "rn64crc.exe"), (RN64dir + "rn64crc.exe"), false);
+
+				::SetCurrentDirectory(RN64dir);
+
+				CString tempStr;
+				tempStr.Format("rn64crc.exe -u \"%s\"", RN64name);
+				hiddenExec(_T(tempStr.GetBuffer()), RN64dir);
 			}
-
-			CString RN64dir = romOutName.Mid(0, (romOutName.ReverseFind('\\')+1));
-			CString RN64name = romOutName.Mid((romOutName.ReverseFind('\\')+1), (romOutName.GetLength() - (romOutName.ReverseFind('\\')+1)));
-
-			if (RN64dir != mainFolder)
-				::CopyFile((mainFolder + "rn64crc.exe"), (RN64dir + "rn64crc.exe"), false);
-
-			::SetCurrentDirectory(RN64dir);
-
-			CString tempStr;
-			tempStr.Format("rn64crc.exe -u \"%s\"", RN64name);
-			hiddenExec(_T(tempStr.GetBuffer()), RN64dir);
 		}
 	}
 }
@@ -6817,12 +7125,15 @@ void CN64SoundListToolDlg::OnBnClickedInjectplace()
 		if (bank == -1)
 			return;
 
-		unsigned char* ctl;
-		unsigned char* tbl;
-		int ctlSize, tblSize;
+		unsigned char* ctl = NULL;
+		unsigned char* tbl = NULL;
+		unsigned char* ctl2 = NULL;
+		int ctlSize = 0;
+		int tblSize = 0;
+		int ctlSize2 = 0;
 		if ((alBankCurrent->soundBankFormat == STANDARDFORMAT) || (alBankCurrent->soundBankFormat == KONAMICTL) || (alBankCurrent->soundBankFormat == KONAMI8CTL))
 			n64AudioLibrary.WriteAudio(alBankCurrent, ctl, ctlSize, tbl, tblSize);
-		else if ((alBankCurrent->soundBankFormat == STARFOX64FORMAT) || (alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == FZEROFORMAT) || (alBankCurrent->soundBankFormat == TUROKFORMAT)  || (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)  || (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)|| (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED))
+		else if ((alBankCurrent->soundBankFormat == TUROKFORMAT)  || (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)  || (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)|| (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED))
 		{
 			MessageBox("Sorry, no encoding yet for MIO0 format");
 			return;
@@ -6832,6 +7143,94 @@ void CN64SoundListToolDlg::OnBnClickedInjectplace()
 			// Does all at once
 			n64AudioLibrary.WriteAudioSuperMario(results, ctl, ctlSize, tbl, tblSize);
 		}
+		else if (alBankCurrent->soundBankFormat == STARFOX64FORMAT)
+		{
+			n64AudioLibrary.WriteAudioStarFox(ROM, romSize, currentGameConfig.offsetZeldaCtlTable, currentGameConfig.offsetZeldaTblTable, currentGameConfig.startZeldaCtlData, currentGameConfig.startZeldaTblData, results, ctl, ctlSize, tbl, tblSize, currentGameConfig.isCompressedZeldaCtlTblTables, currentGameConfig.compressedZeldaCtlTblTableStart, currentGameConfig.compressedZeldaCtlTblTableEnd);
+			if (ctl == NULL)
+				return;
+		}
+		else if (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+		{
+			n64AudioLibrary.WriteAudioZelda(ROM, romSize, currentGameConfig.offsetZeldaCtlTable, currentGameConfig.offsetZeldaTblTable, currentGameConfig.startZeldaCtlData, currentGameConfig.startZeldaTblData, results, ctl, ctlSize, tbl, tblSize, currentGameConfig.isCompressedZeldaCtlTblTables, currentGameConfig.compressedZeldaCtlTblTableStart, currentGameConfig.compressedZeldaCtlTblTableEnd);
+			if (ctl == NULL)
+				return;
+		}
+		else if (alBankCurrent->soundBankFormat == CONKERFORMAT)
+		{
+			n64AudioLibrary.WriteAudioConker(alBankCurrent, ctl, ctlSize, tbl, tblSize, currentGameConfig.soundBanks[bank].numberInstruments, ctl2, ctlSize2);
+			
+			GECompression gecompression;
+			gecompression.SetGame(CONKER);
+			gecompression.SetPath(mainFolder);
+			
+			FILE* outFile = fopen(mainFolder + "tempConkEnc.bin", "wb");
+			if(outFile == NULL)
+			{
+				if (ctl2 != NULL)
+					delete [] ctl2;
+				delete [] ctl;
+				delete [] tbl;
+				MessageBox("Can't open temp file");
+				return;
+			}
+			fwrite(ctl, 1, ctlSize, outFile);
+			fclose(outFile);
+
+			FILE* outFileTestCtl2 = fopen(mainFolder + "tempConkEnc2.bin", "wb");
+			if(outFileTestCtl2 == NULL)
+			{
+				if (ctl2 != NULL)
+					delete [] ctl2;
+				delete [] ctl;
+				delete [] tbl;
+				MessageBox("Can't open temp file 2");
+				return;
+			}
+			fwrite(ctl2, 1, ctlSize2, outFileTestCtl2);
+			fclose(outFileTestCtl2);
+
+			if (!gecompression.CompressGZipFileNoPad(mainFolder + "tempConkEnc.bin", mainFolder + "tempConkEnc.gz", false))
+			{
+				if (ctl2 != NULL)
+					delete [] ctl2;
+				delete [] ctl;
+				delete [] tbl;
+				MessageBox("Can't open gzipped file");
+				return;
+			}
+
+			int sizeCompressed = n64AudioLibrary.GetSizeFile(mainFolder + "tempConkEnc.gz");
+
+			if (sizeCompressed == 0)
+			{
+				if (ctl2 != NULL)
+					delete [] ctl2;
+				delete [] ctl;
+				delete [] tbl;
+				MessageBox("Empty gzipped file");
+				return;
+			}
+
+			FILE* inFile = fopen((mainFolder + "tempConkEnc.gz"), "rb");
+			if (inFile == NULL)
+			{
+				if (ctl2 != NULL)
+					delete [] ctl2;
+				delete [] ctl;
+				delete [] tbl;
+				MessageBox("Error reading file");
+				return;
+			}
+			delete [] ctl;
+			ctlSize = sizeCompressed;
+
+			ctl = new unsigned char[ctlSize];
+			fread(ctl, 1, sizeCompressed, inFile);
+			fclose(inFile);
+			::DeleteFile(mainFolder + "tempConkEnc.bin");
+			::DeleteFile(mainFolder + "tempConkEnc2.bin");
+			::DeleteFile(mainFolder + "tempConkEnc.gz");
+		}
 		else if (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2)
 			n64AudioLibrary.WriteAudioN64PtrWavetableV2(alBankCurrent, ctl, ctlSize, tbl, tblSize);
 		else if (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2BLITZ)
@@ -6840,8 +7239,7 @@ void CN64SoundListToolDlg::OnBnClickedInjectplace()
 			n64AudioLibrary.WriteAudioN64PtrWavetableV1(alBankCurrent, ctl, ctlSize, tbl, tblSize);
 		else if (alBankCurrent->soundBankFormat == N64PTRWAVETABLETABLEV2YAY0)
 		{
-			MessageBox("Sorry, no encoding yet for YAY0 format");
-			return;
+			n64AudioLibrary.WriteAudioN64PtrWavetableV2Yay0(mainFolder, alBankCurrent, ctl, ctlSize, tbl, tblSize);
 		}
 		else if (alBankCurrent->soundBankFormat == TAZHUFFMAN)
 		{
@@ -6908,13 +7306,36 @@ void CN64SoundListToolDlg::OnBnClickedInjectplace()
 			n64AudioLibrary.WriteKonami8ADSR(ROM, results[bank].bank, currentGameConfig.soundBanks[bank].numberInstruments, currentGameConfig.soundBanks[bank].mask, currentGameConfig.soundBanks[bank].extra, currentGameConfig.soundBanks[bank].extra2);
 		}
 
-		if (n64AudioLibrary.InjectCtlTblIntoROMArrayInPlace(ROM, ctl, ctlSize, tbl, tblSize, results[bank].ctlOffset, results[bank].tblOffset, results[bank].ctlSize, results[bank].tblSize))
+		if (alBankCurrent->soundBankFormat == CONKERFORMAT)
 		{
-			/*for (int x = (results[bank].ctlOffset + ctlSize); x < (results[bank].ctlOffset + results[bank].ctlSize); x++)
+			if (n64AudioLibrary.InjectCtlTblIntoROMArrayInPlace(ROM, ctl, ctlSize, tbl, tblSize, results[bank].ctlOffset, results[bank].tblOffset, currentGameConfig.soundBanks[bank].numberInstruments - currentGameConfig.soundBanks[bank].ctl, results[bank].tblSize, ctl2, ctlSize2, currentGameConfig.soundBanks[bank].numberInstruments, results[bank].tblOffset - currentGameConfig.soundBanks[bank].numberInstruments))
 			{
-				ROM[x] = 0xFF;
-			}*/
+				/*for (int x = (results[bank].ctlOffset + ctlSize); x < (results[bank].ctlOffset + results[bank].ctlSize); x++)
+				{
+					ROM[x] = 0xFF;
+				}*/
+			}
 		}
+		else if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+		{
+			if (n64AudioLibrary.InjectCtlTblIntoROMArrayInPlace(ROM, ctl, ctlSize, tbl, tblSize, currentGameConfig.startZeldaCtlData, currentGameConfig.startZeldaTblData, currentGameConfig.endZeldaCtlData - currentGameConfig.startZeldaCtlData + 1, currentGameConfig.endZeldaTblData - currentGameConfig.startZeldaTblData + 1, NULL, 0, 0, 0))
+			{
+
+			}
+		}
+		else
+		{
+			if (n64AudioLibrary.InjectCtlTblIntoROMArrayInPlace(ROM, ctl, ctlSize, tbl, tblSize, results[bank].ctlOffset, results[bank].tblOffset, results[bank].ctlSize, results[bank].tblSize, NULL, 0, 0, 0))
+			{
+				/*for (int x = (results[bank].ctlOffset + ctlSize); x < (results[bank].ctlOffset + results[bank].ctlSize); x++)
+				{
+					ROM[x] = 0xFF;
+				}*/
+			}
+		}
+
+		if (ctl2 != NULL)
+			delete [] ctl2;
 		delete [] ctl;
 		delete [] tbl;
 	}
@@ -7066,7 +7487,7 @@ void CN64SoundListToolDlg::OnBnClickedButtontest()
 				primSel = SECONDARY;
 
 			unsigned long samplingRate;
-			if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, primSel, false))
+			if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, primSel, false, false))
 				return;
 
 			float sampleRateRef = alBankCurrent->samplerate;
@@ -7296,6 +7717,25 @@ void CN64SoundListToolDlg::OnBnClickedButtonimportpredictors()
 				n64AudioLibrary.ImportEADPercussionPredictors(alBankCurrent, percussionSel, m_ldFile.GetPathName());
 			}
 		}
+		else if (percussionMode == SFX)
+		{
+			int sfxSel = mSfxChoice.GetCurSel();
+
+			if (sfxSel == -1)
+				return;
+
+			if (alBankCurrent->alSfx == NULL)
+				return;
+
+			CFileDialog m_ldFile(TRUE, "bin", "Predictors.bin", OFN_HIDEREADONLY, "Predictors (*.bin)|*.bin|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				n64AudioLibrary.ImportSfxPredictors(alBankCurrent, sfxSel, m_ldFile.GetPathName());
+			}
+		}
 	}
 }
 
@@ -7511,7 +7951,24 @@ void CN64SoundListToolDlg::OnBnClickedButtonimport16bitraw()
 			if (statusFileOpen == IDOK)
 			{
 				n64AudioLibrary.ImportEADRawPercussionData(alBankCurrent, percussionSel, m_ldFile.GetPathName());
-				OnCbnSelchangeCombosound2();
+				OnCbnSelchangeCombopercussion();
+			}
+		}
+		else if (percussionMode == SFX)
+		{
+			int sfxSel = mSfxChoice.GetCurSel();
+
+			if (sfxSel == -1)
+				return;
+
+			CFileDialog m_ldFile(TRUE, "bin", "RawSound.bin", OFN_HIDEREADONLY, "Raw Bin Sound (*.bin)|*.bin|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				n64AudioLibrary.ImportRawSfxData(alBankCurrent, sfxSel, m_ldFile.GetPathName());
+				OnCbnSelchangeCombosfx();
 			}
 		}
 	}
@@ -7810,11 +8267,11 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("SF64Uncompressed") == 0)
 					{
-						results[numberResults].bank = n64AudioLibrary.ReadAudioStarFox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig[y].soundBanks[x].numberInstruments, gameConfig[y].soundBanks[x].mask);
+						results[numberResults].bank = n64AudioLibrary.ReadAudioStarFox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, results[numberResults].tblOffset, gameConfig[y].soundBanks[x].numberInstruments, gameConfig[y].soundBanks[x].mask, &ROM[0], romSize, gameConfig[y].offsetZeldaCtlTable, gameConfig[y].offsetZeldaTblTable, gameConfig[y].startZeldaCtlData, gameConfig[y].startZeldaTblData, numberResults, gameConfig[y].isCompressedZeldaCtlTblTables, gameConfig[y].compressedZeldaCtlTblTableStart, gameConfig[y].compressedZeldaCtlTblTableEnd);
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("ZeldaUncompressed") == 0)
 					{
-						results[numberResults].bank = n64AudioLibrary.ReadAudioZelda(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig[y].soundBanks[x].numberInstruments, gameConfig[y].soundBanks[x].mask, &ROM[0]);
+						results[numberResults].bank = n64AudioLibrary.ReadAudioZelda(results, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, results[numberResults].tblOffset, gameConfig[y].soundBanks[x].numberInstruments, gameConfig[y].soundBanks[x].mask, &ROM[0], romSize, gameConfig[y].offsetZeldaCtlTable, gameConfig[y].offsetZeldaTblTable, gameConfig[y].startZeldaCtlData, gameConfig[y].startZeldaTblData, numberResults, gameConfig[y].isCompressedZeldaCtlTblTables, gameConfig[y].compressedZeldaCtlTblTableStart, gameConfig[y].compressedZeldaCtlTblTableEnd);
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("TurokUncompressed") == 0)
 					{
@@ -7843,10 +8300,6 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 					else if (gameConfig[y].gameType.CompareNoCase("RNXCompressed") == 0)
 					{
 						results[numberResults].bank = n64AudioLibrary.ReadRNXAudio(ROM, &ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig[y].soundBanks[x].numberInstruments);
-					}
-					else if (gameConfig[y].gameType.CompareNoCase("FZeroUncompressed") == 0)
-					{
-						results[numberResults].bank = n64AudioLibrary.ReadAudioFZero(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig[y].soundBanks[x].numberInstruments, &ROM[0]);
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("MegaManN64WavePtrTableV2") == 0)
 					{
@@ -7942,7 +8395,7 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("MarioKart64") == 0)
 					{
-						results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, true, gameConfig[y].soundBanks[x].numberInstruments);
+						results[numberResults].bank = n64AudioLibrary.ReadAudioMario(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], results[numberResults].tblSize, gameConfig[y].soundBanks[x].numberInstruments);
 					}
 					else if (gameConfig[y].gameType.CompareNoCase("StandardRawAllowed") == 0)
 					{
@@ -8312,7 +8765,11 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 			{
 				if (primSel == PRIMARY)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.decode8Only);
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.wavFlags & 0x02) == 0x02));
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
+
 					if ( alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.type == AL_ADPCM_WAVE)
 					{
 						mLoopingEnabled.SetCheck((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.adpcmWave != NULL) && (alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.adpcmWave->loop != NULL));
@@ -8421,10 +8878,21 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 						mImportLoopPredictors.ShowWindow(SW_HIDE);
 						mExportLoopPredictors.ShowWindow(SW_HIDE);
 					}
+
+					CString tempStr;
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.base);
+					mBase.SetWindowText(tempStr);
+
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.len);
+					mLength.SetWindowText(tempStr);
 				}
 				else if (primSel == PREVIOUS)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.decode8Only);
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.wavFlags & 0x02) == 0x02));
+					
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
 					if ( alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.type == AL_ADPCM_WAVE)
 					{
 						mLoopingEnabled.SetCheck((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.adpcmWave != NULL) && (alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.adpcmWave->loop != NULL));
@@ -8509,11 +8977,20 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 						m_exportPredictors.EnableWindow(false);
 						m_importPredictors.EnableWindow(false);
 					}
+
+					CString tempStr;
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.base);
+					mBase.SetWindowText(tempStr);
+
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavPrevious.len);
+					mLength.SetWindowText(tempStr);
 				}
 				else if (primSel == SECONDARY)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.decode8Only);
-
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.wavFlags & 0x02) == 0x02));
+					tempStr.Format("%02X", ((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
 					if ( alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.type == AL_ADPCM_WAVE)
 					{
 						mLoopingEnabled.SetCheck((alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.adpcmWave != NULL) && (alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.adpcmWave->loop != NULL));
@@ -8598,6 +9075,13 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 						m_exportPredictors.EnableWindow(false);
 						m_importPredictors.EnableWindow(false);
 					}
+
+					CString tempStr;
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.base);
+					mBase.SetWindowText(tempStr);
+
+					tempStr.Format("%08X", alBankCurrent->inst[instrSel]->sounds[soundChoice]->wavSecondary.len);
+					mLength.SetWindowText(tempStr);
 				}
 			}
 
@@ -8634,7 +9118,10 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 			{
 				if (primSel == PRIMARY)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->percussion->sounds[soundChoice]->wav.decode8Only);
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wav.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wav.wavFlags & 0x02) == 0x02));
+					tempStr.Format("%02X", ((alBankCurrent->percussion->sounds[soundChoice]->wav.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
 
 					if ( alBankCurrent->percussion->sounds[soundChoice]->wav.type == AL_ADPCM_WAVE)
 					{
@@ -8747,7 +9234,10 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 				}
 				else if (primSel == PREVIOUS)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->percussion->sounds[soundChoice]->wavPrevious.decode8Only);
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wavPrevious.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wavPrevious.wavFlags & 0x02) == 0x02));
+					tempStr.Format("%02X", ((alBankCurrent->percussion->sounds[soundChoice]->wavPrevious.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
 
 					if ( alBankCurrent->percussion->sounds[soundChoice]->wavPrevious.type == AL_ADPCM_WAVE)
 					{
@@ -8836,7 +9326,10 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 				}
 				else if (primSel == SECONDARY)
 				{
-					mHalfVADPCMPrecision.SetCheck(alBankCurrent->percussion->sounds[soundChoice]->wavSecondary.decode8Only);
+					mHalfVADPCMPrecision.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wavSecondary.wavFlags & 0x30) == 0x30));
+					mCheckUnknownEADFlag.SetCheck(((alBankCurrent->percussion->sounds[soundChoice]->wavSecondary.wavFlags & 0x02) == 0x02));
+					tempStr.Format("%02X", ((alBankCurrent->percussion->sounds[soundChoice]->wavSecondary.wavFlags & 0xC) >> 2));
+					mTableIndex.SetWindowText(tempStr);
 
 					if ( alBankCurrent->percussion->sounds[soundChoice]->wavSecondary.type == AL_ADPCM_WAVE)
 					{
@@ -9094,6 +9587,55 @@ void CN64SoundListToolDlg::OnBnClickedButtonimportlooppredictors()
 				return;
 
 			ALWave* alWave = &alBankCurrent->eadPercussion[percussionSel].wav;
+
+			if (alWave->type == AL_ADPCM_WAVE)
+			{
+				if (alWave->adpcmWave->loop != NULL)
+				{
+					FILE* inFile = fopen(fileName, "rb");
+					if (inFile == NULL)
+					{
+						MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+						return;
+					}
+
+					if (fileSize != 0x20)
+					{
+						MessageBox(LoadResourceText(IDS_STRINGERRORTOOSMALLFILE), LoadResourceText(IDS_STRINGERROR));
+						fclose(inFile);
+						return;
+					}
+
+					unsigned char* buffer = new unsigned char[fileSize];
+					fread(buffer, 1, fileSize, inFile);
+					fclose(inFile);
+
+					for (int z = 0; z < 0x10; z++)
+					{
+						alWave->adpcmWave->loop->state[z] = CharArrayToShort(&buffer[(z * 2)]);
+					}
+
+					delete [] buffer;
+				}
+			}
+		}
+	}
+	else if (percussionMode == SFX)
+	{
+		CFileDialog m_ldFile(TRUE, "bin", "LoopPredictors.bin", OFN_HIDEREADONLY, "Loop Predictors (*.bin)|*.bin|", this);
+
+		int statusFileOpen = (int) m_ldFile.DoModal();
+		CString fileName = m_ldFile.GetPathName();
+		if (statusFileOpen == IDOK)
+		{
+			int fileSize = n64AudioLibrary.GetSizeFile(fileName);
+			
+			int sfxSel = mSfxChoice.GetCurSel();
+
+			if (sfxSel == -1)
+				return;
+
+			ALWave* alWave = alBankCurrent->alSfx[sfxSel];
 
 			if (alWave->type == AL_ADPCM_WAVE)
 			{
@@ -9621,7 +10163,10 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombopercussion()
 		}
 		else
 		{
-			mHalfVADPCMPrecision.SetCheck(alBankCurrent->eadPercussion[percussionChoice].wav.decode8Only);
+			mHalfVADPCMPrecision.SetCheck(((alBankCurrent->eadPercussion[percussionChoice].wav.wavFlags & 0x30) == 0x30));
+			mCheckUnknownEADFlag.SetCheck(((alBankCurrent->eadPercussion[percussionChoice].wav.wavFlags & 0x02) == 0x02));
+			tempStr.Format("%02X", ((alBankCurrent->eadPercussion[percussionChoice].wav.wavFlags & 0xC) >> 2));
+			mTableIndex.SetWindowText(tempStr);
 
 			tempStr.Format("%08X", alBankCurrent->eadPercussion[percussionChoice].wav.base);
 			mBase.SetWindowText(tempStr);
@@ -9720,6 +10265,30 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombopercussion()
 				m_importPredictors.EnableWindow(false);
 			}
 
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[0]);
+			mSamplePan.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[1]);
+			mSampleVol.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[2]);
+			mVelMin.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[3]);
+			mVelMax.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[4]);
+			mKeyMin.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[5]);
+			mKeyMax.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[6]);
+			mKeyBase.SetWindowText(tempStr);
+
+			tempStr.Format("%04X", alBankCurrent->eadPercussion[percussionChoice].adsrEAD[7]);
+			mDetune.SetWindowText(tempStr);
+
 			percussionMode = EADPERCUSSION;
 			ShowEADPercussionControls();
 
@@ -9759,7 +10328,13 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosfx()
 			tempStr.Format("%08X", alBankCurrent->alSfx[sfxChoice]->len);
 			mLength.SetWindowText(tempStr);
 
-			mHalfVADPCMPrecision.SetCheck(alBankCurrent->alSfx[sfxChoice]->decode8Only);
+			tempStr.Format("%f", *reinterpret_cast<float*> (&alBankCurrent->alSfx[sfxChoice]->unknown1));
+			mReleaseTime.SetWindowText(tempStr);
+
+			mHalfVADPCMPrecision.SetCheck(((alBankCurrent->alSfx[sfxChoice]->wavFlags & 0x30) == 0x30));
+			mCheckUnknownEADFlag.SetCheck(((alBankCurrent->alSfx[sfxChoice]->wavFlags & 0x02) == 0x02));
+			tempStr.Format("%02X", ((alBankCurrent->alSfx[sfxChoice]->wavFlags & 0xC) >> 2));
+			mTableIndex.SetWindowText(tempStr);
 
 			if ( alBankCurrent->alSfx[sfxChoice]->type == AL_ADPCM_WAVE)
 			{
@@ -9855,6 +10430,8 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosfx()
 			mLength.SetWindowText(tempStr);
 
 			mHalfVADPCMPrecision.SetCheck(false);
+			mCheckUnknownEADFlag.SetCheck(false);
+			mTableIndex.SetWindowText(0);
 
 			mLoopCount.ShowWindow(SW_HIDE);
 			mLoopEnd.ShowWindow(SW_HIDE);
@@ -9932,28 +10509,27 @@ void CN64SoundListToolDlg::OnBnClickedButtonaddinstrument()
 {
 	if (alBankCurrent != NULL)
 	{
-		if (percussionMode == NORMAL)
+		int instrSel = mInstrumentChoice.GetCurSel();
+
+		if (instrSel == -1)
+			return;
+
+		if (n64AudioLibrary.AddInstrument(alBankCurrent))
 		{
-			int instrSel = mInstrumentChoice.GetCurSel();
+			percussionMode = NORMAL;
 
-			if (instrSel == -1)
-				return;
+			mInstrumentChoice.ResetContent();
 
-			if (n64AudioLibrary.AddInstrument(alBankCurrent))
+			for (int x = 0; x < alBankCurrent->count; x++)
 			{
-				mInstrumentChoice.ResetContent();
-
-				for (int x = 0; x < alBankCurrent->count; x++)
-				{
-					CString tempStr;
-					tempStr.Format("%04X", x);
-					mInstrumentChoice.AddString(tempStr);
-				}
-
-				mInstrumentChoice.SetCurSel(alBankCurrent->count-1);
-
-				OnCbnSelchangeCombosound();
+				CString tempStr;
+				tempStr.Format("%04X", x);
+				mInstrumentChoice.AddString(tempStr);
 			}
+
+			mInstrumentChoice.SetCurSel(alBankCurrent->count-1);
+
+			OnCbnSelchangeCombosound();
 		}
 	}
 }
@@ -9962,37 +10538,36 @@ void CN64SoundListToolDlg::OnBnClickedButtondeleteinstrument()
 {
 	if (alBankCurrent != NULL)
 	{
-		if (percussionMode == NORMAL)
+		int instrSel = mInstrumentChoice.GetCurSel();
+
+		if (instrSel == -1)
+			return;
+
+		if (alBankCurrent->count <= 1)
 		{
-			int instrSel = mInstrumentChoice.GetCurSel();
+			MessageBox("Must have one instrument");
+			return;
+		}
 
-			if (instrSel == -1)
-				return;
+		if (n64AudioLibrary.DeleteInstrument(alBankCurrent, instrSel))
+		{
+			percussionMode = NORMAL;
 
-			if (alBankCurrent->count <= 1)
+			mInstrumentChoice.ResetContent();
+
+			for (int x = 0; x < alBankCurrent->count; x++)
 			{
-				MessageBox("Must have one instrument");
-				return;
+				CString tempStr;
+				tempStr.Format("%04X", x);
+				mInstrumentChoice.AddString(tempStr);
 			}
 
-			if (n64AudioLibrary.DeleteInstrument(alBankCurrent, instrSel))
-			{
-				mInstrumentChoice.ResetContent();
+			if (instrSel >= alBankCurrent->count)
+				mInstrumentChoice.SetCurSel(alBankCurrent->count-1);
+			else
+				mInstrumentChoice.SetCurSel(instrSel);
 
-				for (int x = 0; x < alBankCurrent->count; x++)
-				{
-					CString tempStr;
-					tempStr.Format("%04X", x);
-					mInstrumentChoice.AddString(tempStr);
-				}
-
-				if (instrSel >= alBankCurrent->count)
-					mInstrumentChoice.SetCurSel(alBankCurrent->count-1);
-				else
-					mInstrumentChoice.SetCurSel(instrSel);
-
-				OnCbnSelchangeCombosound();
-			}
+			OnCbnSelchangeCombosound();
 		}
 	}
 }
@@ -10299,14 +10874,33 @@ void CN64SoundListToolDlg::ImportVadpcmSGIWav(int order)
 
 				byte primSel = PRIMARY;
 				if (subSoundStr == "Primary")
+				{
 					primSel = PRIMARY;
+				}
 				else if (subSoundStr == "Previous")
+				{
 					primSel = PREVIOUS;
+				}
 				else if (subSoundStr == "Secondary")
+				{
 					primSel = SECONDARY;
+				}
 
 				n64AudioLibrary.ImportRawData(alBankCurrent, instrumentSel, soundSel, mainFolder + "tempssnd.bin", primSel);
 				n64AudioLibrary.ImportPredictors(alBankCurrent, instrumentSel, soundSel, mainFolder + "temppred.bin", primSel);
+
+				if (subSoundStr == "Primary")
+				{
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.wavFlags = alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wav.wavFlags & (0xFF ^ 0x30);
+				}
+				else if (subSoundStr == "Previous")
+				{
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wavPrevious.wavFlags = alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wavPrevious.wavFlags & (0xFF ^ 0x30);
+				}
+				else if (subSoundStr == "Secondary")
+				{
+					alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wavSecondary.wavFlags = alBankCurrent->inst[instrumentSel]->sounds[soundSel]->wavSecondary.wavFlags & (0xFF ^ 0x30);
+				}
 
 				if ((startData + sizeSsndhunk) != aifcSize)
 				{
@@ -10369,6 +10963,8 @@ void CN64SoundListToolDlg::ImportVadpcmSGIWav(int order)
 
 					ALSound* alSound = alBankCurrent->percussion->sounds[soundSel];
 					
+					alSound->wav.wavFlags = alSound->wav.wavFlags & (0xFF ^ 0x30);
+
 					if (alSound->wav.type == AL_RAW16_WAVE)
 					{
 						if (alSound->wav.rawWave->loop == NULL)
@@ -10408,8 +11004,11 @@ void CN64SoundListToolDlg::ImportVadpcmSGIWav(int order)
 				if (alBankCurrent->eadPercussion == NULL)
 					return;
 
+
 				n64AudioLibrary.ImportEADRawPercussionData(alBankCurrent, percussionSel, mainFolder + "tempssnd.bin");
 				n64AudioLibrary.ImportEADPercussionPredictors(alBankCurrent, percussionSel, mainFolder + "temppred.bin");
+
+				alBankCurrent->eadPercussion[percussionSel].wav.wavFlags = alBankCurrent->eadPercussion[percussionSel].wav.wavFlags & (0xFF ^ 0x30);
 
 				if ((startData + sizeSsndhunk) != aifcSize)
 				{
@@ -10420,6 +11019,60 @@ void CN64SoundListToolDlg::ImportVadpcmSGIWav(int order)
 					unsigned long loopCount = CharArrayToLong(&aifcFile[startLoopData+8]);
 
 					ALWave* alWave = &alBankCurrent->eadPercussion[percussionSel].wav;
+					
+					if (alWave->type == AL_RAW16_WAVE)
+					{
+						if (alWave->rawWave->loop == NULL)
+						{
+							alWave->rawWave->loop = new ALRawLoop();
+						}
+
+						alWave->rawWave->loop->start = loopStart;
+						alWave->rawWave->loop->end = loopEnd;
+						//alWave->rawWave->loop->count = loopCount;
+					}
+					else if (alWave->type == AL_ADPCM_WAVE)
+					{
+						if (alWave->adpcmWave->loop == NULL)
+						{
+							alWave->adpcmWave->loop = new ALADPCMloop();
+						}
+
+						alWave->adpcmWave->loop->start = loopStart;
+						alWave->adpcmWave->loop->end = loopEnd;
+						//alWave->adpcmWave->loop->count = loopCount;
+
+						for (int z = 0; z < 0x10; z++)
+						{
+							alWave->adpcmWave->loop->state[z] = CharArrayToShort(&aifcFile[startLoopData+0xC+(z * 2)]);
+						}
+					}
+				}
+			}
+			else if (percussionMode == SFX)
+			{
+				int sfxSel = mSfxChoice.GetCurSel();
+
+				if (sfxSel == -1)
+					return;
+
+				if (alBankCurrent->alSfx == NULL)
+					return;
+
+				n64AudioLibrary.ImportRawSfxData(alBankCurrent, sfxSel, mainFolder + "tempssnd.bin");
+				n64AudioLibrary.ImportSfxPredictors(alBankCurrent, sfxSel, mainFolder + "temppred.bin");
+
+				alBankCurrent->alSfx[sfxSel]->wavFlags = alBankCurrent->alSfx[sfxSel]->wavFlags & (0xFF ^ 0x30);
+
+				if ((startData + sizeSsndhunk) != aifcSize)
+				{
+					// Has loop
+					unsigned long startLoopData = (startData + sizeSsndhunk) + 0x1C;
+					unsigned long loopStart = CharArrayToLong(&aifcFile[startLoopData]);
+					unsigned long loopEnd = CharArrayToLong(&aifcFile[startLoopData+4]);
+					unsigned long loopCount = CharArrayToLong(&aifcFile[startLoopData+8]);
+
+					ALWave* alWave = alBankCurrent->alSfx[sfxSel];
 					
 					if (alWave->type == AL_RAW16_WAVE)
 					{
@@ -10471,4 +11124,459 @@ void CN64SoundListToolDlg::OnBnClickedButtonkonamiadsrbutton()
 	CKonamiADSRDlg dlg;
 	dlg.alBankCurrent = alBankCurrent;
 	dlg.DoModal();
+}
+
+void CN64SoundListToolDlg::OnBnClickedButtonvadpcmimportsamepred()
+{
+	if (alBankCurrent != NULL)
+	{
+		if (percussionMode == NORMAL)
+		{
+			CFileDialog m_ldFile(TRUE, "wav", "ExtractedSound.wav", OFN_HIDEREADONLY, "16-bit Raw Wave file (*.wav)|*.wav|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				FILE* inFile = fopen(m_ldFile.GetPathName(), "r");
+				if (inFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+					return;
+				}
+				fclose(inFile);
+
+				int instrSel = mInstrumentChoice.GetCurSel();
+				int soundChoice = mSoundChoice.GetCurSel();
+
+				if (instrSel == -1)
+					return;
+
+				if (soundChoice == -1)
+					return;
+
+				if (alBankCurrent->inst[instrSel]->sounds[soundChoice] == NULL)
+					return;
+
+				CString subSoundStr;
+				mSubSound.GetWindowText(subSoundStr);
+
+				byte primSel = PRIMARY;
+				if (subSoundStr == "Primary")
+					primSel = PRIMARY;
+				else if (subSoundStr == "Previous")
+					primSel = PREVIOUS;
+				else if (subSoundStr == "Secondary")
+					primSel = SECONDARY;
+
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
+				unsigned long samplingRate;
+				if (!n64AudioLibrary.ReplaceSoundWithWavData(alBankCurrent, instrSel, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, primSel, decode8, true))
+					return;
+
+				float sampleRateRef = alBankCurrent->samplerate;
+				if (alBankCurrent->inst[instrSel]->samplerate != 0)
+					sampleRateRef = alBankCurrent->inst[instrSel]->samplerate;
+				
+				if (sampleRateRef != samplingRate)
+				{
+					CString tempStr;
+					tempStr.Format("Warning sampling rate of wav %d is not equal to sampling rate of %d", samplingRate, alBankCurrent->samplerate);
+					//MessageBox(tempStr, "Warning");
+				}
+
+				OnCbnSelchangeCombosound2();
+			}
+		}
+		else if (percussionMode == PERCUSSION)
+		{
+			CFileDialog m_ldFile(TRUE, "wav", "ExtractedSound.wav", OFN_HIDEREADONLY, "16-bit Raw Wave file (*.wav)|*.wav|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				FILE* inFile = fopen(m_ldFile.GetPathName(), "r");
+				if (inFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+					return;
+				}
+				fclose(inFile);
+
+				int instrSel = mInstrumentChoice.GetCurSel();
+				int soundChoice = mSoundChoice.GetCurSel();
+				if (alBankCurrent->percussion->sounds[soundChoice] == NULL)
+					return;
+
+
+				if (soundChoice == -1)
+					return;
+
+				CString subSoundStr;
+				mSubSound.GetWindowText(subSoundStr);
+
+				byte primSel = PRIMARY;
+				if (subSoundStr == "Primary")
+					primSel = PRIMARY;
+				else if (subSoundStr == "Previous")
+					primSel = PREVIOUS;
+				else if (subSoundStr == "Secondary")
+					primSel = SECONDARY;
+
+				unsigned long samplingRate;
+				if (!n64AudioLibrary.ReplacePercussionWithWavData(alBankCurrent, soundChoice, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, true))
+					return;
+
+				float sampleRateRef = alBankCurrent->samplerate;
+				if (alBankCurrent->percussion->samplerate != 0)
+					sampleRateRef = alBankCurrent->percussion->samplerate;
+				
+				if (sampleRateRef != samplingRate)
+				{
+					CString tempStr;
+					tempStr.Format("Warning sampling rate of wav %d is not equal to sampling rate of %d", samplingRate, alBankCurrent->samplerate);
+					//MessageBox(tempStr, "Warning");
+				}
+
+				OnCbnSelchangeCombosound2();
+			}
+		}
+		else if (percussionMode == EADPERCUSSION)
+		{
+			CFileDialog m_ldFile(TRUE, "wav", "ExtractedSound.wav", OFN_HIDEREADONLY, "16-bit Raw Wave file (*.wav)|*.wav|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				FILE* inFile = fopen(m_ldFile.GetPathName(), "r");
+				if (inFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+					return;
+				}
+				fclose(inFile);
+
+				int percussionSel = mPercussionChoice.GetCurSel();
+
+				if (percussionSel == -1)
+					return;
+
+				if (alBankCurrent->eadPercussion == NULL)
+					return;
+
+				if (percussionSel == -1)
+					return;
+
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
+				unsigned long samplingRate;
+				if (!n64AudioLibrary.ReplaceEADPercussionWithWavData(alBankCurrent, percussionSel, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, decode8, true))
+					return;
+
+				float sampleRateRef = alBankCurrent->samplerate;
+
+				if (sampleRateRef != samplingRate)
+				{
+					CString tempStr;
+					tempStr.Format("Warning sampling rate of wav %d is not equal to sampling rate of %d", samplingRate, alBankCurrent->samplerate);
+					//MessageBox(tempStr, "Warning");
+				}
+
+				OnCbnSelchangeCombopercussion();
+			}
+		}
+		else if (percussionMode == SFX)
+		{
+			CFileDialog m_ldFile(TRUE, "wav", "ExtractedSound.wav", OFN_HIDEREADONLY, "16-bit Raw Wave file (*.wav)|*.wav|", this);
+
+			int statusFileOpen = (int) m_ldFile.DoModal();
+			CString fileName = m_ldFile.GetPathName();
+			if (statusFileOpen == IDOK)
+			{
+				FILE* inFile = fopen(m_ldFile.GetPathName(), "r");
+				if (inFile == NULL)
+				{
+					MessageBox(LoadResourceText(IDS_STRINGERROROPENING), LoadResourceText(IDS_STRINGERROR));
+					return;
+				}
+				fclose(inFile);
+
+				int sfxSel = mSfxChoice.GetCurSel();
+
+				if (sfxSel == -1)
+					return;
+
+				if (alBankCurrent->alSfx[sfxSel] == NULL)
+					return;
+
+				bool decode8 = false;
+				if ((alBankCurrent->soundBankFormat == ZELDAFORMAT) || (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+				{
+					decode8 = mHalfVADPCMPrecision.GetCheck();
+				}
+
+				unsigned long samplingRate;
+				if (!n64AudioLibrary.ReplaceSfxWithWavData(alBankCurrent, sfxSel, m_ldFile.GetPathName(), samplingRate, AL_ADPCM_WAVE, decode8, true))
+					return;
+
+				float sampleRateRef = alBankCurrent->samplerate;
+
+				if (sampleRateRef != samplingRate)
+				{
+					CString tempStr;
+					tempStr.Format("Warning sampling rate of wav %d is not equal to sampling rate of %d", samplingRate, alBankCurrent->samplerate);
+					//MessageBox(tempStr, "Warning");
+				}
+
+				OnCbnSelchangeCombosfx();
+			}
+		}
+	}
+}
+void CN64SoundListToolDlg::OnBnClickedButtondeletepercussionbank()
+{
+	if (alBankCurrent != NULL)
+	{
+		int percussionSel = mPercussionChoice.GetCurSel();
+
+		if (percussionSel == -1)
+			return;
+
+		if (
+			(alBankCurrent->soundBankFormat == STANDARDFORMAT)
+			|| (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)
+			|| (alBankCurrent->soundBankFormat == STANDARDFORMATRAWALLOWED)
+			|| (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)
+			|| (alBankCurrent->soundBankFormat == ZLIBSTANDARD)
+			|| (alBankCurrent->soundBankFormat == BLASTCORPSZLBSTANDARD)
+			|| (alBankCurrent->soundBankFormat == BANJOTOOIEAUDIO)
+			|| (alBankCurrent->soundBankFormat == TUROKFORMAT)
+			|| (alBankCurrent->soundBankFormat == MKMYTHOLOGIES)
+			|| (alBankCurrent->soundBankFormat == TITUS)
+			|| (alBankCurrent->soundBankFormat == NINDEC)
+			|| (alBankCurrent->soundBankFormat == KONAMICTL)
+			|| (alBankCurrent->soundBankFormat == KONAMI8CTL)
+			)
+		{
+			if (alBankCurrent->percussion != NULL)
+			{
+				n64AudioLibrary.DisposeALInst(alBankCurrent->percussion);
+
+				alBankCurrent->percussion = NULL;
+
+				percussionMode = NORMAL;
+
+				OnCbnSelchangeCombosoundbank();
+			}
+		}
+		else if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+		{
+			if (alBankCurrent->countEADPercussion == 0)
+			{
+				return;
+			}
+			else if (alBankCurrent->countEADPercussion == 1)
+			{
+				n64AudioLibrary.DeleteEADPercussion(alBankCurrent, percussionSel);
+
+				percussionMode = NORMAL;
+
+				OnCbnSelchangeCombosoundbank();
+			}
+			else
+			{
+				n64AudioLibrary.DeleteEADPercussion(alBankCurrent, percussionSel);
+			
+				mPercussionChoice.ResetContent();
+
+				for (int x = 0; x < alBankCurrent->countEADPercussion; x++)
+				{
+					CString tempStr;
+					tempStr.Format("%04X", x);
+					mPercussionChoice.AddString(tempStr);
+				}
+
+				if (percussionSel >= alBankCurrent->countEADPercussion)
+					mPercussionChoice.SetCurSel(alBankCurrent->countEADPercussion-1);
+				else
+					mPercussionChoice.SetCurSel(percussionSel);
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnBnClickedButtonaddpercussionbank()
+{
+	if (alBankCurrent != NULL)
+	{
+		int percussionSel = mPercussionChoice.GetCurSel();
+
+		if (
+			(alBankCurrent->soundBankFormat == STANDARDFORMAT)
+			|| (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)
+			|| (alBankCurrent->soundBankFormat == STANDARDFORMATRAWALLOWED)
+			|| (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)
+			|| (alBankCurrent->soundBankFormat == ZLIBSTANDARD)
+			|| (alBankCurrent->soundBankFormat == BLASTCORPSZLBSTANDARD)
+			|| (alBankCurrent->soundBankFormat == BANJOTOOIEAUDIO)
+			|| (alBankCurrent->soundBankFormat == TUROKFORMAT)
+			|| (alBankCurrent->soundBankFormat == MKMYTHOLOGIES)
+			|| (alBankCurrent->soundBankFormat == TITUS)
+			|| (alBankCurrent->soundBankFormat == NINDEC)
+			|| (alBankCurrent->soundBankFormat == KONAMICTL)
+			|| (alBankCurrent->soundBankFormat == KONAMI8CTL)
+			)
+		{
+			if (alBankCurrent->percussion == NULL)
+			{
+				alBankCurrent->percussion = new ALInst();
+
+				alBankCurrent->percussion->soundCount = 0;
+				alBankCurrent->percussion->sounds = NULL;
+
+				OnCbnSelchangeCombosoundbank();
+
+				percussionMode = PERCUSSION;
+
+				OnCbnSelchangeCombopercussion();
+			}
+		}
+		else if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+		{
+			if ((percussionSel == -1) && (alBankCurrent->countEADPercussion > 0))
+				return;
+
+			if (n64AudioLibrary.AddEADPercussion(alBankCurrent))
+			{
+				if (alBankCurrent->countEADPercussion == 1)
+				{
+					OnCbnSelchangeCombosoundbank();
+
+					percussionMode = EADPERCUSSION;
+
+					OnCbnSelchangeCombopercussion();
+				}
+				else
+				{
+					mPercussionChoice.ResetContent();
+
+					for (int x = 0; x < alBankCurrent->countEADPercussion; x++)
+					{
+						CString tempStr;
+						tempStr.Format("%04X", x);
+						mPercussionChoice.AddString(tempStr);
+					}
+
+					mPercussionChoice.SetCurSel(alBankCurrent->countEADPercussion - 1);
+
+					OnCbnSelchangeCombopercussion();
+				}
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnBnClickedButtondeletesfxbank()
+{
+	if (alBankCurrent != NULL)
+	{
+		int sfxSel = mSfxChoice.GetCurSel();
+
+		if (sfxSel == -1)
+			return;
+
+		if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+		{
+			if (alBankCurrent->countSfx == 0)
+			{
+				return;
+			}
+			else if (alBankCurrent->countSfx == 1)
+			{
+				n64AudioLibrary.DeleteSfx(alBankCurrent, sfxSel);
+
+				percussionMode = NORMAL;
+
+				OnCbnSelchangeCombosoundbank();
+			}
+			else
+			{
+				n64AudioLibrary.DeleteSfx(alBankCurrent, sfxSel);
+			
+				mSfxChoice.ResetContent();
+
+				for (int x = 0; x < alBankCurrent->countSfx; x++)
+				{
+					CString tempStr;
+					tempStr.Format("%04X", x);
+					mSfxChoice.AddString(tempStr);
+				}
+
+				if (sfxSel >= alBankCurrent->countSfx)
+					mSfxChoice.SetCurSel(alBankCurrent->countSfx-1);
+				else
+					mSfxChoice.SetCurSel(sfxSel);
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnBnClickedButtonaddsfxbank()
+{
+	if (alBankCurrent != NULL)
+	{
+		int sfxSel = mSfxChoice.GetCurSel();
+
+		if ((alBankCurrent->soundBankFormat == SUPERMARIO64FORMAT)
+				|| (alBankCurrent->soundBankFormat == ZELDAFORMAT)
+				|| (alBankCurrent->soundBankFormat == STARFOX64FORMAT))
+		{
+			if ((sfxSel == -1) && (alBankCurrent->countSfx > 0))
+				return;
+
+			if (n64AudioLibrary.AddSfx(alBankCurrent))
+			{
+				if (alBankCurrent->countSfx == 1)
+				{
+					OnCbnSelchangeCombosoundbank();
+
+					percussionMode = SFX;
+
+					OnCbnSelchangeCombosfx();
+				}
+				else
+				{
+					mSfxChoice.ResetContent();
+
+					for (int x = 0; x < alBankCurrent->countSfx; x++)
+					{
+						CString tempStr;
+						tempStr.Format("%04X", x);
+						mSfxChoice.AddString(tempStr);
+					}
+
+					mSfxChoice.SetCurSel(alBankCurrent->countSfx - 1);
+
+					OnCbnSelchangeCombosfx();
+				}
+			}
+		}
+	}
 }

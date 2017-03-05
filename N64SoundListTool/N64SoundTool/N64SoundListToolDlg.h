@@ -262,4 +262,17 @@ public:
 	CButton mImportFromSDKTools;
 	afx_msg void OnBnClickedButtonkonamiadsrbutton();
 	CButton mKonamiADSREditorButton;
+	CStatic mLabelTableIndex;
+	CEdit mTableIndex;
+	CButton mCheckUnknownEADFlag;
+	CButton m_import16BitADPCMSamePred;
+	afx_msg void OnBnClickedButtonvadpcmimportsamepred();
+	CButton mDeletePercussionBank;
+	CButton mAddPercussionBank;
+	CButton mDeleteSfxBank;
+	CButton mAddSfxBank;
+	afx_msg void OnBnClickedButtondeletepercussionbank();
+	afx_msg void OnBnClickedButtonaddpercussionbank();
+	afx_msg void OnBnClickedButtondeletesfxbank();
+	afx_msg void OnBnClickedButtonaddsfxbank();
 };
