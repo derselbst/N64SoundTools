@@ -518,8 +518,84 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 				currentSpot += 8;
 			}		
 		}
+	}
+	else if (gameName.CompareNoCase("MarioParty") == 0)
+	{
+		compressed = false;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			unsigned long start = ReadAddiuAddress(buffer, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end) + 4;
 
-		
+			int numberMusicData = CharArrayToShort(&buffer[start-2]);
+			
+			unsigned long currentSpot = start;
+			
+			int currentBinaryNumber = 0;
+			while (currentBinaryNumber < numberMusicData)
+			{
+				unsigned long musicOffset = (CharArrayToLong(&buffer[currentSpot]) + (start - 4));
+				unsigned long size = CharArrayToLong(&buffer[currentSpot+4]);
+
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X", musicOffset, size);
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+
+				if (calculateInstrumentCount)
+				{
+					int numberInstTemp = 0;
+					bool hasLoopPoint = false;
+					int loopStart = 0;
+					int loopEnd = 0;
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, size, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+					if (numberInstTemp > numberInstruments)
+						numberInstruments = numberInstTemp;
+					::DeleteFile("asdasdaw43.mid");
+				}
+
+				currentBinaryNumber++;
+				currentSpot += 8;
+			}		
+		}
+	}
+	else if (gameName.CompareNoCase("MarioPartyMBF0") == 0)
+	{
+		compressed = false;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			unsigned long start = ReadAddiuAddress(buffer, gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end);
+
+			int numberMusicData = CharArrayToShort(&buffer[start+6]);
+			
+			unsigned long currentSpot = start + 0x40;
+			
+			int currentBinaryNumber = 0;
+			while (currentBinaryNumber < numberMusicData)
+			{
+				unsigned long musicOffset = (CharArrayToLong(&buffer[currentSpot + 0x8]) + start);
+				unsigned long size = (CharArrayToLong(&buffer[currentSpot + 0xC]));
+
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X", musicOffset, size);
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+
+				if (calculateInstrumentCount)
+				{
+					int numberInstTemp = 0;
+					bool hasLoopPoint = false;
+					int loopStart = 0;
+					int loopEnd = 0;
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, musicOffset, size, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+					if (numberInstTemp > numberInstruments)
+						numberInstruments = numberInstTemp;
+					::DeleteFile("asdasdaw43.mid");
+				}
+
+				currentBinaryNumber++;
+				currentSpot += 0x10;
+			}		
+		}
 	}
 	else if (gameName.CompareNoCase("Glover") == 0)
 	{

@@ -2,7 +2,7 @@
 //
 
 #pragma once
-#include "vld.h"
+//#include "vld.h"
 
 #include "..\N64MidiLibrary\MidiParse.h"
 #include "..\N64MidiToolReader\N64MidiToolReader.h"
@@ -83,7 +83,7 @@ public:
 	CEdit m_numberInstruments;
 	CEdit mLoopPoint;
 	CButton mNoRepeaters;
-	afx_msg void OnBnClickedButton4();
+	afx_msg void OnBnClickedLoopDebug();
 	afx_msg void OnBnClickedButtongenmidis();
 	CButton mSeparateByInstrument;
 	CButton mDebugTextFile;
@@ -97,6 +97,9 @@ public:
 	CButton mExtendSmallerTracksToEnd;
 	afx_msg void OnBnClickedCheckextendloopstohighesttrack();
 	afx_msg void OnBnClickedCheckoutputloop();
+	CStatic mGameName;
 	CStatic mMidiType;
+	CStatic mMasterTrackEffectLabel2;
 	CComboBox mMasterTrackEffect2;
+	CStatic mEffectGroupBox;
 };

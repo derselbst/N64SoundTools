@@ -45,7 +45,10 @@ void CN64MidiToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_EDITOUTPUTLOOPCOUNT, mOutputLoopCount);
 	DDX_Control(pDX, IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK, mExtendSmallerTracksToEnd);
 	DDX_Control(pDX, IDC_MIDITYPE, mMidiType);
+	DDX_Control(pDX, IDC_GAMENAME, mGameName);
 	DDX_Control(pDX, IDC_COMBOMASTERTRACKEFFECT2, mMasterTrackEffect2);
+	DDX_Control(pDX, IDC_MASTERTRACKEFFECTLABEL2, mMasterTrackEffectLabel2);
+	DDX_Control(pDX, IDC_GROUPEFFECTS, mEffectGroupBox);
 }
 
 BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
@@ -64,7 +67,7 @@ BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTONPLAYMIDI, &CN64MidiToolDlg::OnBnClickedButtonplaymidi)
 	ON_BN_CLICKED(IDC_BUTTONSCANDIRFORMIDIS, &CN64MidiToolDlg::OnBnClickedButtonscandirformidis)
 	ON_BN_CLICKED(IDC_BUTTONRIPROMS, &CN64MidiToolDlg::OnBnClickedButtonriproms)
-	ON_BN_CLICKED(IDC_BUTTON4, &CN64MidiToolDlg::OnBnClickedButton4)
+	ON_BN_CLICKED(IDC_BUTTONLOOPDEBUG, &CN64MidiToolDlg::OnBnClickedLoopDebug)
 	ON_BN_CLICKED(IDC_BUTTONGENMIDIS, &CN64MidiToolDlg::OnBnClickedButtongenmidis)
 	ON_BN_CLICKED(IDC_CHECKSHOWBFX, &CN64MidiToolDlg::OnBnClickedCheckshowbfx)
 	ON_BN_CLICKED(IDC_CHECKEXTENDLOOPSTOHIGHESTTRACK, &CN64MidiToolDlg::OnBnClickedCheckextendloopstohighesttrack)
@@ -445,8 +448,10 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			}
 		}
 
+		mGameName.ShowWindow(SW_SHOW);
 		mMidiType.ShowWindow(SW_SHOW);
-		mMidiType.SetWindowText(gameConfig[gameNumber].gameName + " - " + gameConfig[gameNumber].gameType);
+		mGameName.SetWindowText(gameConfig[gameNumber].gameName);
+		mMidiType.SetWindowText(gameConfig[gameNumber].gameType);
 
 		std::vector<CString> addMidiStrings;
 		int numberMidiStrings = 0;
@@ -466,7 +471,7 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		}
 		else
 		{
-			mExtendSmallerTracksToEnd.SetWindowText("Extend Smaller Tracks to End");
+			mExtendSmallerTracksToEnd.SetWindowText("Extend Short Tracks");
 		}
 		if ((gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("BlitzSng") == 0)
@@ -500,15 +505,20 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mMasterTrackEffect.AddString("03 = Chorus");
 			mMasterTrackEffect.AddString("04 = Flange");
 			mMasterTrackEffect.AddString("05 = Echo");
+			mEffectGroupBox.ShowWindow(SW_SHOW);
 			mMasterTrackEffectLabel.ShowWindow(SW_SHOW);
+			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_SHOW);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
 		}
 		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0))
 		{
+			mEffectGroupBox.ShowWindow(SW_SHOW);
 			mMasterTrackEffectLabel.ShowWindow(SW_SHOW);
-			mMasterTrackEffectLabel.SetWindowText("Separation Amt\r\nEcho Length");
+			mMasterTrackEffectLabel.SetWindowText("Separation Amt");
+			mMasterTrackEffectLabel2.ShowWindow(SW_SHOW);
+			mMasterTrackEffectLabel2.SetWindowText("Echo Length");
 
 			mMasterTrackEffect.ResetContent();
 			mMasterTrackEffect2.ResetContent();
@@ -530,21 +540,27 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		}
 		else if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
 		{
+			mEffectGroupBox.ShowWindow(SW_SHOW);
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_SHOW);
 			mMasterTrackEffect2.ShowWindow(SW_SHOW);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
 		}
 		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Factor5Zlb") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5LZGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbNoHeaderGCStyle") == 0))
 		{
+			mEffectGroupBox.ShowWindow(SW_HIDE);
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
 		}
 		else
 		{
+			mEffectGroupBox.ShowWindow(SW_HIDE);
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_HIDE);
@@ -2971,7 +2987,7 @@ void CN64MidiToolDlg::OnBnClickedButtonriproms()
 	}
 }
 
-void CN64MidiToolDlg::OnBnClickedButton4()
+void CN64MidiToolDlg::OnBnClickedLoopDebug()
 {
 	CFileDialog m_ldFile(TRUE, NULL, "GEMidi.bin", OFN_HIDEREADONLY, "Bin (*.bin)|*.bin|", this);
 

@@ -1000,7 +1000,7 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
+									if ((trackEventsSub[i].absoluteTime >= shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
 										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
@@ -9256,7 +9256,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 
 								for (int i = (eventCount+1); i < trackEventCountSub; i++)
 								{
-									if ((trackEventsSub[i].absoluteTime > shutoffTime) && (i != (trackEventCountSub - 1)))
+									if ((trackEventsSub[i].absoluteTime >= shutoffTime) && (i != (trackEventCountSub - 1)))
 									{
 										for (int j = (trackEventCountSub - 1); j >= i; j--)
 										{
@@ -9672,7 +9672,7 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 						{
 							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 							
 						}
 						else if (subType == 0x2E) // start loop
@@ -9917,7 +9917,7 @@ bool CMidiParse::AddLoopGEFormat(byte* inputMID, CString output, int inputSize, 
 						{
 							byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 							
 						}
 						else if (subType == 0x2E) // start loop
@@ -13457,7 +13457,7 @@ void CMidiParse::GEMidiToDebugTextFile(byte* inputMID, int inputSize, CString te
 						
 						byte loopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
 						byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true);
-						unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, true));
+						unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 
 						if (statusBit)
 							fprintf(outFile, "!%02X%02X%02X%08X Count %u LoopCount %u OffsetBeginning %u (%04X)", subType, loopCount, currentLoopCount, offsetToBeginningLoop, loopCount, currentLoopCount, offsetToBeginningLoop, (position - offsetToBeginningLoop));
