@@ -8902,6 +8902,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 	
 				int previousEventValue = 0;
 
+				std::vector<int> loopNumbers;
 				std::map<int, int> loopEndsWithCount;
 
 				byte* repeatPattern = NULL;
@@ -9014,6 +9015,21 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 							byte currentLoopCount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 							unsigned long offsetToBeginningLoop = ((((((ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false)) << 8) | ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false));
 
+							int loopNumber = 0;
+							if (loopNumbers.size() > 0)
+							{
+								loopNumber = loopNumbers.back();
+								loopNumbers.pop_back();
+							}
+
+							// Fake loop end, controller 103
+							trackEventsSub[trackEventCountSub].type = 0xB0 | (iii & 0xF);
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							trackEventsSub[trackEventCountSub].contents[0] = 103;
+							trackEventsSub[trackEventCountSub].contents[1] = loopNumber;
+							trackEventCountSub++;
+
 							if ((loopCount == 0xFF) || (loopCount == 0x00))
 							{
 								hasLoopPoint = true;
@@ -9072,8 +9088,18 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 							byte loopNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 							
+							// Fake loop start, controller 102
+							trackEventsSub[trackEventCountSub].type = 0xB0 | (iii & 0xF);
+							trackEventsSub[trackEventCountSub].contentSize = 2;
+							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+							trackEventsSub[trackEventCountSub].contents[0] = 102;
+							trackEventsSub[trackEventCountSub].contents[1] = loopNumber;
+							trackEventCountSub++;
+
 							hasLoopPoint = true;
 							loopStart = absoluteTime;
+
+							loopNumbers.push_back(loopNumber);
 						}
 						else if (subType == 0x2F)
 						{
