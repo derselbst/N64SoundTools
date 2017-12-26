@@ -205,6 +205,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MORTDecoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath="n643docompression.cpp"
 				>
 			</File>
@@ -324,6 +328,10 @@
 			</File>
 			<File
 				RelativePath="MKMythologiesDecode.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MORTDecoder.h"
 				>
 			</File>
 			<File

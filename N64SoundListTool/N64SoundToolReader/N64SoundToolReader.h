@@ -42,6 +42,24 @@ struct CtlTblConfig
 	}
 };
 
+struct T1Config
+{
+	unsigned long t1Start;
+	unsigned long t1End;
+
+	int bankReferenceStart;
+	int bankReferenceEnd;
+
+	T1Config()
+	{
+		t1Start = 0;
+		t1End = 0;
+
+		bankReferenceStart = 0;
+		bankReferenceEnd = 0;
+	}
+};
+
 struct SoundGameConfig
 {
 	int numberSoundBanks;
@@ -60,6 +78,8 @@ struct SoundGameConfig
 	unsigned long endZeldaCtlData;
 	unsigned long endZeldaTblData;
 
+	std::vector<T1Config> t1Config;
+
 	SoundGameConfig()
 	{
 		soundBanks = NULL;
@@ -77,6 +97,8 @@ struct SoundGameConfig
 		isCompressedZeldaCtlTblTables = false;
 		compressedZeldaCtlTblTableStart = 0x00000000;
 		compressedZeldaCtlTblTableEnd = 0x00000000;
+
+		t1Config.clear();
 	}
 };
 
@@ -92,6 +114,6 @@ public:
 
 	static unsigned long GetRegionSize(unsigned long currentSpot, SoundGameConfig gameConfig, unsigned long romSize);
 
-	static void ReadSoundbanks(unsigned char* ROM, int romSize, SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results);
+	static void ReadSoundbanks(unsigned char* ROM, int romSize, SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results, std::vector<t1Result>& t1results);
 	static CN64AIFCAudio n64AudioLibrary;
 };

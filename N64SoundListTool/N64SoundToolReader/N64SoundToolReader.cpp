@@ -231,6 +231,7 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 
 	bool overrideSamplingRate = false;
 	int samplingRate = 22050;
+	T1Config t1TempConfig;
 
 	while (!feof(inIni))
 	{
@@ -350,6 +351,32 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 				line.Replace("CompressedZeldaCtlTblTableEnd", "");
 				line.Replace(":", "");
 				gameConfig[countGames].compressedZeldaCtlTblTableEnd = StringHexToLong(line);
+			}
+			else if ((line.Find("T1StartBank")) != -1)
+			{
+				line.Replace("T1StartBank", "");
+				line.Replace(":", "");
+				t1TempConfig.bankReferenceStart = StringHexToLong(line);
+			}
+			else if ((line.Find("T1StartAddress")) != -1)
+			{
+				line.Replace("T1StartAddress", "");
+				line.Replace(":", "");
+				t1TempConfig.t1Start = StringHexToLong(line);
+			}
+			else if ((line.Find("T1EndAddress")) != -1)
+			{
+				line.Replace("T1EndAddress", "");
+				line.Replace(":", "");
+				t1TempConfig.t1End = StringHexToLong(line);
+			}
+			else if ((line.Find("T1EndBank")) != -1)
+			{
+				line.Replace("T1EndBank", "");
+				line.Replace(":", "");
+				t1TempConfig.bankReferenceEnd = StringHexToLong(line);
+
+				gameConfig[countGames].t1Config.push_back(t1TempConfig);
 			}
 		}
 		else
@@ -487,7 +514,7 @@ unsigned long CN64SoundToolReader::GetRegionSize(unsigned long currentSpot, Soun
 	return endSpot - currentSpot;
 }
 
-void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results)
+void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundGameConfig gameConfig, int& numberResults, std::vector<ctlTblResult>& results, std::vector<t1Result>& t1results)
 {
 	numberResults = 0;
 	if (gameConfig.gameType.CompareNoCase("MultiPartERZN64WavePtrV2") == 0)
@@ -824,6 +851,24 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			}
 			else
 				results.resize(numberResults);
+		}
+
+		for (int x = 0; x < gameConfig.t1Config.size(); x++)
+		{
+			if ((gameConfig.t1Config[x].t1Start != 0) && (gameConfig.t1Config[x].t1End != 0))
+			{
+				T1Bank* t1Bank = n64AudioLibrary.ReadT1Bank(ROM, gameConfig.t1Config[x].t1Start, gameConfig.t1Config[x].t1End);
+				if (t1Bank != NULL)
+				{
+					t1Result resultT1;
+					resultT1.bank = t1Bank;
+					resultT1.t1Start = gameConfig.t1Config[x].t1Start;
+					resultT1.t1End = gameConfig.t1Config[x].t1End;
+					resultT1.bankStart = gameConfig.t1Config[x].bankReferenceStart;
+					resultT1.bankEnd = gameConfig.t1Config[x].bankReferenceEnd;
+					t1results.push_back(resultT1);
+				}
+			}
 		}
 	}
 }

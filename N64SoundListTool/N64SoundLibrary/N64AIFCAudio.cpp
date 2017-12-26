@@ -4,6 +4,7 @@
 #include "N64AIFCAudio.h"
 #include <math.h>
 #include "..\N64SoundLibrary\yaz0.h"
+#include "..\N64SoundLibrary\MORTDecoder.h"
 
 float CN64AIFCAudio::keyTable[0x100];
 
@@ -86,7 +87,7 @@ CString CN64AIFCAudio::CompareALInstrument(ALInst* alInst1, ALInst* alInst2)
 		if (alInst1->sounds[y]->wav.len != alInst2->sounds[y]->wav.len)
 			errors += "Differing sound len\r\n";
 		if (alInst1->sounds[y]->wav.type != alInst2->sounds[y]->wav.type)
-			errors += "Differing sound len\r\n";
+			errors += "Differing sound type\r\n";
 		if (alInst1->sounds[y]->wav.flags != alInst2->sounds[y]->wav.flags)
 			errors += "Differing sound flags\r\n";
 
@@ -183,7 +184,10 @@ CString CN64AIFCAudio::CompareALBanks(ALBank* alBank1, ALBank* alBank2)
 
 	for (int x = 0; x < alBank1->count; x++)
 	{
-		errors += CompareALInstrument(alBank1->inst[x], alBank2->inst[x]);
+		if (x < alBank2->count)
+		{
+			errors += CompareALInstrument(alBank1->inst[x], alBank2->inst[x]);
+		}
 	}
 
 	return errors;
@@ -1109,6 +1113,109 @@ bool CN64AIFCAudio::ExtractRawPCMData(CString mainFolder, ALBank* alBank, int in
 				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->inst[instrument]->samplerate, directory + "tempASA3d.vox", outputFile);
 				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
 			}
+			else if (alWave->type == AL_MORT_WAVE)
+			{
+				CMORTDecoder mortDecoder;
+				std::vector<unsigned short> pcmSamples;
+				// at 0 engine thought no data
+				unsigned char* tempWav = new unsigned char[0x1000 + alBank->inst[instrument]->sounds[sound]->wav.len];
+				memcpy(&tempWav[0x1000], alBank->inst[instrument]->sounds[sound]->wav.wavData, alBank->inst[instrument]->sounds[sound]->wav.len);
+				if (mortDecoder.Decode(tempWav, alBank->inst[instrument]->sounds[sound]->wav.len, 0x1000, alBank->inst[instrument]->sounds[sound]->wav.len, pcmSamples))
+				{
+					FILE* outFileTempRaw = fopen(outputFile, "wb");
+					if (outFileTempRaw == NULL)
+					{
+						delete [] tempWav;
+
+						MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+						return false;
+					}
+
+					unsigned char* wavHeader = new unsigned char[0x28];
+
+					wavHeader[0x0] = 0x52;
+					wavHeader[0x1] = 0x49;
+					wavHeader[0x2] = 0x46;
+					wavHeader[0x3] = 0x46;
+					unsigned long chunkSize = 0x28 + pcmSamples.size() + 0x44 - 0x8;
+					wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+					wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+					wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+					wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+					wavHeader[0x8] = 0x57;
+					wavHeader[0x9] = 0x41;
+					wavHeader[0xA] = 0x56;
+					wavHeader[0xB] = 0x45;
+					wavHeader[0xC] = 0x66;
+					wavHeader[0xD] = 0x6D;
+					wavHeader[0xE] = 0x74;
+					wavHeader[0xF] = 0x20;
+					wavHeader[0x10] = 0x10;
+					wavHeader[0x11] = 0x00;
+					wavHeader[0x12] = 0x00;
+					wavHeader[0x13] = 0x00;
+					wavHeader[0x14] = 0x01; //WAVE_FORMAT_PCM
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x02; //2 channels
+					wavHeader[0x17] = 0x00;
+					wavHeader[0x18] = (((unsigned long)alBank->inst[instrument]->samplerate >> 0) & 0xFF);
+					wavHeader[0x19] = (((unsigned long)alBank->inst[instrument]->samplerate >> 8) & 0xFF);
+					wavHeader[0x1A] = (((unsigned long)alBank->inst[instrument]->samplerate >> 16) & 0xFF);
+					wavHeader[0x1B] = (((unsigned long)alBank->inst[instrument]->samplerate >> 24) & 0xFF);
+					wavHeader[0x1C] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 0) & 0xFF);
+					wavHeader[0x1D] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 8) & 0xFF);
+					wavHeader[0x1E] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 16) & 0xFF);
+					wavHeader[0x1F] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 24) & 0xFF);
+					wavHeader[0x20] = 0x04;
+					wavHeader[0x21] = 0x00;
+					wavHeader[0x22] = 0x10;
+					wavHeader[0x23] = 0x00;
+					wavHeader[0x24] = 0x64;
+					wavHeader[0x25] = 0x61;
+					wavHeader[0x26] = 0x74;
+					wavHeader[0x27] = 0x61;
+
+					fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					unsigned long length = (pcmSamples.size());
+					fwrite(&length, 1, 4, outFileTempRaw);
+
+					for (size_t x = 0; x < pcmSamples.size(); x++)
+					{
+						fwrite(&(pcmSamples[x]), 1, 2, outFileTempRaw);
+					}
+
+
+					// SMPL
+					wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					fclose(outFileTempRaw);
+				}
+				delete [] tempWav;
+			}
 			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
 			else if (alWave->type == AL_MUSYX_WAVE)
 			{
@@ -1247,6 +1354,109 @@ bool CN64AIFCAudio::ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBa
 				CString tempStr;
 				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->percussion->samplerate, directory + "tempASA3d.vox", outputFile);
 				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
+			}
+			else if (alWave->type == AL_MORT_WAVE)
+			{
+				CMORTDecoder mortDecoder;
+				std::vector<unsigned short> pcmSamples;
+				unsigned char* tempWav = new unsigned char[0x1000 + alBank->percussion->sounds[sound]->wav.len];
+				memcpy(&tempWav[0x1000], alBank->percussion->sounds[sound]->wav.wavData, alBank->percussion->sounds[sound]->wav.len);
+				if (mortDecoder.Decode(tempWav, alBank->percussion->sounds[sound]->wav.len, 0x1000, alBank->percussion->sounds[sound]->wav.len, pcmSamples))
+				{
+					FILE* outFileTempRaw = fopen(outputFile, "wb");
+					if (outFileTempRaw == NULL)
+					{
+						delete [] tempWav;
+
+						MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+						return false;
+					}
+
+					unsigned char* wavHeader = new unsigned char[0x28];
+
+					wavHeader[0x0] = 0x52;
+					wavHeader[0x1] = 0x49;
+					wavHeader[0x2] = 0x46;
+					wavHeader[0x3] = 0x46;
+					unsigned long chunkSize = 0x28 + pcmSamples.size() + 0x44 - 0x8;
+					wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+					wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+					wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+					wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+					wavHeader[0x8] = 0x57;
+					wavHeader[0x9] = 0x41;
+					wavHeader[0xA] = 0x56;
+					wavHeader[0xB] = 0x45;
+					wavHeader[0xC] = 0x66;
+					wavHeader[0xD] = 0x6D;
+					wavHeader[0xE] = 0x74;
+					wavHeader[0xF] = 0x20;
+					wavHeader[0x10] = 0x10;
+					wavHeader[0x11] = 0x00;
+					wavHeader[0x12] = 0x00;
+					wavHeader[0x13] = 0x00;
+					wavHeader[0x14] = 0x01; //WAVE_FORMAT_PCM
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x02; //2 channels
+					wavHeader[0x17] = 0x00;
+					wavHeader[0x18] = (((unsigned long)alBank->percussion->samplerate >> 0) & 0xFF);
+					wavHeader[0x19] = (((unsigned long)alBank->percussion->samplerate >> 8) & 0xFF);
+					wavHeader[0x1A] = (((unsigned long)alBank->percussion->samplerate >> 16) & 0xFF);
+					wavHeader[0x1B] = (((unsigned long)alBank->percussion->samplerate >> 24) & 0xFF);
+					wavHeader[0x1C] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 0) & 0xFF);
+					wavHeader[0x1D] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 8) & 0xFF);
+					wavHeader[0x1E] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 16) & 0xFF);
+					wavHeader[0x1F] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 24) & 0xFF);
+					wavHeader[0x20] = 0x04;
+					wavHeader[0x21] = 0x00;
+					wavHeader[0x22] = 0x10;
+					wavHeader[0x23] = 0x00;
+					wavHeader[0x24] = 0x64;
+					wavHeader[0x25] = 0x61;
+					wavHeader[0x26] = 0x74;
+					wavHeader[0x27] = 0x61;
+
+					fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					unsigned long length = (pcmSamples.size());
+					fwrite(&length, 1, 4, outFileTempRaw);
+
+					for (size_t x = 0; x < pcmSamples.size(); x++)
+					{
+						fwrite(&(pcmSamples[x]), 1, 2, outFileTempRaw);
+					}
+
+
+					// SMPL
+					wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					fclose(outFileTempRaw);
+				}
+
+				delete [] tempWav;
 			}
 			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
 			else if (alWave->type == AL_MUSYX_WAVE)
@@ -1794,6 +2004,108 @@ bool CN64AIFCAudio::ExtractRawSound(CString mainFolder, ALBank* alBank, int inst
 				CString tempStr;
 				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->inst[instrument]->samplerate, directory + "tempASA3d.vox", outputFile);
 				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
+			}
+			else if (alWave->type == AL_MORT_WAVE)
+			{
+				CMORTDecoder mortDecoder;
+				std::vector<unsigned short> pcmSamples;
+				unsigned char* tempWav = new unsigned char[0x1000 + alBank->inst[instrument]->sounds[sound]->wav.len];
+				memcpy(&tempWav[0x1000], alBank->inst[instrument]->sounds[sound]->wav.wavData, alBank->inst[instrument]->sounds[sound]->wav.len);
+				if (mortDecoder.Decode(tempWav, alBank->inst[instrument]->sounds[sound]->wav.len, 0x1000, alBank->inst[instrument]->sounds[sound]->wav.len, pcmSamples))
+				{
+					FILE* outFileTempRaw = fopen(outputFile, "wb");
+					if (outFileTempRaw == NULL)
+					{
+						delete [] tempWav;
+						MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+						return false;
+					}
+
+					unsigned char* wavHeader = new unsigned char[0x28];
+
+					wavHeader[0x0] = 0x52;
+					wavHeader[0x1] = 0x49;
+					wavHeader[0x2] = 0x46;
+					wavHeader[0x3] = 0x46;
+					unsigned long chunkSize = 0x28 + pcmSamples.size() + 0x44 - 0x8;
+					wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+					wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+					wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+					wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+					wavHeader[0x8] = 0x57;
+					wavHeader[0x9] = 0x41;
+					wavHeader[0xA] = 0x56;
+					wavHeader[0xB] = 0x45;
+					wavHeader[0xC] = 0x66;
+					wavHeader[0xD] = 0x6D;
+					wavHeader[0xE] = 0x74;
+					wavHeader[0xF] = 0x20;
+					wavHeader[0x10] = 0x10;
+					wavHeader[0x11] = 0x00;
+					wavHeader[0x12] = 0x00;
+					wavHeader[0x13] = 0x00;
+					wavHeader[0x14] = 0x01; //WAVE_FORMAT_PCM
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x02; //2 channels
+					wavHeader[0x17] = 0x00;
+					wavHeader[0x18] = (((unsigned long)alBank->inst[instrument]->samplerate >> 0) & 0xFF);
+					wavHeader[0x19] = (((unsigned long)alBank->inst[instrument]->samplerate >> 8) & 0xFF);
+					wavHeader[0x1A] = (((unsigned long)alBank->inst[instrument]->samplerate >> 16) & 0xFF);
+					wavHeader[0x1B] = (((unsigned long)alBank->inst[instrument]->samplerate >> 24) & 0xFF);
+					wavHeader[0x1C] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 0) & 0xFF);
+					wavHeader[0x1D] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 8) & 0xFF);
+					wavHeader[0x1E] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 16) & 0xFF);
+					wavHeader[0x1F] = ((((unsigned long)alBank->inst[instrument]->samplerate * 2 * 2) >> 24) & 0xFF);
+					wavHeader[0x20] = 0x04;
+					wavHeader[0x21] = 0x00;
+					wavHeader[0x22] = 0x10;
+					wavHeader[0x23] = 0x00;
+					wavHeader[0x24] = 0x64;
+					wavHeader[0x25] = 0x61;
+					wavHeader[0x26] = 0x74;
+					wavHeader[0x27] = 0x61;
+
+					fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					unsigned long length = (pcmSamples.size());
+					fwrite(&length, 1, 4, outFileTempRaw);
+
+					for (size_t x = 0; x < pcmSamples.size(); x++)
+					{
+						fwrite(&(pcmSamples[x]), 1, 2, outFileTempRaw);
+					}
+
+
+					// SMPL
+					wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					fclose(outFileTempRaw);
+				}
+
+				delete [] tempWav;
 			}
 			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
 			else if (alWave->type == AL_MUSYX_WAVE)
@@ -2467,6 +2779,109 @@ bool CN64AIFCAudio::ExtractPercussion(CString mainFolder, ALBank* alBank, int so
 				tempStr.Format("sox -r %d -c 1 \"%s\" -e signed -t wavpcm \"%s\"", alBank->percussion->samplerate, directory + "tempASA3d.vox", outputFile);
 				hiddenExec(_T(tempStr.GetBuffer()), mainFolder);
 			}
+			else if (alWave->type == AL_MORT_WAVE)
+			{
+				CMORTDecoder mortDecoder;
+				std::vector<unsigned short> pcmSamples;
+				unsigned char* tempWav = new unsigned char[0x1000 + alBank->percussion->sounds[sound]->wav.len];
+				memcpy(&tempWav[0x1000],alBank->percussion->sounds[sound]->wav.wavData, alBank->percussion->sounds[sound]->wav.len);
+				if (mortDecoder.Decode(tempWav, alBank->percussion->sounds[sound]->wav.len, 0x1000, alBank->percussion->sounds[sound]->wav.len, pcmSamples))
+				{
+					FILE* outFileTempRaw = fopen(outputFile, "wb");
+					if (outFileTempRaw == NULL)
+					{
+						delete [] tempWav;
+
+						MessageBox(NULL, "Cannot open temporary file", "Error", NULL);
+						return false;
+					}
+
+					unsigned char* wavHeader = new unsigned char[0x28];
+
+					wavHeader[0x0] = 0x52;
+					wavHeader[0x1] = 0x49;
+					wavHeader[0x2] = 0x46;
+					wavHeader[0x3] = 0x46;
+					unsigned long chunkSize = 0x28 + pcmSamples.size() + 0x44 - 0x8;
+					wavHeader[0x4] = ((chunkSize >> 0) & 0xFF);
+					wavHeader[0x5] = ((chunkSize >> 8) & 0xFF);
+					wavHeader[0x6] = ((chunkSize >> 16) & 0xFF);
+					wavHeader[0x7] = ((chunkSize >> 24) & 0xFF);
+					wavHeader[0x8] = 0x57;
+					wavHeader[0x9] = 0x41;
+					wavHeader[0xA] = 0x56;
+					wavHeader[0xB] = 0x45;
+					wavHeader[0xC] = 0x66;
+					wavHeader[0xD] = 0x6D;
+					wavHeader[0xE] = 0x74;
+					wavHeader[0xF] = 0x20;
+					wavHeader[0x10] = 0x10;
+					wavHeader[0x11] = 0x00;
+					wavHeader[0x12] = 0x00;
+					wavHeader[0x13] = 0x00;
+					wavHeader[0x14] = 0x01; //WAVE_FORMAT_PCM
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x02; //2 channels
+					wavHeader[0x17] = 0x00;
+					wavHeader[0x18] = (((unsigned long)alBank->percussion->samplerate >> 0) & 0xFF);
+					wavHeader[0x19] = (((unsigned long)alBank->percussion->samplerate >> 8) & 0xFF);
+					wavHeader[0x1A] = (((unsigned long)alBank->percussion->samplerate >> 16) & 0xFF);
+					wavHeader[0x1B] = (((unsigned long)alBank->percussion->samplerate >> 24) & 0xFF);
+					wavHeader[0x1C] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 0) & 0xFF);
+					wavHeader[0x1D] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 8) & 0xFF);
+					wavHeader[0x1E] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 16) & 0xFF);
+					wavHeader[0x1F] = ((((unsigned long)alBank->percussion->samplerate * 2 * 2) >> 24) & 0xFF);
+					wavHeader[0x20] = 0x04;
+					wavHeader[0x21] = 0x00;
+					wavHeader[0x22] = 0x10;
+					wavHeader[0x23] = 0x00;
+					wavHeader[0x24] = 0x64;
+					wavHeader[0x25] = 0x61;
+					wavHeader[0x26] = 0x74;
+					wavHeader[0x27] = 0x61;
+
+					fwrite(wavHeader, 1, 0x28, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					unsigned long length = (pcmSamples.size());
+					fwrite(&length, 1, 4, outFileTempRaw);
+
+					for (size_t x = 0; x < pcmSamples.size(); x++)
+					{
+						fwrite(&(pcmSamples[x]), 1, 2, outFileTempRaw);
+					}
+
+
+					// SMPL
+					wavHeader = new unsigned char[0x44];
+					for (int x = 0; x < 0x44; x++)
+						wavHeader[x] = 0x00;
+
+					wavHeader[0x0] = 0x73;
+					wavHeader[0x1] = 0x6D;
+					wavHeader[0x2] = 0x70;
+					wavHeader[0x3] = 0x6C;
+					wavHeader[0x4] = 0x3C;
+					wavHeader[0x5] = 0x00;
+					wavHeader[0x6] = 0x00;
+					wavHeader[0x7] = 0x00;
+					
+					wavHeader[0x14] = 0x3C;
+
+					wavHeader[0x15] = 0x00;
+					wavHeader[0x16] = 0x00;
+					wavHeader[0x17] = 0x00;
+
+					fwrite(wavHeader, 1, 0x44, outFileTempRaw );
+
+					delete [] wavHeader;
+
+					fclose(outFileTempRaw);
+				}
+
+				delete [] tempWav;
+			}
 			// Full credit to Musyx goes to Bobby Smiles (from Mupen emulator)
 			else if (alWave->type == AL_MUSYX_WAVE)
 			{
@@ -2513,14 +2928,14 @@ bool CN64AIFCAudio::ExtractPercussion(CString mainFolder, ALBank* alBank, int so
 				wavHeader[0x15] = 0x00;
 				wavHeader[0x16] = 0x01;
 				wavHeader[0x17] = 0x00;
-				wavHeader[0x18] = (((unsigned long)samplingRateFloat >> 0) & 0xFF);
-				wavHeader[0x19] = (((unsigned long)samplingRateFloat >> 8) & 0xFF);
-				wavHeader[0x1A] = (((unsigned long)samplingRateFloat >> 16) & 0xFF);
-				wavHeader[0x1B] = (((unsigned long)samplingRateFloat >> 24) & 0xFF);
-				wavHeader[0x1C] = ((((unsigned long)samplingRateFloat * 2) >> 0) & 0xFF);
-				wavHeader[0x1D] = ((((unsigned long)samplingRateFloat * 2) >> 8) & 0xFF);
-				wavHeader[0x1E] = ((((unsigned long)samplingRateFloat * 2) >> 16) & 0xFF);
-				wavHeader[0x1F] = ((((unsigned long)samplingRateFloat * 2) >> 24) & 0xFF);
+				wavHeader[0x18] = (((unsigned long)alBank->percussion->samplerate >> 0) & 0xFF);
+				wavHeader[0x19] = (((unsigned long)alBank->percussion->samplerate >> 8) & 0xFF);
+				wavHeader[0x1A] = (((unsigned long)alBank->percussion->samplerate >> 16) & 0xFF);
+				wavHeader[0x1B] = (((unsigned long)alBank->percussion->samplerate >> 24) & 0xFF);
+				wavHeader[0x1C] = ((((unsigned long)alBank->percussion->samplerate * 2) >> 0) & 0xFF);
+				wavHeader[0x1D] = ((((unsigned long)alBank->percussion->samplerate * 2) >> 8) & 0xFF);
+				wavHeader[0x1E] = ((((unsigned long)alBank->percussion->samplerate * 2) >> 16) & 0xFF);
+				wavHeader[0x1F] = ((((unsigned long)alBank->percussion->samplerate * 2) >> 24) & 0xFF);
 				wavHeader[0x20] = 0x02;
 				wavHeader[0x21] = 0x00;
 				wavHeader[0x22] = 0x10;
@@ -7463,7 +7878,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{						
 							bookOffsetsWavPrevious[y] = loopOutputPosition;
 
-							/*if (sameBook == -1)
+							if (sameBook == -1)
 							{
 								for (int w = 0; w < y; w++)
 								{
@@ -7474,7 +7889,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											if (CompareBooks(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wavPrevious))
 											{
 												sameBook = w;
-												bookOffsetsWavPrevious[y] = bookOffsetsWavPrevious[x][w];
+												bookOffsetsWavPrevious[y] = bookOffsetsWavPrevious[w];
 												break;
 											}
 										}
@@ -7491,7 +7906,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										if (CompareBooks(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wav))
 										{
 											sameBook = w;
-											bookOffsetsWavPrevious[y] = bookOffsetsWav[x][w];
+											bookOffsetsWavPrevious[y] = bookOffsetsWav[w];
 											break;
 										}
 									}
@@ -7509,13 +7924,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											if (CompareBooks(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wavSecondary))
 											{
 												sameBook = w;
-												bookOffsetsWavPrevious[y] = bookOffsetsWavSecondary[x][w];
+												bookOffsetsWavPrevious[y] = bookOffsetsWavSecondary[w];
 												break;
 											}
 										}
 									}
 								}
-							}*/
+							}
 
 							if (sameBook == -1)
 							{
@@ -7540,7 +7955,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 							if (alBank->inst[y]->sounds[0]->wav.adpcmWave->loop != NULL)
 							{
-								/*if (sameLoop == -1)
+								if (sameLoop == -1)
 								{
 									for (int w = 0; w < y; w++)
 									{
@@ -7550,7 +7965,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											{
 												if (CompareLoops(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wavPrevious))
 												{
-													adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWavPrevious[x][w];
+													adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWavPrevious[w];
 													sameLoop = w;
 													break;
 												}
@@ -7567,7 +7982,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										{
 											if (CompareLoops(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wav))
 											{
-												adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWav[x][w];
+												adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWav[w];
 												sameLoop = w;
 												break;
 											}
@@ -7585,14 +8000,14 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											{
 												if (CompareLoops(&alBank->inst[y]->sounds[0]->wavPrevious, &alBank->inst[w]->sounds[0]->wavSecondary))
 												{
-													adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWavSecondary[x][w];
+													adpcmRawLoopOffsetsWavPrevious[y] = adpcmRawLoopOffsetsWavSecondary[w];
 													sameLoop = w;
 													break;
 												}
 											}
 										}
 									}
-								}*/
+								}
 							}
 							
 						}
@@ -7863,7 +8278,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 					{						
 						bookOffsetsWav[y] = loopOutputPosition;
 
-						/*if (sameBook == -1)
+						if (sameBook == -1)
 						{
 							for (int w = 0; w < (y + 1); w++)
 							{
@@ -7874,7 +8289,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										if (CompareBooks(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wavPrevious))
 										{
 											sameBook = w;
-											bookOffsetsWav[y] = bookOffsetsWavPrevious[x][w];
+											bookOffsetsWav[y] = bookOffsetsWavPrevious[w];
 											break;
 										}
 									}
@@ -7891,7 +8306,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 									if (CompareBooks(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wav))
 									{
 										sameBook = w;
-										bookOffsetsWav[y] = bookOffsetsWav[x][w];
+										bookOffsetsWav[y] = bookOffsetsWav[w];
 										break;
 									}
 								}
@@ -7909,13 +8324,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										if (CompareBooks(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wavSecondary))
 										{
 											sameBook = w;
-											bookOffsetsWav[y] = bookOffsetsWavSecondary[x][w];
+											bookOffsetsWav[y] = bookOffsetsWavSecondary[w];
 											break;
 										}
 									}
 								}
 							}
-						}*/
+						}
 
 						if (sameBook == -1)
 						{
@@ -7940,7 +8355,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 						if (alBank->inst[y]->sounds[0]->wav.adpcmWave->loop != NULL)
 						{
-							/*if (sameLoop == -1)
+							if (sameLoop == -1)
 							{
 								for (int w = 0; w < (y + 1); w++)
 								{
@@ -7950,7 +8365,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										{
 											if (CompareLoops(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wavPrevious))
 											{
-												adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWavPrevious[x][w];
+												adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWavPrevious[w];
 												sameLoop = w;
 												break;
 											}
@@ -7967,7 +8382,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 									{
 										if (CompareLoops(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wav))
 										{
-											adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWav[x][w];
+											adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWav[w];
 											sameLoop = w;
 											break;
 										}
@@ -7985,14 +8400,14 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										{
 											if (CompareLoops(&alBank->inst[y]->sounds[0]->wav, &alBank->inst[w]->sounds[0]->wavSecondary))
 											{
-												adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWavSecondary[x][w];
+												adpcmRawLoopOffsetsWav[y] = adpcmRawLoopOffsetsWavSecondary[w];
 												sameLoop = w;
 												break;
 											}
 										}
 									}
 								}
-							}*/
+							}
 						}
 						
 					}
@@ -8264,7 +8679,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 						{						
 							bookOffsetsWavSecondary[y] = loopOutputPosition;
 
-							/*if (sameBook == -1)
+							if (sameBook == -1)
 							{
 								for (int w = 0; w < (y + 1); w++)
 								{
@@ -8275,7 +8690,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											if (CompareBooks(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wavPrevious))
 											{
 												sameBook = w;
-												bookOffsetsWavSecondary[y] = bookOffsetsWavPrevious[x][w];
+												bookOffsetsWavSecondary[y] = bookOffsetsWavPrevious[w];
 												break;
 											}
 										}
@@ -8292,7 +8707,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										if (CompareBooks(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wav))
 										{
 											sameBook = w;
-											bookOffsetsWavSecondary[y] = bookOffsetsWav[x][w];
+											bookOffsetsWavSecondary[y] = bookOffsetsWav[w];
 											break;
 										}
 									}
@@ -8310,13 +8725,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											if (CompareBooks(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wavSecondary))
 											{
 												sameBook = w;
-												bookOffsetsWavSecondary[y] = bookOffsetsWavSecondary[x][w];
+												bookOffsetsWavSecondary[y] = bookOffsetsWavSecondary[w];
 												break;
 											}
 										}
 									}
 								}
-							}*/
+							}
 
 							if (sameBook == -1)
 							{
@@ -8341,7 +8756,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 							if (alBank->inst[y]->sounds[0]->wavSecondary.adpcmWave->loop != NULL)
 							{
-								/*if (sameLoop == -1)
+								if (sameLoop == -1)
 								{
 									for (int w = 0; w < (y + 1); w++)
 									{
@@ -8351,7 +8766,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											{
 												if (CompareLoops(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wavPrevious))
 												{
-													adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWavPrevious[x][w];
+													adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWavPrevious[w];
 													sameLoop = w;
 													break;
 												}
@@ -8368,7 +8783,7 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 										{
 											if (CompareLoops(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wav))
 											{
-												adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWav[x][w];
+												adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWav[w];
 												sameLoop = w;
 												break;
 											}
@@ -8386,14 +8801,14 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 											{
 												if (CompareLoops(&alBank->inst[y]->sounds[0]->wavSecondary, &alBank->inst[w]->sounds[0]->wavSecondary))
 												{
-													adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWavSecondary[x][w];
+													adpcmRawLoopOffsetsWavSecondary[y] = adpcmRawLoopOffsetsWavSecondary[w];
 													sameLoop = w;
 													break;
 												}
 											}
 										}
 									}
-								}*/
+								}
 							}
 						}
 						else
@@ -8574,6 +8989,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 		for (int y = 0; y < alBank->countEADPercussion; y++)
 		{
+			if(alBank->eadPercussion[y].wav.adpcmWave == NULL)
+			{
+				offsetsWav[startPercussionInListing+y] = 0;
+				continue;
+			}
+
+
 			offsetsWav[startPercussionInListing+y] = (outputCtlCounter - soundDataOffset);
 
 			int entireMatch = -1;
@@ -9066,6 +9488,13 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 		for (int y = 0; y < alBank->countEADPercussion; y++)
 		{
+			if(alBank->eadPercussion[y].wav.adpcmWave == NULL)
+			{
+				offsetsEnv[startPercussionInListing+y] = 0;
+				continue;
+			}
+
+
 			offsetsEnv[startPercussionInListing+y] = (outputCtlCounter - soundDataOffset);
 
 			bool foundPast = false;
@@ -9190,6 +9619,10 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 			unsigned long startPercussionDataOffsets = (outputCtlCounter  - soundDataOffset);
 			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
+				if(alBank->eadPercussion[y].wav.adpcmWave == NULL)
+					continue;
+
+
 				temporaryCtlBuffer[outputCtlCounter] = alBank->eadPercussion[y].unknown1A;
 				outputCtlCounter++;
 
@@ -9216,7 +9649,10 @@ void CN64AIFCAudio::WriteAudioSuperMario(std::vector<ctlTblResult>& results, uns
 
 			for (int y = 0; y < alBank->countEADPercussion; y++)
 			{
-				WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, startPercussionDataOffsets + (y * 0x10));
+				if(alBank->eadPercussion[y].wav.adpcmWave == NULL)
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, 0);
+				else
+					WriteLongToBuffer(temporaryCtlBuffer, outputCtlCounter, startPercussionDataOffsets + (y * 0x10));
 				outputCtlCounter += 4;
 			}
 
@@ -10230,6 +10666,31 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 
 	for (int x = 0; x < alBank->count; x++)
 	{
+		if (alBank->percussion != NULL)
+		{
+			CString percussionIdentical = CompareALInstrument(alBank->inst[x], alBank->percussion);
+			if (percussionIdentical == "")
+			{
+				continue;
+			}
+		}
+
+		int instrumentMatch = -1;
+		for (int xx = 0; xx < x; xx++)
+		{
+			CString instrumentIdentical = CompareALInstrument(alBank->inst[x], alBank->inst[xx]);
+			if (instrumentIdentical == "")
+			{
+				instrumentMatch = xx;
+				break;
+			}
+		}
+
+		if (instrumentMatch != -1)
+		{
+			continue;
+		}
+
 		unsigned long wavStart = outputCtlCounter;
 
 		for (int y = 0; y < alBank->inst[x]->soundCount; y++)
@@ -10904,6 +11365,35 @@ void CN64AIFCAudio::WriteAudio(ALBank*& alBank, unsigned char*& ctl, int& ctlSiz
 
 	for (int y = 0; y < alBank->count; y++)
 	{
+		int instrumentMatch = -1;
+		for (int xx = 0; xx < y; xx++)
+		{
+			CString instrumentIdentical = CompareALInstrument(alBank->inst[y], alBank->inst[xx]);
+			if (instrumentIdentical == "")
+			{
+				instrumentMatch = xx;
+				break;
+			}
+		}
+
+		if (instrumentMatch != -1)
+		{
+			instrumentALLookup[y] = instrumentALLookup[instrumentMatch];
+			continue;
+		}
+		else
+		{
+			if (alBank->percussion != NULL)
+			{
+				CString percussionIdentical = CompareALInstrument(alBank->inst[y], alBank->percussion);
+				if (percussionIdentical == "")
+				{
+					instrumentALLookup[y] = percussionALLookup;
+					continue;
+				}
+			}
+		}
+
 		instrumentALLookup[y] = outputCtlCounter;
 		temporaryCtlBuffer[outputCtlCounter++] = alBank->inst[y]->volume;
 		temporaryCtlBuffer[outputCtlCounter++] = alBank->inst[y]->pan;
@@ -11995,6 +12485,15 @@ void CN64AIFCAudio::DisposeALInst(ALInst*& alInst)
 	delete alInst;
 }
 
+void CN64AIFCAudio::DisposeT1Bank(T1Bank*& t1Bank)
+{
+	if (t1Bank != NULL)
+	{
+		delete t1Bank;
+		t1Bank = NULL;
+	}
+}
+
 void CN64AIFCAudio::DisposeALBank(ALBank*& alBank)
 {
 	if (alBank != NULL)
@@ -12745,6 +13244,12 @@ ALBank* CN64AIFCAudio::ReadAudioN64SN64(unsigned char* ctl, unsigned long& ctlSi
 			unsigned long dataOffset = ctlOffset + (numberInstruments * 0x4);
 			if ((dataOffset % 0x8) != 0)
 				dataOffset += 4;
+
+			alBank->inst[x]->sounds[0]->floatKeyBase = ctl[dataOffset + 4];
+			alBank->inst[x]->pan = ctl[dataOffset + 1];
+			alBank->inst[x]->volume = ctl[dataOffset + 2];
+
+			// Maybe ?? Vol Pan Keybase, 0x14 per
 			unsigned long dataNumber = (CharArrayToShort(&ctl[dataOffset + (instrumentNumber * 0x14)+ 0xA]) & mask);
 
 			dataOffset = dataOffset + (numberElementsSectionOne * 0x14);
@@ -15101,18 +15606,17 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 
 			if ((alBank->inst[x]->flags == 0x0) || (alBank->inst[x]->flags == 0x1))
 			{
-				int y = 0;
-
 				alBank->inst[x]->soundCount = 1;
 
 				alBank->inst[x]->sounds = new ALSound*[alBank->inst[x]->soundCount];
 
-				for (int y = 0; y < alBank->inst[x]->soundCount; y++)
+				for (int r = 0; r < alBank->inst[x]->soundCount; r++)
 				{
-					alBank->inst[x]->sounds[y] = new ALSound();
-					alBank->inst[x]->sounds[y]->wav.wavData = NULL;
+					alBank->inst[x]->sounds[r] = new ALSound();
+					alBank->inst[x]->sounds[r]->wav.wavData = NULL;
 				}
 
+				int y = 0;
 				unsigned long offsetSound = CharArrayToLong(&ctl[offsetSoundData + 4 + x*0x4]);
 				if (offsetSound == 0x0)
 				{
@@ -15188,7 +15692,8 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 						alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
 						alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
 
-						if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start != 0)
+						if (alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->start != 0 ||
+							alBank->inst[x]->sounds[y]->wav.adpcmWave->loop->count != 0)
 						{
 							for (int z = 0; z < 0x10; z++)
 							{
@@ -15270,7 +15775,9 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 							alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffsetSecondary + 0x8]);
 							alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffsetSecondary + 0xC]);
 
-							if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop->start != 0)
+							if (alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop->start != 0 ||
+								alBank->inst[x]->sounds[y]->wavSecondary.adpcmWave->loop->count != 0)
+
 							{
 								for (int z = 0; z < 0x10; z++)
 								{
@@ -15352,7 +15859,9 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 							alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffsetPrevious + 0x8]);
 							alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffsetPrevious + 0xC]);
 
-							if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop->start != 0)
+							if (alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop->start != 0 ||
+								alBank->inst[x]->sounds[y]->wavPrevious.adpcmWave->loop->count != 0)
+
 							{
 								for (int z = 0; z < 0x10; z++)
 								{
@@ -15463,7 +15972,8 @@ ALBank* CN64AIFCAudio::ReadAudioMario(unsigned char* ctl, unsigned long& ctlSize
 					alBank->eadPercussion[y].wav.adpcmWave->loop->count = CharArrayToLong(&ctl[loopOffset + 0x8]);
 					alBank->eadPercussion[y].wav.adpcmWave->loop->unknown1 = CharArrayToLong(&ctl[loopOffset + 0xC]);
 
-					if (alBank->eadPercussion[y].wav.adpcmWave->loop->start != 0)
+					if (alBank->eadPercussion[y].wav.adpcmWave->loop->start != 0 ||
+						alBank->eadPercussion[y].wav.adpcmWave->loop->count != 0)
 					{
 						for (int z = 0; z < 0x10; z++)
 						{
@@ -15700,6 +16210,60 @@ ALBank* CN64AIFCAudio::ReadAudioVox(unsigned char* ctl, int ctlSize, int ctlOffs
 		
 
 		alBank->inst[0]->sounds[y]->wav.type = AL_VOX_WAVE;
+		alBank->inst[0]->sounds[y]->wav.flags = 0;
+		// MUST PAD to 4s
+		
+		alBank->inst[0]->sounds[y]->wav.adpcmWave = NULL;
+		alBank->inst[0]->sounds[y]->wav.rawWave = NULL;
+	}
+
+	return alBank;
+}
+
+ALBank* CN64AIFCAudio::ReadAudioMORT(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl)
+{
+	ALBank* alBank = new ALBank();
+	alBank->soundBankFormat = MORT;
+	alBank->count = 1;
+	alBank->flags = 0;
+	alBank->percussion = NULL;
+	alBank->eadPercussion = NULL;
+	alBank->countEADPercussion = 0;
+
+	int numberBanks = 1;
+	alBank->inst = new ALInst*[numberBanks];
+
+	alBank->inst[0] = new ALInst();
+	alBank->inst[0]->samplerate = 44100;
+	alBank->inst[0]->sounds = NULL;
+
+	alBank->inst[0]->soundCount = 1;
+
+	alBank->inst[0]->sounds = new ALSound*[alBank->inst[0]->soundCount];
+
+	for (int y = 0; y < alBank->inst[0]->soundCount; y++)
+	{
+		alBank->inst[0]->sounds[y] = new ALSound();
+		alBank->inst[0]->sounds[y]->wav.wavData = NULL;
+
+		alBank->inst[0]->samplerate = CharArrayToShort(&ctl[ctlOffset + 6]);
+	}
+
+	for (int y = 0; y < alBank->inst[0]->soundCount; y++)
+	{
+		alBank->inst[0]->sounds[y]->flags = 0;
+
+		alBank->inst[0]->sounds[y]->wav.base = ctlOffset;
+		alBank->inst[0]->sounds[y]->wav.len = ctlSize;
+		alBank->inst[0]->sounds[y]->wav.wavData = new unsigned char[ctlSize];
+
+		for (int  r = 0; r < alBank->inst[0]->sounds[y]->wav.len; r++)
+		{
+			alBank->inst[0]->sounds[y]->wav.wavData[r] = ctl[alBank->inst[0]->sounds[y]->wav.base + r];
+		}
+		
+
+		alBank->inst[0]->sounds[y]->wav.type = AL_MORT_WAVE;
 		alBank->inst[0]->sounds[y]->wav.flags = 0;
 		// MUST PAD to 4s
 		
@@ -16514,6 +17078,56 @@ ALBank* CN64AIFCAudio::ReadAudioKonami8(unsigned char* ROM, unsigned char* ctl, 
 	return alBank;
 }
 
+T1Bank* CN64AIFCAudio::ReadT1Bank(unsigned char* ROM, unsigned long t1Start, unsigned long t1End)
+{
+	T1Bank* t1Bank = NULL;;
+
+	if ((t1Start != 0x00000000) && (t1End != 0x00000000))
+	{
+		t1Bank = new T1Bank();
+
+		unsigned short numberT1 = CharArrayToShort(&ROM[t1Start + 2]);
+
+		for (int x = 0; x < numberT1; x++)
+		{
+			T1BankEntry t1BankEntry;
+			t1BankEntry.bankNumber = ROM[t1Start + 4 + (x * 8)];
+			t1BankEntry.instrumentNumber = ROM[t1Start + 4 + (x * 8) + 1];
+			t1BankEntry.soundNumber = ROM[t1Start + 4 + (x * 8) + 2];
+			t1BankEntry.flags = ROM[t1Start + 4 + (x * 8) + 3];
+			t1BankEntry.frequency = CharArrayToLong(&ROM[t1Start + 4 + (x * 8) + 4]);
+
+			t1Bank->t1Entries.push_back(t1BankEntry);
+		}
+	}
+
+	return t1Bank;
+}
+
+bool CN64AIFCAudio::WriteT1Bank(T1Bank* t1Bank, unsigned char* ROM, unsigned long t1Start, unsigned long t1End)
+{
+	if ((t1Start != 0x00000000) && (t1End != 0x00000000) && (t1Bank != NULL))
+	{
+		if ((t1Bank->t1Entries.size() * 8) > (t1End - t1Start - 4))
+		{
+			return false;
+		}
+
+		for (int x = 0; x < t1Bank->t1Entries.size(); x++)
+		{
+			ROM[t1Start + 4 + (x * 8)] = t1Bank->t1Entries[x].bankNumber;
+			ROM[t1Start + 4 + (x * 8) + 1] = t1Bank->t1Entries[x].instrumentNumber;
+			ROM[t1Start + 4 + (x * 8) + 2] = t1Bank->t1Entries[x].soundNumber;
+			ROM[t1Start + 4 + (x * 8) + 3] = t1Bank->t1Entries[x].flags;
+			WriteLongToBuffer(ROM, t1Start + 4 + (x * 8) + 4, t1Bank->t1Entries[x].frequency);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 ALBank* CN64AIFCAudio::ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask, int bankNumber)
 {
 	unsigned short numberBands = CharArrayToShort(&ctl[ctlOffset+0x2]);
@@ -16726,6 +17340,11 @@ ALBank* CN64AIFCAudio::ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctl
 			MessageBox(NULL, "Error", "Unsupported inst type in ALInst", NULL);
 			return NULL;
 		}
+	}
+	
+	else
+	{
+		alBank->percussion = NULL;
 	}
 
 	alBank->eadPercussion = NULL;
@@ -16989,7 +17608,12 @@ ALBank* CN64AIFCAudio::ReadAudioMarioParty2E(unsigned char* ROM, unsigned char* 
 
 		int x = 0;
 		{
-			alBank->inst[x]->soundCount = CharArrayToShort(&ctl[bankOffset-2]);
+			alBank->inst[x]->soundCount = CharArrayToShort(&ctl[bankOffset-2]) / 0x10;
+			if (alBank->inst[x]->soundCount == 0x0000)
+			{
+				// Mario Party
+				alBank->inst[x]->soundCount = CharArrayToLong(&ctl[bankOffset]) / 0x10;
+			}
 			alBank->inst[x]->sounds = new ALSound*[alBank->inst[x]->soundCount];
 
 			for (int y = 0; y < alBank->inst[x]->soundCount; y++)

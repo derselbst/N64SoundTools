@@ -157,6 +157,20 @@ void CN64SoundListToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_BUTTONADDPERCUSSIONBANK, mAddPercussionBank);
 	DDX_Control(pDX, IDC_BUTTONDELETESFXBANK, mDeleteSfxBank);
 	DDX_Control(pDX, IDC_BUTTONADDSFXBANK, mAddSfxBank);
+	DDX_Control(pDX, IDC_CHECKOVERRIDET1, mUseT1);
+	DDX_Control(pDX, IDC_T1GROUPLABEL, mT1GroupBox);
+	DDX_Control(pDX, IDC_T1INDEXLABEL, mT1IndexLabel);
+	DDX_Control(pDX, IDC_COMBOT1INDEXCOMBO, mT1Index);
+	DDX_Control(pDX, IDC_T1FREQUENCYLABEL, mT1FrequencyLabel);
+	DDX_Control(pDX, IDC_EDITT1FREQUENCY, mT1Frequency);
+	DDX_Control(pDX, IDC_T1SUBBANK, mT1SubBankLabel);
+	DDX_Control(pDX, IDC_COMBOT1SUBBANK, mT1SubBank);
+	DDX_Control(pDX, IDC_T1INSTRUMENTLABEL, mT1InstrumentLabel);
+	DDX_Control(pDX, IDC_COMBOT1SUBBANK2, mT1Instrument);
+	DDX_Control(pDX, IDC_T1SOUNDLABEL, mT1SoundLabel);
+	DDX_Control(pDX, IDC_COMBOT1SOUND, mT1Sound);
+	DDX_Control(pDX, IDC_T1FLAGSLABEL, mT1FlagsLabel);
+	DDX_Control(pDX, IDC_EDITT1FLAGS, mT1Flags);
 }
 
 BEGIN_MESSAGE_MAP(CN64SoundListToolDlg, CDialog)
@@ -242,6 +256,12 @@ BEGIN_MESSAGE_MAP(CN64SoundListToolDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTONADDPERCUSSIONBANK, &CN64SoundListToolDlg::OnBnClickedButtonaddpercussionbank)
 	ON_BN_CLICKED(IDC_BUTTONDELETESFXBANK, &CN64SoundListToolDlg::OnBnClickedButtondeletesfxbank)
 	ON_BN_CLICKED(IDC_BUTTONADDSFXBANK, &CN64SoundListToolDlg::OnBnClickedButtonaddsfxbank)
+	ON_CBN_SELCHANGE(IDC_COMBOT1INDEXCOMBO, &CN64SoundListToolDlg::OnCbnSelchangeCombot1indexcombo)
+	ON_EN_CHANGE(IDC_EDITT1FREQUENCY, &CN64SoundListToolDlg::OnEnChangeEditt1frequency)
+	ON_CBN_SELCHANGE(IDC_COMBOT1SUBBANK, &CN64SoundListToolDlg::OnCbnSelchangeCombot1subbank)
+	ON_CBN_SELCHANGE(IDC_COMBOT1SUBBANK2, &CN64SoundListToolDlg::OnCbnSelchangeCombot1subbank2)
+	ON_CBN_SELCHANGE(IDC_COMBOT1SOUND, &CN64SoundListToolDlg::OnCbnSelchangeCombot1sound)
+	ON_EN_CHANGE(IDC_EDITT1FLAGS, &CN64SoundListToolDlg::OnEnChangeEditt1flags)
 END_MESSAGE_MAP()
 
 // CN64SoundListToolDlg message handlers
@@ -249,6 +269,8 @@ END_MESSAGE_MAP()
 BOOL CN64SoundListToolDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	mUseT1.SetCheck(true);
 
 	percussionMode = NORMAL;
 
@@ -386,15 +408,30 @@ BOOL CN64SoundListToolDlg::OnInitDialog()
 
 	delete [] tempChar;*/
 
+	mT1SubBank.ResetContent();
+	mT1Instrument.ResetContent();
+	mT1Sound.ResetContent();
+
+	for (int x = 0; x < 0x100; x++)
+	{
+		CString tempStr;
+		tempStr.Format("%02X", x);
+		mT1SubBank.AddString(tempStr);
+		mT1Instrument.AddString(tempStr);
+		mT1Sound.AddString(tempStr);
+	}
 
 	dontupdateitall = true;
 	romName = "";
 
 	ROM = NULL;
 	romSize = 0;
+	t1results.clear();
 	results.clear();
 	numberResults = 0;
 	alBankCurrent = NULL;
+	t1BankCurrent = NULL;
+	subBankCurrent = -1;
 
 	char tempFolder[8000];
 	::GetCurrentDirectory(8000, tempFolder);
@@ -549,18 +586,6 @@ bool CN64SoundListToolDlg::OpenROMPlusDlg()
 void CN64SoundListToolDlg::OnFileOpenrom()
 {
 
-	/*unsigned char* geTempRom = new unsigned char[0xC00000];
-	FILE * inGE = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\Goldeneye.rom", "rb");
-	fread(geTempRom, 1, 0xC00000, inGE);
-	fclose(inGE);
-	ALBank * GEBank = n64AudioLibrary.ReadAudio(&geTempRom[0x3B4450], 0x43A0, 0x0, &geTempRom[0x3B87F0], 0x0, 0xFFFFFFFF, 0x4B);*/
-
-	/*unsigned char* geTempRom = new unsigned char[0x2000000];
-	FILE * inGE = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\Perfect_dark.v64", "rb");
-	fread(geTempRom, 1, 0x2000000, inGE);
-	fclose(inGE);
-	ALBank * GEBank = n64AudioLibrary.ReadAudio(&geTempRom[0xCFBF30], 0xA060, 0x0, &geTempRom[0xD05F90]);*/
-
 
 	if (!OpenROMPlusDlg())
 		return;
@@ -570,6 +595,13 @@ void CN64SoundListToolDlg::OnFileOpenrom()
 
 	try
 	{
+		for (int x = 0; x < t1results.size(); x++)
+		{
+			n64AudioLibrary.DisposeT1Bank(t1results[x].bank);
+		}
+
+		t1results.clear();
+
 		for (int x = 0; x < numberResults; x++)
 		{
 			n64AudioLibrary.DisposeALBank(results[x].bank);
@@ -578,6 +610,8 @@ void CN64SoundListToolDlg::OnFileOpenrom()
 		results.clear();
 
 		alBankCurrent = NULL;
+		t1BankCurrent = NULL;
+		subBankCurrent = -1;
 
 		numberResults = n64AudioLibrary.ReadCtlTblLocations(ROM, romSize, results);
 
@@ -589,13 +623,6 @@ void CN64SoundListToolDlg::OnFileOpenrom()
 		}
 
 
-
-
-		/*for (int x = 0; x < GEBank->count; x++)
-		{
-			results[1].bank->inst[x] = GEBank->inst[x];
-		}
-		*/
 
 
 
@@ -4168,6 +4195,88 @@ void CN64SoundListToolDlg::ShowSoundBankControls()
 		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
 		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
 	}
+	else if (alBankCurrent->soundBankFormat == MORT)
+	{
+		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
+		mCheckUnknownEADFlag.ShowWindow(SW_HIDE);
+		mLabelTableIndex.ShowWindow(SW_HIDE);
+		mTableIndex.ShowWindow(SW_HIDE);
+		m_injectInPlaceButton.ShowWindow(SW_HIDE);
+		m_playButton.ShowWindow(SW_SHOW);
+		m_stopButton.ShowWindow(SW_SHOW);
+		m_saveButton.ShowWindow(SW_SHOW);
+		m_import16BitRaw.ShowWindow(SW_HIDE);
+		m_import16BitADPCM.ShowWindow(SW_HIDE);
+		m_import16BitADPCMSamePred.ShowWindow(SW_HIDE);
+		m_import16BitRawValues.ShowWindow(SW_HIDE);
+		m_importPredictors.ShowWindow(SW_HIDE);
+		mImportFromSDKTools.ShowWindow(SW_HIDE);
+		m_add16BitRaw.ShowWindow(SW_HIDE);
+		m_add16BitADPCM.ShowWindow(SW_HIDE);
+		mAddInstrumentButton.ShowWindow(SW_HIDE);
+		mDeleteInstrumentButton.ShowWindow(SW_HIDE);
+		mDeletePercussionBank.ShowWindow(SW_HIDE);
+		mAddPercussionBank.ShowWindow(SW_HIDE);
+		mDeleteSfxBank.ShowWindow(SW_HIDE);
+		mAddSfxBank.ShowWindow(SW_HIDE);
+		m_importGroupBox.ShowWindow(SW_HIDE);
+		m_addToEndGroupBox.ShowWindow(SW_HIDE);
+		m_deleteButton.ShowWindow(SW_HIDE);
+		m_miscGroupBox.ShowWindow(SW_HIDE);
+		m_tremGroupBox.ShowWindow(SW_HIDE);
+		m_vibrGroupBox.ShowWindow(SW_HIDE);
+		mVolume.ShowWindow(SW_HIDE);
+		mPan.ShowWindow(SW_HIDE);
+		mPriority.ShowWindow(SW_HIDE);
+		mTremType.ShowWindow(SW_HIDE);
+		mTremRate.ShowWindow(SW_HIDE);
+		mTremDepth.ShowWindow(SW_HIDE);
+		mTremDelay.ShowWindow(SW_HIDE);
+		mVibType.ShowWindow(SW_HIDE);
+		mVibRate.ShowWindow(SW_HIDE);
+		mVibDepth.ShowWindow(SW_HIDE);
+		mVibDelay.ShowWindow(SW_HIDE);
+		mBendRange.ShowWindow(SW_HIDE);
+		mSamplePan.ShowWindow(SW_HIDE);
+		mSampleVol.ShowWindow(SW_HIDE);
+		mAttackTime.ShowWindow(SW_HIDE);
+		mDecayTime.ShowWindow(SW_HIDE);
+		mReleaseTime.ShowWindow(SW_HIDE);
+		mAttackVolume.ShowWindow(SW_HIDE);
+		mDecayVolume.ShowWindow(SW_HIDE);
+		mVelMin.ShowWindow(SW_HIDE);
+		mVelMax.ShowWindow(SW_HIDE);
+		mKeyMin.ShowWindow(SW_HIDE);
+		mKeyMax.ShowWindow(SW_HIDE);
+		mKeyBase.ShowWindow(SW_HIDE);
+		mKeyBaseListCtrl.ShowWindow(SW_HIDE);
+		mDetune.ShowWindow(SW_HIDE);
+		m_instrVolStatic.ShowWindow(SW_HIDE);
+		m_instrPanStatic.ShowWindow(SW_HIDE);
+		m_InstrPriorityStatic.ShowWindow(SW_HIDE);
+		m_instrTremTypeStatic.ShowWindow(SW_HIDE);
+		m_instrTremRateStatic.ShowWindow(SW_HIDE);
+		m_instrTremDepthStatic.ShowWindow(SW_HIDE);
+		m_instrTremDelayStatic.ShowWindow(SW_HIDE);
+		m_instrVibrTypeStatic.ShowWindow(SW_HIDE);
+		m_InstrBendRangeStatic.ShowWindow(SW_HIDE);
+		m_instrVibrRateStatic.ShowWindow(SW_HIDE);
+		m_instrVibrDepthStatic.ShowWindow(SW_HIDE);
+		m_instrVibrDelayStatic.ShowWindow(SW_HIDE);
+		m_samplePanStatic.ShowWindow(SW_HIDE);
+		m_sampleVolStatic.ShowWindow(SW_HIDE);
+		m_sampleVelMinStatic.ShowWindow(SW_HIDE);
+		m_sampleVelMaxStatic.ShowWindow(SW_HIDE);
+		m_sampleKeyMinStatic.ShowWindow(SW_HIDE);
+		m_sampleKeyMaxStatic.ShowWindow(SW_HIDE);
+		m_sampleKeyBaseStatic.ShowWindow(SW_HIDE);
+		m_sampleDetuneStatic.ShowWindow(SW_HIDE);
+		m_sampleAttackTimeStatic.ShowWindow(SW_HIDE);
+		m_sampleDecayTimeStatic.ShowWindow(SW_HIDE);
+		m_sampleReleaseTimeStatic.ShowWindow(SW_HIDE);
+		m_sampleAttackVolumeStatic.ShowWindow(SW_HIDE);
+		m_sampleDecayVolumeStatic.ShowWindow(SW_HIDE);
+	}
 	else if (alBankCurrent->soundBankFormat == ZLIBSN64)
 	{
 		mHalfVADPCMPrecision.ShowWindow(SW_HIDE);
@@ -5116,10 +5225,69 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
 		
 		m_bankName.SetWindowText("");
 		alBankCurrent = results[bankIndex].bank;
+		t1BankCurrent = NULL;
+		subBankCurrent = -1;
 		if (alBankCurrent == NULL)
 		{
 			dontupdateitall = true;
 			return;
+		}
+
+		bool foundT1 = false;
+
+		for (int x = 0; x < t1results.size(); x++)
+		{
+			if ((bankIndex >= t1results[x].bankStart) && (bankIndex < t1results[x].bankEnd))
+			{
+				mUseT1.ShowWindow(SW_SHOW);
+				mT1GroupBox.ShowWindow(SW_SHOW);
+				mT1IndexLabel.ShowWindow(SW_SHOW);
+				mT1Index.ShowWindow(SW_SHOW);
+				mT1FrequencyLabel.ShowWindow(SW_SHOW);
+				mT1Frequency.ShowWindow(SW_SHOW);
+				mT1SubBankLabel.ShowWindow(SW_SHOW);
+				mT1SubBank.ShowWindow(SW_SHOW);
+				mT1InstrumentLabel.ShowWindow(SW_SHOW);
+				mT1Instrument.ShowWindow(SW_SHOW);
+				mT1SoundLabel.ShowWindow(SW_SHOW);
+				mT1Sound.ShowWindow(SW_SHOW);
+				mT1FlagsLabel.ShowWindow(SW_SHOW);
+				mT1Flags.ShowWindow(SW_SHOW);
+
+				t1BankCurrent = t1results[x].bank;
+				subBankCurrent = bankIndex - t1results[x].bankStart;
+
+				mT1Index.ResetContent();
+				for (int x = 0; x < t1BankCurrent->t1Entries.size(); x++)
+				{
+					CString tempStr;
+					tempStr.Format("%04X", x);
+					mT1Index.AddString(tempStr);
+				}
+
+				mT1Index.SetCurSel(0);
+
+				foundT1 = true;
+				break;
+			}
+		}
+
+		if (!foundT1)
+		{
+			mUseT1.ShowWindow(SW_HIDE);
+			mT1GroupBox.ShowWindow(SW_HIDE);
+			mT1IndexLabel.ShowWindow(SW_HIDE);
+			mT1Index.ShowWindow(SW_HIDE);
+			mT1FrequencyLabel.ShowWindow(SW_HIDE);
+			mT1Frequency.ShowWindow(SW_HIDE);
+			mT1SubBankLabel.ShowWindow(SW_HIDE);
+			mT1SubBank.ShowWindow(SW_HIDE);
+			mT1InstrumentLabel.ShowWindow(SW_HIDE);
+			mT1Instrument.ShowWindow(SW_HIDE);
+			mT1SoundLabel.ShowWindow(SW_HIDE);
+			mT1Sound.ShowWindow(SW_HIDE);
+			mT1FlagsLabel.ShowWindow(SW_HIDE);
+			mT1Flags.ShowWindow(SW_HIDE);
 		}
 
 		if (
@@ -5253,6 +5421,8 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundbank()
 
 	percussionMode = NORMAL;
 	OnCbnSelchangeCombosound();
+
+	OnCbnSelchangeCombot1indexcombo();
 }
 
 void CN64SoundListToolDlg::OnCbnSelchangeCombosound()
@@ -5348,6 +5518,13 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 			int soundChoice = mSoundChoice.GetCurSel();
 
 			if (soundChoice == -1)
+			{
+				dontupdateitall = true;
+				return;
+			}
+
+			int bankIndex = mSoundBankIndex.GetCurSel();
+			if (bankIndex == -1)
 			{
 				dontupdateitall = true;
 				return;
@@ -5515,6 +5692,27 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 				}
 
 			}
+
+			if (mT1Index.GetCount() > 0)
+			{
+				if (t1BankCurrent != NULL)
+				{
+					for (int t = 0; t < t1BankCurrent->t1Entries.size(); t++)
+					{
+						if (
+							(t1BankCurrent->t1Entries[t].bankNumber == bankIndex)
+							&& (t1BankCurrent->t1Entries[t].instrumentNumber == instrSel)
+							&& (t1BankCurrent->t1Entries[t].soundNumber == soundChoice)
+							)
+						{
+							CString tempStr;
+							tempStr.Format("%04X", t);
+							mT1Index.SelectString(0, tempStr);
+							break;
+						}
+					}
+				}
+			}
 		}
 		else if (percussionMode == PERCUSSION)
 		{
@@ -5609,6 +5807,7 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosound2()
 	mSubSound.SelectString(0, "Primary");
 
 	OnCbnSelchangeCombosoundsubsound();
+	OnCbnSelchangeCombot1indexcombo();
 }
 
 void CN64SoundListToolDlg::OnEnChangeEditsamplingrate()
@@ -6011,6 +6210,29 @@ void CN64SoundListToolDlg::OnBnClickedButtonplayoriginalsound()
 				CString tempStr;
 				mSamplingRate.GetWindowText(tempStr);
 				sampleRate = atoi(tempStr);
+			}
+			else if (mUseT1.GetCheck())
+			{
+				if (mT1Index.GetCount() > 0)
+				{
+					if (t1BankCurrent != NULL)
+					{
+						int bankIndex = mSoundBankIndex.GetCurSel();
+
+						for (int t = 0; t < t1BankCurrent->t1Entries.size(); t++)
+						{
+							if (
+								(t1BankCurrent->t1Entries[t].bankNumber == bankIndex)
+								&& (t1BankCurrent->t1Entries[t].instrumentNumber == instrSel)
+								&& (t1BankCurrent->t1Entries[t].soundNumber == soundSel)
+								)
+							{
+								sampleRate = t1BankCurrent->t1Entries[t].frequency;
+								break;
+							}
+						}
+					}
+				}
 			}
 
 			CString subSoundStr;
@@ -6731,6 +6953,29 @@ void CN64SoundListToolDlg::OnBnClickedButtondeletesound2()
 					mSamplingRate.GetWindowText(tempStr);
 					sampleRate = atoi(tempStr);
 				}
+				else if (mUseT1.GetCheck())
+				{
+					if (mT1Index.GetCount() > 0)
+					{
+						if (t1BankCurrent != NULL)
+						{
+							int bankIndex = mSoundBankIndex.GetCurSel();
+
+							for (int t = 0; t < t1BankCurrent->t1Entries.size(); t++)
+							{
+								if (
+									(t1BankCurrent->t1Entries[t].bankNumber == bankIndex)
+									&& (t1BankCurrent->t1Entries[t].instrumentNumber == instrSel)
+									&& (t1BankCurrent->t1Entries[t].soundNumber == soundChoice)
+									)
+								{
+									sampleRate = t1BankCurrent->t1Entries[t].frequency;
+									break;
+								}
+							}
+						}
+					}
+				}
 
 				if (n64AudioLibrary.ExtractRawSound(mainFolder, alBankCurrent, instrSel, soundChoice, m_svFile.GetPathName(), sampleRate, primSel, mHalfSamplingRate.GetCheck()))
 				{
@@ -6857,6 +7102,16 @@ void CN64SoundListToolDlg::OnFileSave()
 		if ((isFileOpened2 != IDCANCEL) && (m_svFileOutROM.GetFileName() != ""))
 		{
 			CString romOutName = m_svFileOutROM.GetPathName();
+
+			for (int x = 0; x < t1results.size(); x++)
+			{
+				bool resultT1 = n64AudioLibrary.WriteT1Bank(t1results[x].bank, ROM, t1results[x].t1Start, t1results[x].t1End);
+				if (!resultT1)
+				{
+					MessageBox("Can't write T1 Bank");
+					break;
+				}
+			}
 
 			std::map<unsigned char, CString> cicLookup;
 			cicLookup[0] = "starf";
@@ -7131,7 +7386,7 @@ void CN64SoundListToolDlg::OnBnClickedInjectplace()
 		int ctlSize = 0;
 		int tblSize = 0;
 		int ctlSize2 = 0;
-		if ((alBankCurrent->soundBankFormat == STANDARDFORMAT) || (alBankCurrent->soundBankFormat == KONAMICTL) || (alBankCurrent->soundBankFormat == KONAMI8CTL))
+		if ((alBankCurrent->soundBankFormat == STANDARDFORMAT) || (alBankCurrent->soundBankFormat == STANDARDFORMATRAWALLOWED) || (alBankCurrent->soundBankFormat == KONAMICTL) || (alBankCurrent->soundBankFormat == KONAMI8CTL))
 			n64AudioLibrary.WriteAudio(alBankCurrent, ctl, ctlSize, tbl, tblSize);
 		else if ((alBankCurrent->soundBankFormat == TUROKFORMAT)  || (alBankCurrent->soundBankFormat == STANDARDRNCCOMPRESSED)  || (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED)|| (alBankCurrent->soundBankFormat == STANDARDRNXCOMPRESSED))
 		{
@@ -7435,13 +7690,39 @@ void CN64SoundListToolDlg::OnBnClickedButtonrip()
 				{
 					if (alBankCurrent->inst[x]->samplerate != 0)
 						sampleRate = (alBankCurrent->inst[x]->samplerate);
+
 					CString tempExportNameStr;
 					if (mExportShortFilename.GetCheck())
 						tempExportNameStr.Format("%s\\B%02XI%02XS%02X.wav", outputFolder, mSoundBankIndex.GetCurSel(), x, y);
 					else
 						tempExportNameStr.Format("%s\\BANK_%02X_INSTR_%04X_SND_%04X.wav", outputFolder, mSoundBankIndex.GetCurSel(), x, y);
 
-					n64AudioLibrary.ExtractRawSound(mainFolder, alBankCurrent, x, y, tempExportNameStr, sampleRate, PRIMARY, mHalfSamplingRate.GetCheck());
+					float sampleRatePrimary = sampleRate;
+					if (mUseT1.GetCheck())
+					{
+						if (mT1Index.GetCount() > 0)
+						{
+							if (t1BankCurrent != NULL)
+							{
+								int bankIndex = mSoundBankIndex.GetCurSel();
+
+								for (int t = 0; t < t1BankCurrent->t1Entries.size(); t++)
+								{
+									if (
+										(t1BankCurrent->t1Entries[t].bankNumber == bankIndex)
+										&& (t1BankCurrent->t1Entries[t].instrumentNumber == x)
+										&& (t1BankCurrent->t1Entries[t].soundNumber == y)
+										)
+									{
+										sampleRatePrimary = t1BankCurrent->t1Entries[t].frequency;
+										break;
+									}
+								}
+							}
+						}
+					}
+
+					n64AudioLibrary.ExtractRawSound(mainFolder, alBankCurrent, x, y, tempExportNameStr, sampleRatePrimary, PRIMARY, mHalfSamplingRate.GetCheck());
 					if ((alBankCurrent->inst[x] != NULL) && (alBankCurrent->inst[x]->sounds[y] != NULL))
 					{
 						if (alBankCurrent->inst[x]->sounds[y]->hasWavePrevious)
@@ -7539,6 +7820,13 @@ void CN64SoundListToolDlg::OnFileQuit()
 
 BOOL CN64SoundListToolDlg::DestroyWindow()
 {
+	for (int x = 0; x < t1results.size(); x++)
+	{
+		n64AudioLibrary.DisposeT1Bank(t1results[x].bank);
+	}
+
+	t1results.clear();
+
 	for (int x = 0; x < numberResults; x++)
 	{
 		n64AudioLibrary.DisposeALBank(results[x].bank);
@@ -7565,6 +7853,13 @@ void CN64SoundListToolDlg::OnFileOpenromexplicit()
 
 	try
 	{
+		for (int x = 0; x < t1results.size(); x++)
+		{
+			n64AudioLibrary.DisposeT1Bank(t1results[x].bank);
+		}
+
+		t1results.clear();
+
 		for (int x = 0; x < numberResults; x++)
 		{
 			n64AudioLibrary.DisposeALBank(results[x].bank);
@@ -7573,6 +7868,8 @@ void CN64SoundListToolDlg::OnFileOpenromexplicit()
 		results.clear();
 
 		alBankCurrent = NULL;
+		t1BankCurrent = NULL;
+		subBankCurrent = -1;
 
 		HRSRC hResource = NULL;
 		hResource = FindResource( initiallyLoadedResource, MAKEINTRESOURCE( IDD_DIALOGSPECIFYLOCATION ), RT_DIALOG );
@@ -8050,7 +8347,11 @@ void CN64SoundListToolDlg::OnBnClickedButtonexportraw()
 
 void CN64SoundListToolDlg::OpenROMSpecific(SoundGameConfig gameConfig)
 {
-	if (!OpenROMPlusDlg(gameConfig.gameName + " [!].z64"))
+	CString tempGameName = gameConfig.gameName;
+	tempGameName.Replace(" Speech", "");
+	tempGameName.Replace(" Sfx", "");
+
+	if (!OpenROMPlusDlg(tempGameName + " [!].z64"))
 		return;
 
 	currentGameConfig = gameConfig;
@@ -8059,6 +8360,13 @@ void CN64SoundListToolDlg::OpenROMSpecific(SoundGameConfig gameConfig)
 
 	try
 	{
+		for (int x = 0; x < t1results.size(); x++)
+		{
+			n64AudioLibrary.DisposeT1Bank(t1results[x].bank);
+		}
+
+		t1results.clear();
+
 		for (int x = 0; x < numberResults; x++)
 		{
 			n64AudioLibrary.DisposeALBank(results[x].bank);
@@ -8067,8 +8375,33 @@ void CN64SoundListToolDlg::OpenROMSpecific(SoundGameConfig gameConfig)
 		results.clear();
 
 		alBankCurrent = NULL;
+		t1BankCurrent = NULL;
+		subBankCurrent = -1;
 
-		CN64SoundToolReader::ReadSoundbanks(ROM, romSize, gameConfig, numberResults, results);
+		CN64SoundToolReader::ReadSoundbanks(ROM, romSize, gameConfig, numberResults, results, t1results);
+
+		/*unsigned char* geTempRom = new unsigned char[0xC00000];
+		FILE * inGE = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\Goldeneye.rom", "rb");
+		fread(geTempRom, 1, 0xC00000, inGE);
+		fclose(inGE);*/
+
+		/*unsigned char* geTempRom = new unsigned char[0x2000000];
+		FILE * inGE = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\Perfect_dark.v64", "rb");
+		fread(geTempRom, 1, 0x2000000, inGE);
+		fclose(inGE);
+		ALBank * GEBank = n64AudioLibrary.ReadAudio(&geTempRom[0xCFBF30], 0xA060, 0x0, &geTempRom[0xD05F90]);*/
+
+		// 0x4B sounds
+		/*ALBank * GEBank = n64AudioLibrary.ReadAudioRawAllowed(geTempRom, &geTempRom[0x3B4450], 0x43A0, 0x0, &geTempRom[0x3B87F0], 0x0, 0xFFFFFFFF, 0);
+
+		CString errors = n64AudioLibrary.CompareALBanks(results[1].bank, GEBank);
+
+		for (int x = 0; x < GEBank->count; x++)
+		{
+			results[1].bank->inst[x] = GEBank->inst[x];
+		}
+		delete [] geTempRom;*/
+		
 
 		for (int x = 0; x < numberResults; x++)
 		{
@@ -8137,14 +8470,24 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 
 		try
 		{
+			for (int x = 0; x < t1results.size(); x++)
+			{
+				n64AudioLibrary.DisposeT1Bank(t1results[x].bank);
+			}
+
+			t1results.clear();
+
 			for (int x = 0; x < numberResults; x++)
 			{
 				n64AudioLibrary.DisposeALBank(results[x].bank);
 			}
 
 			alBankCurrent = NULL;
+			t1BankCurrent = NULL;
+			subBankCurrent = -1;
 
 			numberResults = 0;
+
 			results.clear();
 
 			results.resize(gameConfig[y].numberSoundBanks);
@@ -8417,6 +8760,10 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 					{
 						results[numberResults].bank = n64AudioLibrary.ReadAudioVox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig[y].soundBanks[x].numberInstruments);
 					}
+					else if (gameConfig[y].gameType.CompareNoCase("MORT") == 0)
+					{
+						results[numberResults].bank = n64AudioLibrary.ReadAudioMORT(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
+					}
 					else if (gameConfig[y].gameType.CompareNoCase("BanjoTooie") == 0)
 					{
 						results[numberResults].bank = n64AudioLibrary.ReadAudioBanjoTooie(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], 0, 0xFFFFFFFF, gameConfig[y].soundBanks[x].numberInstruments);
@@ -8464,6 +8811,24 @@ void CN64SoundListToolDlg::OnFileExtractallknowngames()
 
 					results[numberResults].halfSamplingRate = gameConfig[y].soundBanks[x].halfSamplingRate;
 					numberResults++;
+				}
+			}
+
+			for (int x = 0; x < gameConfig[y].t1Config.size(); x++)
+			{
+				if ((gameConfig[y].t1Config[x].t1Start != 0) && (gameConfig[y].t1Config[x].t1End != 0))
+				{
+					T1Bank* t1Bank = n64AudioLibrary.ReadT1Bank(ROM, gameConfig[y].t1Config[x].t1Start, gameConfig[y].t1Config[x].t1End);
+					if (t1Bank != NULL)
+					{
+						t1Result resultT1;
+						resultT1.bank = t1Bank;
+						resultT1.t1Start = gameConfig[y].t1Config[x].t1Start;
+						resultT1.t1End = gameConfig[y].t1Config[x].t1End;
+						resultT1.bankStart = gameConfig[y].t1Config[x].bankReferenceStart;
+						resultT1.bankEnd = gameConfig[y].t1Config[x].bankReferenceEnd;
+						t1results.push_back(resultT1);
+					}
 				}
 			}
 
@@ -8602,6 +8967,8 @@ void CN64SoundListToolDlg::OnFileOpenromn64ptrwavetable2()
 		}
 
 		alBankCurrent = NULL;
+		t1BankCurrent = NULL;
+		subBankCurrent = -1;
 
 		COpenSpecificCtlTbl tempDlg = new COpenSpecificCtlTbl();
 		if (tempDlg.DoModal() != IDCANCEL)
@@ -8713,8 +9080,33 @@ void CN64SoundListToolDlg::OnBnClickedButtonrip3()
 					else
 						tempExportNameStr.Format("%s\\BANK_%02X_INSTR_%04X_SND_%04X.wav", outputFolder, x, r, z);
 
+					float sampleRatePrimary = sampleRate;
+					if (mUseT1.GetCheck())
+					{
+						if (mT1Index.GetCount() > 0)
+						{
+							if (t1BankCurrent != NULL)
+							{
+								int bankIndex = mSoundBankIndex.GetCurSel();
+
+								for (int t = 0; t < t1BankCurrent->t1Entries.size(); t++)
+								{
+									if (
+										(t1BankCurrent->t1Entries[t].bankNumber == bankIndex)
+										&& (t1BankCurrent->t1Entries[t].instrumentNumber == r)
+										&& (t1BankCurrent->t1Entries[t].soundNumber == z)
+										)
+									{
+										sampleRatePrimary = t1BankCurrent->t1Entries[t].frequency;
+										break;
+									}
+								}
+							}
+						}
+					}
+
 					//if (results[x].bank->inst[r]->sounds[z]->wav.adpcmWave->loop != NULL)
-						n64AudioLibrary.ExtractRawSound(mainFolder, results[x].bank, r, z, tempExportNameStr, sampleRate, PRIMARY, results[x].halfSamplingRate);
+						n64AudioLibrary.ExtractRawSound(mainFolder, results[x].bank, r, z, tempExportNameStr, sampleRatePrimary, PRIMARY, results[x].halfSamplingRate);
 					if ((results[x].bank->inst[r] != NULL) && (results[x].bank->inst[r]->sounds[z] != NULL))
 					{
 						if (results[x].bank->inst[r]->sounds[z]->hasWavePrevious)
@@ -8855,6 +9247,18 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 						m_importPredictors.EnableWindow(false);
 					}
 					else if ( alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.type == AL_VOX_WAVE)
+					{
+						mLoopCount.ShowWindow(SW_HIDE);
+						mLoopEnd.ShowWindow(SW_HIDE);
+						mLoopStart.ShowWindow(SW_HIDE);
+						mL1Text.ShowWindow(SW_HIDE);
+						mL2Text.ShowWindow(SW_HIDE);
+						mL3Text.ShowWindow(SW_HIDE);
+
+						mImportLoopPredictors.ShowWindow(SW_HIDE);
+						mExportLoopPredictors.ShowWindow(SW_HIDE);
+					}
+					else if ( alBankCurrent->inst[instrSel]->sounds[soundChoice]->wav.type == AL_MORT_WAVE)
 					{
 						mLoopCount.ShowWindow(SW_HIDE);
 						mLoopEnd.ShowWindow(SW_HIDE);
@@ -9208,6 +9612,18 @@ void CN64SoundListToolDlg::OnCbnSelchangeCombosoundsubsound()
 						m_importPredictors.EnableWindow(false);
 					}
 					else if ( alBankCurrent->percussion->sounds[soundChoice]->wav.type == AL_VOX_WAVE)
+					{
+						mLoopCount.ShowWindow(SW_HIDE);
+						mLoopEnd.ShowWindow(SW_HIDE);
+						mLoopStart.ShowWindow(SW_HIDE);
+						mL1Text.ShowWindow(SW_HIDE);
+						mL2Text.ShowWindow(SW_HIDE);
+						mL3Text.ShowWindow(SW_HIDE);
+
+						mImportLoopPredictors.ShowWindow(SW_HIDE);
+						mExportLoopPredictors.ShowWindow(SW_HIDE);
+					}
+					else if ( alBankCurrent->percussion->sounds[soundChoice]->wav.type == AL_MORT_WAVE)
 					{
 						mLoopCount.ShowWindow(SW_HIDE);
 						mLoopEnd.ShowWindow(SW_HIDE);
@@ -11576,6 +11992,161 @@ void CN64SoundListToolDlg::OnBnClickedButtonaddsfxbank()
 
 					OnCbnSelchangeCombosfx();
 				}
+			}
+		}
+	}
+}
+void CN64SoundListToolDlg::OnCbnSelchangeCombot1indexcombo()
+{
+	if (mT1Index.GetCurSel() != -1)
+	{
+		if (t1BankCurrent != NULL)
+		{
+			CString tempStr;
+			mT1Index.GetWindowText(tempStr);
+
+			int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+			if (t1Index < t1BankCurrent->t1Entries.size())
+			{
+				dontupdateitall = false;
+
+				tempStr.Format("%02X", t1BankCurrent->t1Entries[t1Index].bankNumber);
+				mT1SubBank.SelectString(0, tempStr);
+
+				tempStr.Format("%02X", t1BankCurrent->t1Entries[t1Index].instrumentNumber);
+				mT1Instrument.SelectString(0, tempStr);
+
+				tempStr.Format("%02X", t1BankCurrent->t1Entries[t1Index].soundNumber);
+				mT1Sound.SelectString(0, tempStr);
+
+				tempStr.Format("%d", t1BankCurrent->t1Entries[t1Index].frequency);
+				mT1Frequency.SetWindowText(tempStr);
+
+				tempStr.Format("%02X", t1BankCurrent->t1Entries[t1Index].flags);
+				mT1Flags.SetWindowText(tempStr);
+
+				dontupdateitall = true;
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnEnChangeEditt1frequency()
+{
+	if (t1BankCurrent != NULL)
+	{
+		CString tempStr;
+		mT1Index.GetWindowText(tempStr);
+
+		int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+		if (t1Index < t1BankCurrent->t1Entries.size())
+		{
+			if (dontupdateitall)
+			{
+				dontupdateitall = false;
+
+				mT1Frequency.GetWindowText(tempStr);
+				t1BankCurrent->t1Entries[t1Index].frequency = atoi(tempStr);
+
+				dontupdateitall = true;
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnCbnSelchangeCombot1subbank()
+{
+	if (t1BankCurrent != NULL)
+	{
+		CString tempStr;
+		mT1Index.GetWindowText(tempStr);
+
+		int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+		if (t1Index < t1BankCurrent->t1Entries.size())
+		{
+			if (dontupdateitall)
+			{
+				dontupdateitall = false;
+
+				mT1SubBank.GetWindowText(tempStr);
+				t1BankCurrent->t1Entries[t1Index].bankNumber = CSharedFunctions::StringToUnsignedChar(tempStr);
+
+				dontupdateitall = true;
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnCbnSelchangeCombot1subbank2()
+{
+	if (t1BankCurrent != NULL)
+	{
+		CString tempStr;
+		mT1Index.GetWindowText(tempStr);
+
+		int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+		if (t1Index < t1BankCurrent->t1Entries.size())
+		{
+			if (dontupdateitall)
+			{
+				dontupdateitall = false;
+
+				mT1Instrument.GetWindowText(tempStr);
+				t1BankCurrent->t1Entries[t1Index].instrumentNumber = CSharedFunctions::StringToUnsignedChar(tempStr);
+
+				dontupdateitall = true;
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnCbnSelchangeCombot1sound()
+{
+	if (t1BankCurrent != NULL)
+	{
+		CString tempStr;
+		mT1Index.GetWindowText(tempStr);
+
+		int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+		if (t1Index < t1BankCurrent->t1Entries.size())
+		{
+			if (dontupdateitall)
+			{
+				dontupdateitall = false;
+
+				mT1Sound.GetWindowText(tempStr);
+				t1BankCurrent->t1Entries[t1Index].soundNumber = CSharedFunctions::StringToUnsignedChar(tempStr);
+
+				dontupdateitall = true;
+			}
+		}
+	}
+}
+
+void CN64SoundListToolDlg::OnEnChangeEditt1flags()
+{
+	if (t1BankCurrent != NULL)
+	{
+		CString tempStr;
+		mT1Index.GetWindowText(tempStr);
+
+		int t1Index = CSharedFunctions::StringToUnsignedShort(tempStr);
+
+		if (t1Index < t1BankCurrent->t1Entries.size())
+		{
+			if (dontupdateitall)
+			{
+				dontupdateitall = false;
+
+				mT1Flags.GetWindowText(tempStr);
+				t1BankCurrent->t1Entries[t1Index].flags = CSharedFunctions::StringToUnsignedChar(tempStr);
+
+				dontupdateitall = true;
 			}
 		}
 	}

@@ -71,10 +71,11 @@
 #define AVL_0PTR 43
 #define KONAMICTL 44
 #define KONAMI8CTL 45
+#define MORT 46
 
 #pragma once
 
-enum    {AL_ADPCM_WAVE = 0, AL_RAW16_WAVE = 1, AL_VOX_WAVE=2, AL_MUSYX_WAVE=3, AL_SIGNED_RAW8, AL_SIGNED_RAW16};
+enum    {AL_ADPCM_WAVE = 0, AL_RAW16_WAVE = 1, AL_VOX_WAVE=2, AL_MUSYX_WAVE=3, AL_SIGNED_RAW8=4, AL_SIGNED_RAW16=5, AL_MORT_WAVE=6};
 
 enum    {PRIMARY = 0, PREVIOUS = 1, SECONDARY = 2};
 
@@ -298,6 +299,20 @@ struct KonamiADSRDrum : KonamiADSR
 	unsigned char instrumentLookup;
 };
 
+struct T1BankEntry
+{
+	unsigned char bankNumber;
+	unsigned char instrumentNumber;
+	unsigned char soundNumber;
+	unsigned char flags;
+	unsigned long frequency;
+};
+
+struct T1Bank
+{
+	std::vector<T1BankEntry> t1Entries;
+};
+
 struct ALBank
 {
 	unsigned short	count;
@@ -338,6 +353,16 @@ struct ALBank
 		countSfx = 0;
 		alSfx = NULL;
 	}
+};
+
+struct t1Result
+{
+	int bankStart;
+	int bankEnd;
+	T1Bank* bank;
+
+	int t1Start;
+	int t1End;
 };
 
 struct ctlTblResult
@@ -382,8 +407,11 @@ public:
 	~CN64AIFCAudio(void);
 
 	static bool InjectCtlTblIntoROMArrayInPlace(unsigned char* ROM, unsigned char* ctl, int ctlSize, unsigned char* tbl, int tblSize, unsigned long ctlOffset, unsigned long tblOffset, unsigned long maxCtl, unsigned long maxTbl, unsigned char* ctl2, int ctlSize2, int ctlOffset2, int maxCtl2);
+	static void DisposeT1Bank(T1Bank*& t1Bank);
 	static void DisposeALBank(ALBank*& alBank);
 	static void DisposeALInst(ALInst*& alInst);
+	static bool WriteT1Bank(T1Bank* t1Bank, unsigned char* ROM, unsigned long t1Start, unsigned long t1End);
+	static T1Bank* ReadT1Bank(unsigned char* ROM, unsigned long t1Start, unsigned long t1End);
 	static ALBank* ReadAudio(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask, int bankNumber);
 	static ALBank* ReadAudioKonami(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
 	static ALBank* ReadAudioKonami8(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, unsigned long instrumentOffset, unsigned long endInstrumentOffset, unsigned long startDrumOffset, unsigned long endDrumOffset);
@@ -399,6 +427,7 @@ public:
 	static ALBank* ReadAudioConker(unsigned char* ctl, int ctlSize, int ctlOffset, int ctlOffsetPartTwo, unsigned char* tbl);
 	static ALBank* ReadAudio64dd(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioVox(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int samplingRate);
+	static ALBank* ReadAudioMORT(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioN64PtrWavetableV2ZLIB(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioN64PtrWavetableV2MultiPartERZ(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioRawAllowed(unsigned char* ROM, unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int ctlFlaggedOffset, unsigned long mask, int bankNumber);
