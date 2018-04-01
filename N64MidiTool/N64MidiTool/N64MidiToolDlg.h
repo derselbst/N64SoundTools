@@ -102,4 +102,6 @@ public:
 	CStatic mMasterTrackEffectLabel2;
 	CComboBox mMasterTrackEffect2;
 	CStatic mEffectGroupBox;
+	CStatic mPitchBendSensitivityLabel;
+	CComboBox mPitchBendSensitivity;
 };

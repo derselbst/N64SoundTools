@@ -25,6 +25,16 @@
 
 #include <algorithm>
 #include <map>
+#include <math.h>
+
+void CMidiParse::fprintfIfDebug(FILE* outFileDebug, char* format,...) 
+{
+	va_list args;
+    va_start( args, format );
+	if (outFileDebug != NULL)
+		vfprintf(outFileDebug, format, args );
+    va_end( args );
+}
 
 unsigned long CMidiParse::GetVLBytes(byte* vlByteArray, int& offset, unsigned long& original, byte*& altPattern, byte& altOffset, byte& altLength, bool includeFERepeats)
 {
@@ -283,7 +293,7 @@ CMidiParse::~CMidiParse(void)
 
 
 
-void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest)
+void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest, bool usePitchBendSensitity, int pitchBendSensitity)
 {
 	numberInstruments = 0;
 	try
@@ -592,6 +602,61 @@ void CMidiParse::GEMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte altLength = 0;
 
 				bool endFlag = false;
+
+				if (usePitchBendSensitity)
+				{
+					//https://www.midikits.net/midi_analyser/pitch_bend.htm
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x64;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x00;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x65;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x00;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x06;
+					if (pitchBendSensitity > 0x18)
+						pitchBendSensitity = 0x18;
+					trackEventsSub[trackEventCountSub].contents[1] = pitchBendSensitity;
+
+					trackEventCountSub++;
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x64;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x7F;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x65;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x7F;
+
+					trackEventCountSub++;
+				}
 
 				while ((position < inputSize) && !endFlag)
 				{
@@ -4430,6 +4495,177 @@ void CMidiParse::KonamiToDebugTextFile(unsigned char* ROM, int romSize, CString 
 	fclose(outFile);
 }
 
+void CMidiParse::SSEQTrackToDebugTextFile(FILE* outFile, unsigned char* inputMID, unsigned long offset, unsigned long end, ExtraGameMidiInfo extraGameMidiInfo, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, int highestTrackLength)
+{
+	unsigned char command = 0x00;
+	int spot = offset;
+	int loopSpot = 0;
+
+	unsigned long absoluteTime = 0;
+
+	while (spot < end)
+	{
+		if (extendTracksToHighest)
+		{
+			if (absoluteTime >= highestTrackLength)
+				break;
+		}
+
+		int startSpot = spot;
+
+		unsigned long original;
+		unsigned char* altPattern = NULL;
+		byte altOffset = 0;
+		byte altLength = 0;
+		unsigned long deltaTime = GetVLBytes(inputMID, spot, original, altPattern, altOffset, altLength, false);
+
+		absoluteTime += deltaTime;
+
+		command = inputMID[spot];
+
+		fprintf(outFile, "%08X:Absolute Time: %08X (Delta %08X) Command %02X", startSpot, absoluteTime, deltaTime, command);
+		if (command == 0x7)
+		{
+			fprintf(outFile, " Instrument %02X%02X [Instrument Change]", inputMID[spot + 2], inputMID[spot + 1]);
+		}
+		else if (command == 0x11)
+		{
+			fprintf(outFile, " Note %02X Velocity %02X [Note On]", inputMID[spot + 1], inputMID[spot + 2]);
+		}
+		else if (command == 0x12)
+		{
+			fprintf(outFile, " Note %02X [Note Off]", inputMID[spot + 1]);
+		}
+		else if (command == 0x20)
+		{
+			fprintf(outFile, " %02X %02X [Loop]", inputMID[spot + 1], inputMID[spot + 2]);
+
+			if (extendTracksToHighest)
+			{
+				fprintf(outFile, "...Extending Tracks to Highest, Going to %08X", loopSpot);
+				spot = loopSpot;
+			}
+		}
+		else if (command == 0x22)
+		{
+			fprintf(outFile, " [End]\n");
+			break;
+		}
+		else if (command == 0x23)
+		{
+			loopSpot = spot;
+			fprintf(outFile, " [Loop Start]");
+		}
+		else
+		{
+			for (int x = 1; x < sseqCommandSizes[command]; x++)
+			{
+				fprintf(outFile, " %02X", inputMID[spot + x]);
+			}
+		}
+
+		
+		spot += sseqCommandSizes[command];
+
+		
+		fprintf(outFile, "\n");
+	}
+}
+
+void CMidiParse::SSEQToDebugTextFile(unsigned char* ROM, int romSize, CString gameName, unsigned long address, CString midiFile, CString textFileOut, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long extra)
+{
+	CString filepath = midiFile;
+	
+	FILE* inFile = fopen(filepath, "rb");
+	if (inFile == NULL)
+	{
+		MessageBox(NULL, "Can't read input file " + filepath, "Error", NULL);
+		return;
+	}
+
+	fseek(inFile, 0, SEEK_END);
+	int inputSize = ftell(inFile);
+	rewind(inFile);
+
+	unsigned char* inputMID = new unsigned char[inputSize];
+
+	fread(inputMID, 1, inputSize, inFile);
+	fclose(inFile);
+
+	SSEQToDebugTextFile(ROM, romSize, gameName, address, inputMID, inputSize, textFileOut, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+
+	delete [] inputMID;
+}
+
+void CMidiParse::SSEQToDebugTextFile(unsigned char* ROM, int romSize, CString gameName, unsigned long address, byte* inputMID, int inputSize, CString textFileOut, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long extra)
+{
+	numberTracks = extra;
+
+	CString addressStr;
+	addressStr.Format("%08X", address);
+
+	FILE* outFile = fopen(textFileOut, "w");
+	if (outFile == NULL)
+	{
+		MessageBox(NULL,"Can't open output file " + textFileOut, "Error", NULL);
+		return;
+	}
+
+	fprintf(outFile, gameName + " - " + addressStr + "\n");
+
+	int noteUniqueId = 0;
+	std::vector<TimeAndValue> tempoPositions;
+
+	
+	try
+	{
+		std::vector<SngNoteInfo> sngNoteList;
+
+		int trackRealLength = 0;
+		
+		int loopStart = 0;
+		int loopEnd = 0;
+		int maxTrackLength = 0;
+
+		int highestTrackLength = 0;
+
+		int trackLength = FindHighestSSEQLengthTrack(inputMID, inputSize, numberTracks);
+		if (trackLength > highestTrackLength)
+			highestTrackLength = trackLength;
+
+		unsigned long offsetData = 0;
+		for (int track = 0; track < numberTracks; track++)
+		{
+			unsigned long division = CharArrayToLong(&inputMID[offsetData + 8]);
+			unsigned short division2 = CharArrayToShort(&inputMID[offsetData + 0xC]);
+			unsigned short extraFlag = CharArrayToShort(&inputMID[offsetData + 0xE]);
+
+			unsigned long sizeTrack = CharArrayToLong(&inputMID[offsetData + 0x10]);
+			
+			fprintf(outFile, "Track %X - %08X Division %08X Division2 %04X", track, offsetData, division, division2);
+
+			if (extraFlag)
+			{
+				fprintf(outFile, " Extra %08X", CharArrayToLong(&inputMID[offsetData + 0x14]));
+				offsetData += 4;
+			}
+
+			fprintf(outFile, "\n");
+			offsetData += 0x14;
+
+			SSEQTrackToDebugTextFile(outFile, inputMID, offsetData, inputSize, extraGameMidiInfo, writeOutLoops, loopWriteCount, extendTracksToHighest, highestTrackLength);
+
+			offsetData += sizeTrack;
+		}
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
+	}
+	
+	fclose(outFile);
+}
+
 void CMidiParse::WriteSngToMidiTrack(FILE* outFile, FILE* outDebug, std::vector<TrackEvent> trackEvents)
 {
 	unsigned long timeOffset = 0;
@@ -5298,7 +5534,7 @@ void CMidiParse::SngToMidi(byte* inputMID, int inputSize, CString outFileName, i
 			//fclose(outFile);
 		}
 
-		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030);
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030, false, 24);
 	}
 	catch (...)
 	{
@@ -5322,6 +5558,720 @@ int CMidiParse::GetSizeFile(CString filename)
 	int fileSize = ftell(inFile);
 	fclose(inFile);
 	return fileSize;
+}
+
+bool CMidiParse::MidiToPaperMarioSngList(CString input, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfoMidiImport> channels[MAXCHANNELS], int& numChannels, std::vector<int>& instruments, int& lowestAbsoluteTime, int& highestAbsoluteTime, bool loop, unsigned long loopPoint, unsigned short & division)
+{
+	numChannels = 0;
+	lowestAbsoluteTime = 0x7FFFFFFF;
+	highestAbsoluteTime = 0;
+
+	int noteUniqueId = 0;
+
+	numberTracks = 0;
+
+	
+
+
+	CString tempFileName = input;
+
+	struct stat results;
+	stat(tempFileName, &results);		
+
+	FILE* inFile1 = fopen(tempFileName, "rb");
+	if (inFile1 == NULL)
+	{
+		MessageBox(NULL, "Error reading file", "Error", NULL);
+		return false;
+	}	
+
+	byte* inputMID = new byte[results.st_size];
+	fread(inputMID, 1, results.st_size, inFile1);
+	fclose(inFile1);
+
+	unsigned long header = CharArrayToLong(&inputMID[0]);
+
+	if (header != 0x4D546864)
+	{
+		delete [] inputMID;
+		MessageBox(NULL, "Invalid midi hdr", "Error", NULL);
+		return false;
+	}
+
+	unsigned long headerLength = CharArrayToLong(&inputMID[4]);
+
+	unsigned short type = CharArrayToShort(&inputMID[8]);
+	unsigned short numTracks = CharArrayToShort(&inputMID[0xA]);
+	division = CharArrayToShort(&inputMID[0xC]);
+
+	if (numTracks > 0x10)
+	{
+		delete [] inputMID;
+		MessageBox(NULL, "Invalid, can only support 16 tracks, first 1 only tempo", "Error", NULL);
+		return false;
+	}
+
+	float noteTimeDivisor = division / 0x30;
+
+	loopPoint = (float)loopPoint / noteTimeDivisor;
+
+	if (type == 0)
+	{
+		
+	}
+	else if (type == 1)
+	{
+
+	}
+	else
+	{
+		delete [] inputMID;
+
+		MessageBox(NULL, "Invalid midi type", "Error", NULL);
+		return false;
+	}
+
+
+
+	int position = 0xE;
+
+	byte* repeatPattern = NULL;
+	byte altOffset = 0;
+	byte altLength = 0;
+
+	bool unknownsHit = false;
+	for (int trackNum = 0; trackNum < numTracks; trackNum++)
+	{
+		std::vector<SngNoteInfoMidiImport> pendingNoteList;
+
+		int currentSegment[0x10];
+		unsigned char currentPan[0x10];
+		unsigned char currentVolume[0x10];
+		unsigned char currentReverb[0x10];
+		signed char currentPitchBend[0x10];
+
+		unsigned char currentMSBBank[0x10];
+		unsigned char currentLSBBank[0x10];
+		unsigned char currentInstrument[0x10];
+
+		// Controllers defaults
+		for (int x = 0; x < 0x10; x++)
+		{
+			currentPan[x] = 0x40;
+			currentVolume[x] = 0x7F;
+			currentReverb[x] = 0x00;
+			currentInstrument[x] = 0x00;
+			currentPitchBend[x] = 0x40;
+
+			currentMSBBank[x] = 0x00;
+			currentLSBBank[x] = 0x00;
+			currentSegment[x] = 0x00;
+		}
+
+		unsigned long absoluteTime = 0;
+		float absoluteTimeFloat = 0;
+
+		unsigned long trackHeader = ((((((inputMID[position] << 8) | inputMID[position+1]) << 8) | inputMID[position+2]) << 8) | inputMID[position+3]);
+		if (trackHeader != 0x4D54726B)
+		{
+			delete [] inputMID;
+
+			MessageBox(NULL, "Invalid track midi hdr", "Error", NULL);
+			return false;
+		}
+		
+		unsigned long trackLength = ((((((inputMID[position+4] << 8) | inputMID[position+5]) << 8) | inputMID[position+6]) << 8) | inputMID[position+7]);
+
+		position += 8;
+
+		byte previousEventValue = 0xFF;
+
+		bool endFlag = false;
+
+		while (!endFlag && (position < results.st_size))
+		{
+			unsigned long original;
+			unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+			absoluteTimeFloat += (float)timeTag / noteTimeDivisor;
+			
+			absoluteTime = absoluteTimeFloat;
+
+			byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+			bool statusBit = false;
+
+			if (eventVal <= 0x7F)
+			{
+				// continuation
+				statusBit = true;
+			}
+			else
+			{
+				statusBit = false;
+			}
+
+			if (eventVal == 0xFF) // meta event
+			{
+				byte subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				if (subType == 0x2F) //End of Track Event.
+				{
+					endFlag = true;
+
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);  // end 00 in real mid
+				}
+				else if (subType == 0x51) //Set Tempo Event.
+				{
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+					unsigned char byteData[3];
+					byteData[0] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					byteData[1] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					byteData[2] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					unsigned long microSecondsSinceQuarterNote = ((((byteData[0] << 8) | byteData[1]) << 8) | byteData[2]);
+					unsigned long tempTempo = 60000000.0 / microSecondsSinceQuarterNote;
+
+					if (tempTempo > 255)
+						tempTempo = 255;
+					else if (tempTempo < 1)
+						tempTempo = 1;
+					else
+						tempTempo = (unsigned char)tempTempo;
+
+					bool matchTempo = false;
+					for (int y = 0; y < tempoPositions.size(); y++)
+					{
+						if (tempoPositions[y].absoluteTime == absoluteTime)
+						{
+							matchTempo = true;
+						}
+					}
+
+					if (!matchTempo)
+					{
+						tempoPositions.push_back(TimeAndValue(absoluteTime, tempTempo));
+					}
+				}
+				//Various Unused Meta Events.
+				else if ((subType < 0x7F) && !(subType == 0x51 || subType == 0x2F))
+				{
+					//newTrackEvent->type = 0xFF;
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+					for (int i = 0; i < length; i++)
+						ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+				}
+				else if (subType == 0x7F) //Unused Sequencer Specific Event.
+				{
+					//newTrackEvent->type = 0xFF;
+					int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+					// subtract length
+					for (int i = 0; i < length; i++)
+					{
+						ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					}
+				}
+
+				previousEventValue = eventVal;
+			}
+			// Note off
+			else if ((eventVal >= 0x80 && eventVal < 0x90) || (statusBit && (previousEventValue >= 0x80 && previousEventValue < 0x90)))
+			{
+				byte curEventVal;
+
+				byte noteNumber;
+				if (statusBit)
+				{
+					noteNumber = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				for (int p = 0; p < pendingNoteList.size(); p++)
+				{
+					if (pendingNoteList[p].originalController != (controller))
+						continue;
+
+					// Go backwards in list
+					if (pendingNoteList[p].noteNumber == noteNumber)
+					{
+						pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+						// Promote to regular
+						channels[trackNum].push_back(pendingNoteList[p]);
+
+						pendingNoteList.erase(pendingNoteList.begin() + p);
+						break;
+					}
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90 && previousEventValue < 0xA0)))
+			{
+				byte curEventVal;
+
+				byte noteNumber;
+				if (statusBit)
+				{
+					noteNumber = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				if (velocity == 0)
+				{
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Go backwards in list
+						if (pendingNoteList[p].noteNumber == noteNumber)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+							// Promote to regular
+							channels[trackNum].push_back(pendingNoteList[p]);
+
+							pendingNoteList.erase(pendingNoteList.begin() + p);
+							break;
+						}
+					}
+				}
+				else
+				{
+					// If wasn't shut off, turn it off from before, then start new note
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Go backwards in list
+						if (pendingNoteList[p].noteNumber == noteNumber)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+							// Promote to regular
+							channels[trackNum].push_back(pendingNoteList[p]);
+
+							pendingNoteList.erase(pendingNoteList.begin() + p);
+							break;
+						}
+					}
+
+					SngNoteInfoMidiImport newSongInfo;
+					newSongInfo.originalController = controller;
+					newSongInfo.originalTrack = trackNum;
+					newSongInfo.originalNoteUniqueId = noteUniqueId++;
+					newSongInfo.noteNumber = noteNumber;
+					newSongInfo.velocity = velocity;
+					// Apply tempo later as master track
+					//newSongInfo.tempo = currentTempo;
+					newSongInfo.pan = currentPan[controller];
+					newSongInfo.volume = currentVolume[controller];
+					newSongInfo.effect = currentReverb[controller];
+					newSongInfo.instrument = currentInstrument[controller] + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+					newSongInfo.segmentNumber = currentSegment[controller];
+					newSongInfo.pitchBend = currentPitchBend[controller];
+					newSongInfo.startAbsoluteTime = absoluteTime;
+					pendingNoteList.push_back(newSongInfo);
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xB0) && (eventVal < 0xC0))  || (statusBit && (previousEventValue >= 0xB0 && previousEventValue < 0xC0))) // controller change
+			{
+				byte controllerType;
+				unsigned char curEventVal;
+
+				if (statusBit)
+				{
+					controllerType = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				int controller = (curEventVal & 0xF);
+
+				byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				if (controllerType == 0) // MSB Instrument Bank
+				{
+					currentMSBBank[controller] = controllerValue;	
+				}
+				else if (controllerType == 7) // Volume
+				{
+					if (controllerValue != currentVolume[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[trackNum].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].volume = controllerValue;
+						}
+					}
+
+					currentVolume[controller] = controllerValue;	
+				}
+				else if (controllerType == 10) // Pan
+				{
+					if (controllerValue != currentPan[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[trackNum].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].pan = controllerValue;
+						}
+					}
+
+					currentPan[controller] = controllerValue;
+				}
+				else if (controllerType == 32) // LSB Instrument Bank
+				{
+					currentLSBBank[controller] = controllerValue;	
+				}
+				else if (controllerType == 91) // Reverb
+				{
+					if (controllerValue != currentReverb[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[trackNum].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].effect = controllerValue;
+						}
+					}
+
+					currentReverb[controller] = controllerValue;
+				}
+				else if (controllerType == 104) // Segment
+				{
+					if (controllerValue >= currentSegment[controller])
+					{
+						currentSegment[controller] = controllerValue;
+					}
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0 && previousEventValue < 0xD0))) // change instrument
+			{
+				byte instrument;
+				unsigned char curEventVal;
+
+				if (statusBit)
+				{
+					instrument = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				if ((eventVal & 0xF) == 9) // Drums in GM
+					instrument = instrument;
+				else
+					instrument = instrument;
+
+				int controller = (curEventVal & 0xF);
+
+				unsigned short tempInstrument = instrument + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+				
+				for (int p = 0; p < pendingNoteList.size(); p++)
+				{
+					if (pendingNoteList[p].originalController != (controller))
+						continue;
+
+					if (pendingNoteList[p].instrument != tempInstrument)
+					{
+						// Reopen
+						if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+				
+							// Promote to regular
+							channels[trackNum].push_back(pendingNoteList[p]);
+
+							// Reset
+							pendingNoteList[p].startAbsoluteTime = absoluteTime;
+							pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+						}
+
+						pendingNoteList[p].instrument = tempInstrument;
+					}
+				}
+
+				currentInstrument[controller] = instrument;
+				
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xD0) && (eventVal < 0xE0))  || (statusBit && (previousEventValue >= 0xD0 && previousEventValue < 0xE0))) // channel aftertouch
+			{
+				unsigned char curEventVal;
+				byte amount;
+				if (statusBit)
+				{
+					amount = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			// Pitch Bend
+			else if (((eventVal >= 0xE0) && (eventVal < 0xF0))  || (statusBit && (previousEventValue >= 0xE0 && previousEventValue < 0xF0))) // pitch bend
+			{
+				byte valueLSB;
+
+				unsigned char curEventVal;
+				if (statusBit)
+				{
+					valueLSB = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				if (currentPitchBend[controller] != valueMSB)
+				{
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Reopen
+						if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+				
+							// Promote to regular
+							channels[trackNum].push_back(pendingNoteList[p]);
+
+							// Reset
+							pendingNoteList[p].startAbsoluteTime = absoluteTime;
+							pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+						}
+						
+						pendingNoteList[p].pitchBend = valueMSB;
+					}
+				}
+
+				currentPitchBend[controller] = valueMSB;
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (eventVal == 0xF0 || eventVal == 0xF7)
+			{
+				unsigned char curEventVal = eventVal;
+				int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+				// subtract length
+				for (int i = 0; i < length; i++)
+				{
+					ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+				}
+			}
+			else
+			{
+				if (!unknownsHit)
+				{
+					MessageBox(NULL, "Invalid midi character found", "Error", NULL);
+					unknownsHit = true;
+				}
+			}
+		}
+
+		for (int p = 0; p < pendingNoteList.size(); p++)
+		{
+			pendingNoteList[p].endAbsoluteTime = absoluteTime;
+			channels[trackNum].push_back(pendingNoteList[p]);
+		}
+
+		// Clear empty notes
+		for (int x = (channels[trackNum].size() - 1); x >= 0; x--)
+		{
+			if (channels[trackNum][x].startAbsoluteTime == channels[trackNum][x].endAbsoluteTime)
+				channels[trackNum].erase(channels[trackNum].begin() + x);
+		}
+
+		for (int x = 0; x < channels[trackNum].size(); x++)
+		{
+			SngNoteInfoMidiImport tempNoteInfo = channels[trackNum][x];
+
+			if (tempNoteInfo.endAbsoluteTime > highestAbsoluteTime)
+				highestAbsoluteTime = tempNoteInfo.endAbsoluteTime;
+
+			if (tempNoteInfo.startAbsoluteTime < lowestAbsoluteTime)
+				lowestAbsoluteTime = tempNoteInfo.startAbsoluteTime;
+		}
+	}
+	
+	delete [] inputMID;
+
+
+
+
+
+
+
+	//FILE* outDebug = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\debug.txt", "w");
+	FILE* outDebug = NULL;
+
+	if (outDebug != NULL)
+	{
+		for (int trackNum = 0; trackNum < numTracks; trackNum++)
+		{
+			for (int x = 0; x < channels[trackNum].size(); x++)
+			{
+				fprintf(outDebug, "Start %08X End %08X Instrument %02X Note %02X Volume %02X Pitch Bend %02X Pan %02X Velocity %02X\n", channels[trackNum][x].startAbsoluteTime, channels[trackNum][x].endAbsoluteTime, channels[trackNum][x].instrument, channels[trackNum][x].noteNumber, channels[trackNum][x].volume, channels[trackNum][x].pitchBend, channels[trackNum][x].pan, channels[trackNum][x].velocity);
+			}
+		}
+	}
+
+	if (outDebug != NULL)
+		fclose(outDebug);
+
+	numChannels = numTracks;
+
+	if (numChannels == 0)
+	{
+		MessageBox(NULL, "No Channels", "Error", NULL);
+		return false;
+	}
+
+	if (loop && (loopPoint > highestAbsoluteTime))
+	{
+
+		MessageBox(NULL, "Error, loop point is beyond end of midi", "Error", NULL);
+		return false;
+	}
+
+	std::sort(tempoPositions.begin(), tempoPositions.end(), timeAndValueSortByTime());
+
+	for (int x = 0; x < numChannels; x++)
+	{
+		bool renumberedLoop = false;
+		int renumberSegment = -1;
+
+		// Separate
+		if (loop && (loopPoint != 0))
+		{
+			for (int y = (channels[x].size() - 1); y >= 0; y--)
+			{
+				SngNoteInfoMidiImport noteMidiImport = channels[x][y];
+				if ((loopPoint > noteMidiImport.startAbsoluteTime) && (loopPoint < noteMidiImport.endAbsoluteTime))
+				{
+					// Need to split
+					channels[x][y].endAbsoluteTime = loopPoint;
+
+					noteMidiImport.startAbsoluteTime = loopPoint;
+					channels[x].push_back(noteMidiImport);
+
+					renumberedLoop = true;
+					renumberSegment = noteMidiImport.segmentNumber;
+				}
+			}
+		}
+
+		std::sort(channels[x].begin(), channels[x].end(), sngSortByStartTime());
+
+		if (renumberedLoop)
+		{
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				if (channels[x][y].segmentNumber == renumberSegment)
+				{
+					if (channels[x][y].startAbsoluteTime >= loopPoint)
+					{
+						channels[x][y].segmentNumber = -1;
+					}
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 bool CMidiParse::MidiToSngList(CString input, std::vector<SngNoteInfoMidiImport>& sngNoteList, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfoMidiImport> channels[MAXCHANNELS], int& numChannels, std::vector<int>& instruments, int& lowestAbsoluteTime, int& highestAbsoluteTime, bool loop, unsigned long& loopPoint)
@@ -8608,7 +9558,7 @@ bool CMidiParse::MidiToSng(CString input, CString output, bool loop, unsigned lo
 	return true;
 }
 
-void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest)
+void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool extendTracksToHighest, bool usePitchBendSensitity, int pitchBendSensitity)
 {
 	numberInstruments = 0;
 	try
@@ -8909,6 +9859,61 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 				byte altOffset = 0;
 				byte altLength = 0;
 
+				if (usePitchBendSensitity)
+				{
+					//https://www.midikits.net/midi_analyser/pitch_bend.htm
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x64;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x00;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x65;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x00;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x06;
+					if (pitchBendSensitity > 0x18)
+						pitchBendSensitity = 0x18;
+					trackEventsSub[trackEventCountSub].contents[1] = pitchBendSensitity;
+
+					trackEventCountSub++;
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x64;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x7F;
+
+					trackEventCountSub++;
+
+
+					trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
+					trackEventsSub[trackEventCountSub].contentSize = 2;
+					trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
+					
+					trackEventsSub[trackEventCountSub].contents[0] = 0x65;
+					trackEventsSub[trackEventCountSub].contents[1] = 0x7F;
+
+					trackEventCountSub++;
+				}
+
 				bool endFlag = false;
 				while ((position < inputSize) && !endFlag)
 				{
@@ -9023,7 +10028,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 							}
 
 							// Fake loop end, controller 103
-							trackEventsSub[trackEventCountSub].type = 0xB0 | (iii & 0xF);
+							trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
 							trackEventsSub[trackEventCountSub].contentSize = 2;
 							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							trackEventsSub[trackEventCountSub].contents[0] = 103;
@@ -9089,7 +10094,7 @@ void CMidiParse::BTMidiToMidi(byte* inputMID, int inputSize, CString outFileName
 							byte endLoop = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
 							
 							// Fake loop start, controller 102
-							trackEventsSub[trackEventCountSub].type = 0xB0 | (iii & 0xF);
+							trackEventsSub[trackEventCountSub].type = 0xB0 | ((iii / 4) & 0xF);
 							trackEventsSub[trackEventCountSub].contentSize = 2;
 							trackEventsSub[trackEventCountSub].contents = new byte[trackEventsSub[trackEventCountSub].contentSize];
 							trackEventsSub[trackEventCountSub].contents[0] = 102;
@@ -15197,6 +16202,11 @@ void CMidiParse::ExportToBin(CString gameName, unsigned char* buffer, unsigned l
 
 void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int gamebufferSize, unsigned long address, unsigned long size, CString fileName, CString gameType, int& numberInstruments, unsigned long division, bool& compressed, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool calculateInstrumentCountOnly, bool separateByInstrument, bool generateDebugTextFile, unsigned long extra, unsigned long extra2, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo)
 {
+	ExportToMidi(gameName, gamebuffer, gamebufferSize, address, size, fileName, gameType, numberInstruments, division, compressed, hasLoopPoint, loopStart, loopEnd, calculateInstrumentCountOnly, separateByInstrument, generateDebugTextFile, extra, extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, false, 4);
+}
+
+void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int gamebufferSize, unsigned long address, unsigned long size, CString fileName, CString gameType, int& numberInstruments, unsigned long division, bool& compressed, bool& hasLoopPoint, int& loopStart, int& loopEnd, bool calculateInstrumentCountOnly, bool separateByInstrument, bool generateDebugTextFile, unsigned long extra, unsigned long extra2, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, bool usePitchBendSensitity, int pitchBendSensitity)
+{
 	gameName.Trim();
 	gameType.Trim();
 	if (gameType.CompareNoCase("BanjoTooie") == 0)
@@ -15209,13 +16219,13 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 			byte* outputBuffer = Decompress(&gamebuffer[address], size, decompressedSize, compressedSize);
 			if (outputBuffer != NULL)
 			{
-				BTMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+				BTMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 				delete [] outputBuffer;
 			}
 		}
 		else
 		{
-			BTMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			BTMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 		}
 	}
 	else if (gameType.CompareNoCase("MIDx") == 0)
@@ -15264,6 +16274,43 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 				KonamiToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
 		}
 	}
+	else if (gameType.CompareNoCase("ZLIBSSEQ") == 0)
+	{
+		if (compressed)
+		{
+			int fileSizeCompressed = -1;
+			GECompression gedecompress;
+			gedecompress.SetGame(MORTALKOMBAT);
+			gedecompress.SetCompressedBuffer(&gamebuffer[address], size);
+			int fileSizeUncompressed;
+			unsigned char* outputDecompressedSSEQ = gedecompress.OutputDecompressedBuffer(fileSizeUncompressed, fileSizeCompressed);
+
+			SSEQToMidi(gamebuffer, gamebufferSize, outputDecompressedSSEQ, fileSizeUncompressed, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+			if (generateDebugTextFile)
+				SSEQToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+
+			delete [] outputDecompressedSSEQ;
+		}
+		else
+		{
+			SSEQToMidi(gamebuffer, gamebufferSize, &gamebuffer[address], size, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+			if (generateDebugTextFile)
+				SSEQToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+		}
+	}
+	else if (gameType.CompareNoCase("SSEQ") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			SSEQToMidi(gamebuffer, gamebufferSize, &gamebuffer[address], size, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+			if (generateDebugTextFile)
+				SSEQToDebugTextFile(gamebuffer, gamebufferSize, gameName, address, &gamebuffer[address], size, fileName + " TrackParseDebug.txt", writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo, extra);
+		}
+	}
 	else if (gameType.CompareNoCase("PaperMario") == 0)
 	{
 		if (compressed)
@@ -15272,8 +16319,8 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 		}
 		else
 		{
-			std::vector<int> usedInstruments;
-			std::vector<int> usedPercussionSet;
+			std::vector<SngInstrumentPaperMario> usedInstruments;
+			std::vector<SngDrumPaperMario> usedPercussionSet;
 			std::vector<int> usedExtraInstruments;
 			
 			PaperMarioToMidi(gamebuffer, gamebufferSize, &gamebuffer[address], size, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, usedInstruments, usedPercussionSet, usedExtraInstruments, extendTracksToHighest);
@@ -15990,6 +17037,89 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 			fclose(outFile);
 		}
 	}
+	else if (gameType.CompareNoCase("Yaz0EADZelda") == 0)
+	{
+		YAZ0 yaz0;
+		int fileSizeCompressed = -1;
+		int sizeUncompressed = yaz0.yaz0_get_size(&gamebuffer[address]);
+		unsigned char* outputDecompressed = new unsigned char[sizeUncompressed];
+		unsigned long sizeDecompressed = yaz0.yaz0_decode(&gamebuffer[address], outputDecompressed, fileSizeCompressed);
+		if (sizeDecompressed == 0)
+		{
+			delete [] outputDecompressed;
+			MessageBox(NULL, "Error decompressing", "Error", NULL);
+			return;
+		}
+
+		unsigned long audioSeqIndex = extra2;
+		unsigned long audioSeqOffset = size;
+
+		unsigned long numberMidi = CharArrayToShort(&outputDecompressed[audioSeqIndex]);
+
+		unsigned long start = CharArrayToLong(&outputDecompressed[audioSeqIndex + 0x10 + (extra * 0x10)]);
+		unsigned long length = CharArrayToLong(&outputDecompressed[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+
+		EADMusicToMidi(gameName, EADMUSICSTYLEZELDA, gamebuffer, audioSeqOffset + start, length, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra, generateDebugTextFile, fileName + " TrackParseDebug.txt");
+
+		delete [] outputDecompressed;
+	}
+	else if (gameType.CompareNoCase("EADZelda") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&gamebuffer[audioSeqIndex]);
+
+			unsigned long start = CharArrayToLong(&gamebuffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+			unsigned long length = CharArrayToLong(&gamebuffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+
+			EADMusicToMidi(gameName, EADMUSICSTYLEZELDA, gamebuffer, audioSeqOffset + start, length, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra, generateDebugTextFile, fileName + " TrackParseDebug.txt");
+		}
+	}
+	else if (gameType.CompareNoCase("EADMario") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&gamebuffer[audioSeqIndex]);
+
+			unsigned long start = CharArrayToLong(&gamebuffer[audioSeqIndex + 4 + (extra * 8)]);
+			unsigned long length = CharArrayToLong(&gamebuffer[audioSeqIndex + 4 + (extra * 8) + 4]);
+
+			EADMusicToMidi(gameName, EADMUSICSTYLEMARIO, gamebuffer, audioSeqOffset + start, length, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra, generateDebugTextFile, fileName + " TrackParseDebug.txt");
+		}
+	}
+	else if (gameType.CompareNoCase("EADStarFox") == 0)
+	{
+		if (compressed)
+		{
+			
+		}
+		else
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&gamebuffer[audioSeqIndex]);
+
+			unsigned long start = CharArrayToLong(&gamebuffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+			unsigned long length = CharArrayToLong(&gamebuffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+
+			EADMusicToMidi(gameName, EADMUSICSTYLESTARFOX, gamebuffer, audioSeqOffset + start, length, fileName, numberInstruments, calculateInstrumentCountOnly, separateByInstrument, extra, generateDebugTextFile, fileName + " TrackParseDebug.txt");
+		}
+	}
 	else if (gameType.CompareNoCase("Seq64") == 0)
 	{
 		CString tempROMStr = mainFolder + "TempASEQ64ROM.rom";
@@ -16533,7 +17663,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 			}
 			fclose(outFile);
 
-			GEMidiToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			GEMidiToMidi(outputDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 			if (generateDebugTextFile)
 				GEMidiToDebugTextFile(outputDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
 
@@ -16573,7 +17703,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 			unsigned char* tempDecompressed = new unsigned char[realSize];
 			memcpy(tempDecompressed, &outputDecompressed[realStart], realSize);
 
-			GEMidiToMidi(tempDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			GEMidiToMidi(tempDecompressed, expectedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 			if (generateDebugTextFile)
 				GEMidiToDebugTextFile(tempDecompressed, expectedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
 
@@ -16618,7 +17748,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 				if ((outputBuffer[0] == 0x0) && (outputBuffer[1] == 0x0)
 					&& (outputBuffer[2] == 0x0) && (outputBuffer[3] == 0x44))
 				{
-					GEMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+					GEMidiToMidi(outputBuffer, decompressedSize, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 					if (generateDebugTextFile)
 						GEMidiToDebugTextFile(outputBuffer, decompressedSize, fileName + " TrackParseDebug.txt", extendTracksToHighest);
 				}
@@ -16627,7 +17757,7 @@ void CMidiParse::ExportToMidi(CString gameName, unsigned char* gamebuffer, int g
 		}
 		else
 		{
-			GEMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest);
+			GEMidiToMidi(&gamebuffer[address], size, fileName, numberInstruments, hasLoopPoint, loopStart, loopEnd, extendTracksToHighest, usePitchBendSensitity, pitchBendSensitity);
 			if (generateDebugTextFile)
 				GEMidiToDebugTextFile(&gamebuffer[address], size, fileName + " TrackParseDebug.txt", extendTracksToHighest);
 		}
@@ -17389,7 +18519,153 @@ void CMidiParse::ParseKonamiTrack(int trackNumber, int& numberInstruments, std::
 	}
 }
 
-void CMidiParse::WriteSngList(std::vector<SngNoteInfo> sngNoteList, std::vector<TimeAndValue> tempoPositions, CString outFileName, bool separateByInstrument, unsigned short division)
+void CMidiParse::ParseSSEQTrack(int trackNumber, int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes, unsigned char* inputMID, unsigned long offset, unsigned long end, int& noteUniqueId, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, int highestTrackLength)
+{
+	std::vector<SngNoteInfo> trackOutputNotes;
+	unsigned char command = 0x00;
+	int spot = offset;
+
+
+	unsigned long absoluteTime = 0;
+
+	unsigned char currentPan = 0x40;
+	unsigned long currentInstrument = 0x00;
+	unsigned char currentVolume = 0x7F;
+
+	unsigned char currentBank = 0x00;
+
+	int currentEffect = 0;
+
+	unsigned long currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+	signed long currentCoarseTune = 0x00;
+
+	unsigned char loopAmountsLeft = 0x00;
+	unsigned long loopSpot = 0;
+	unsigned long loopEndSpot = 0;
+
+	unsigned long masterLoopMarkerStartOffset;
+	unsigned long masterLoopMarkerEndOffset;
+
+	int totalLoopsToOutputLeft = 0;
+	if (writeOutLoops)
+		totalLoopsToOutputLeft = loopWriteCount;
+
+	unsigned char sectionNoteHold = 0x00;
+
+	std::map<int, SngNoteInfo> activeSngNotes;
+
+	while (spot < end)
+	{
+		if (extendTracksToHighest)
+		{
+			if (absoluteTime >= highestTrackLength)
+				break;
+		}
+
+		int startSpot = spot;
+
+		unsigned long original;
+		unsigned char* altPattern = NULL;
+		byte altOffset = 0;
+		byte altLength = 0;
+		unsigned long deltaTime = GetVLBytes(inputMID, spot, original, altPattern, altOffset, altLength, false);
+
+		absoluteTime += deltaTime;
+
+		command = inputMID[spot];
+
+		if (command == 0x7)
+		{
+			currentInstrument = ((inputMID[spot + 2] << 8) | inputMID[spot + 1]);
+			//fprintf(outFile, " Instrument %02X%02X [Instrument Change]", inputMID[spot + 2], inputMID[spot + 1]);
+
+			if (currentInstrument > numberInstruments)
+				numberInstruments = currentInstrument + 1;
+		}
+		else if (command == 0xC)
+		{
+			currentVolume = inputMID[spot + 1];
+		}
+		else if (command == 0xD)
+		{
+			currentPan = inputMID[spot + 1];
+		}
+		else if (command == 0x11)
+		{
+			//fprintf(outFile, " Note %02X Velocity %02X [Note On]", inputMID[spot + 1], inputMID[spot + 2]);
+			unsigned char note = inputMID[spot + 1];
+			unsigned char velocity = inputMID[spot + 2];
+
+			SngNoteInfo songNoteInfo;
+			songNoteInfo.originalTrack = trackNumber;
+			songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+			songNoteInfo.startAbsoluteTime = absoluteTime;
+			songNoteInfo.noteNumber = note + currentCoarseTune;
+
+			songNoteInfo.instrument = currentInstrument;
+
+			songNoteInfo.velocity = velocity;
+
+			songNoteInfo.effect = currentEffect;
+			songNoteInfo.tempo = currentTempo;
+			songNoteInfo.pan = currentPan & 0x7F;
+
+			songNoteInfo.pitchBend = 0x40;
+			songNoteInfo.volume = currentVolume & 0x7F;
+
+			songNoteInfo.endAbsoluteTime = 0;
+			activeSngNotes[note] = songNoteInfo;
+		}
+		else if (command == 0x12)
+		{
+			//fprintf(outFile, " Note %02X [Note Off]", inputMID[spot + 1]);
+			unsigned char note = inputMID[spot + 1];
+			if (activeSngNotes.find(note) != activeSngNotes.end())
+			{
+				activeSngNotes[note].endAbsoluteTime = absoluteTime;
+
+				trackOutputNotes.push_back(activeSngNotes[note]);
+
+				activeSngNotes.erase(activeSngNotes.find(note));
+			}
+		}
+		else if (command == 0x20)
+		{
+			//fprintf(outFile, " %02X %02X [Loop]", inputMID[spot + 1], inputMID[spot + 2]);
+			if (extendTracksToHighest)
+			{
+				spot = loopSpot;
+			}
+		}
+		else if (command == 0x22)
+		{
+			//fprintf(outFile, " [End]\n");
+			break;
+		}
+		else if (command == 0x23)
+		{
+			//fprintf(outFile, " [Loop Start]");
+			loopSpot = spot;
+		}
+		else
+		{
+			
+		}
+
+		
+		spot += sseqCommandSizes[command];
+	}
+	
+
+	// Add to end
+	for (int x = 0; x < trackOutputNotes.size(); x++)
+	{
+		outputNotes.push_back(trackOutputNotes[x]);
+	}
+}
+
+void CMidiParse::WriteSngList(std::vector<SngNoteInfo> sngNoteList, std::vector<TimeAndValue> tempoPositions, CString outFileName, bool separateByInstrument, unsigned short division, bool expandBendRange, int bendRange)
 {
 	// Convert SngList to Tracks, hopefully
 	int numChannels = 0;
@@ -17792,6 +19068,83 @@ void CMidiParse::WriteSngList(std::vector<SngNoteInfo> sngNoteList, std::vector<
 
 		int controller = channel % 0x10;
 
+		int currentSegmentNumber = -1;
+
+		if (channels[channel].size() > 0)
+		{
+			if (expandBendRange && (bendRange > 0))
+			{
+				if (bendRange > 24)
+					bendRange = 24;
+				if (bendRange < 1)
+					bendRange = 1;
+
+				{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = 0;
+				trackEventNew.obsoleteEvent = false;
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 101;
+				trackEventNew.contents[1] = 0;
+				
+				trackEvents.push_back(trackEventNew);
+				}
+
+				{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = 0;
+				trackEventNew.obsoleteEvent = false;
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 100;
+				trackEventNew.contents[1] = 0;
+				
+				trackEvents.push_back(trackEventNew);
+				}
+
+				{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = 0;
+				trackEventNew.obsoleteEvent = false;
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 6;
+				trackEventNew.contents[1] = bendRange;
+				
+				trackEvents.push_back(trackEventNew);
+				}
+
+				{
+				TrackEvent trackEventNew;
+
+				trackEventNew.deltaTime = 0;
+				trackEventNew.obsoleteEvent = false;
+				trackEventNew.absoluteTime = absoluteTime;
+
+				trackEventNew.type = 0xB0 | controller;
+				trackEventNew.contentSize = 2;
+				trackEventNew.contents = new byte[trackEventNew.contentSize];
+				trackEventNew.contents[0] = 38;
+				trackEventNew.contents[1] = 0;
+				
+				trackEvents.push_back(trackEventNew);
+				}
+			}
+		}
+
 		std::vector<SngNoteInfo> pendingShutOffNotes;
 		for (int x = 0; x < channels[channel].size(); x++)
 		{
@@ -17889,6 +19242,36 @@ void CMidiParse::WriteSngList(std::vector<SngNoteInfo> sngNoteList, std::vector<
 				else
 				{
 					break;
+				}
+			}
+			
+
+			if (!separateByInstrument)
+			{
+				if (songNoteInfo.segmentNumber != currentSegmentNumber)
+				{
+					// Pending should be clear cause new segment
+					if (pendingShutOffNotes.size() > 0)
+					{
+						// Error
+						pendingShutOffNotes = pendingShutOffNotes;
+					}
+
+					TrackEvent trackEventNew;
+
+					trackEventNew.deltaTime = 0;
+					trackEventNew.obsoleteEvent = false;
+					trackEventNew.absoluteTime = absoluteTime;
+
+					trackEventNew.type = 0xB0 | controller;
+					trackEventNew.contentSize = 2;
+					trackEventNew.contents = new byte[trackEventNew.contentSize];
+					trackEventNew.contents[0] = 104;
+					trackEventNew.contents[1] = songNoteInfo.segmentNumber;
+					
+					trackEvents.push_back(trackEventNew);
+
+					currentSegmentNumber = songNoteInfo.segmentNumber;
 				}
 			}
 
@@ -18653,7 +20036,65 @@ int CMidiParse::FindHighestKonamiLengthTrack(int trackNumber, unsigned char* buf
 	return absoluteTime;
 }
 
-void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int trackNumber, int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes, unsigned char* buffer, unsigned long offset, unsigned long end, int& noteUniqueId, unsigned long drumDataPointer, int numberDrum, unsigned long instrumentDataPointer, int numberInst, unsigned short trackFlags, std::vector<int>& usedInstruments, std::vector<int>& usedPercussionSet, std::vector<int>& usedExtraInstruments, unsigned char& currentPan, unsigned long& currentInstrument, unsigned char& currentVolume, int& currentEffect, unsigned long& currentTempo, signed long& currentCoarseTune, bool& setReverb, bool& setVolume, bool& setPan, int& absoluteTimeStart)
+unsigned char CMidiParse::sseqCommandSizes[0x24] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x02, 0x03, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 
+    0x02, 0x03, 0x02, 0x04, 0x05, 0x05, 0x02, 0x02, 0x03, 0x03, 0x03, 0x03, 0x01, 0x01, 0x03, 0x03, 
+    0x03, 0x01, 0x01, 0x01,
+};
+
+int CMidiParse::FindHighestSSEQLengthTrack(unsigned char* inputMID, int endSize, int numberTracks)
+{
+	int highestTime = 0;
+
+	unsigned long offsetData = 0;
+	for (int track = 0; track < numberTracks; track++)
+	{
+		unsigned short extraFlag = CharArrayToShort(&inputMID[offsetData + 0xE]);
+		unsigned long sizeTrack = CharArrayToLong(&inputMID[offsetData + 0x10]);
+		
+		if (extraFlag)
+		{
+			offsetData += 4;
+		}
+
+		offsetData += 0x14;
+
+		unsigned char command = 0x00;
+		int spot = offsetData;
+
+		unsigned long absoluteTime = 0;
+
+		while (spot < endSize)
+		{
+			unsigned long original;
+			unsigned char* altPattern = NULL;
+			byte altOffset = 0;
+			byte altLength = 0;
+			unsigned long deltaTime = GetVLBytes(inputMID, spot, original, altPattern, altOffset, altLength, false);
+
+			absoluteTime += deltaTime;
+
+			command = inputMID[spot];
+
+			if (command == 0x22)
+			{
+				break;
+			}
+
+			spot += sseqCommandSizes[command];
+		}
+
+		if (absoluteTime > highestTime)
+			highestTime = absoluteTime;
+
+		offsetData += sizeTrack;
+	}	
+
+	return highestTime;
+}
+
+void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int trackNumber, int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes, unsigned char* buffer, unsigned long offset, unsigned long end, int& noteUniqueId, unsigned long drumDataPointer, int numberDrum, unsigned long instrumentDataPointer, int numberInst, unsigned short trackFlags, std::vector<int>& usedExtraInstruments, unsigned char& currentPan, unsigned long& currentInstrument, unsigned char& currentVolume, int& currentEffect, unsigned long& currentTempo, signed long& currentCoarseTune, bool& setReverb, bool& setVolume, bool& setPan, int& absoluteTimeStart, int subSegmentCounter)
 {
 	bool isDrumTrack = ((trackFlags & 0x80) == 0x80);
 
@@ -18676,8 +20117,6 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 	{
 		if (trackNumber >= 0)
 		{
-			currentTempo = (unsigned long)(60000000.0 / (float)120.0);
-
 			if (trackNumber > 0)
 			{
 				for (int y = 0; y < tempoPositions.size(); y++)
@@ -18767,7 +20206,7 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 				}
 				else
 				{
-					length = 0xC0 + ((buffer[spot+1] & 0x3F) << 8) | buffer[spot+2];
+					length = 0xC0 + ((buffer[spot+1] & 0x3F) << 8) + buffer[spot+2];
 
 					//fprintf(outFile, " %02X (%d) [Really %02X (%0d)] Velocity %02X (%d) Length %02X%02X - Means %04X (%d)", note, note, command, command, buffer[spot], buffer[spot], buffer[spot+1], buffer[spot+2], length, length);
 
@@ -18796,6 +20235,7 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 
 
 					songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + length;
+					songNoteInfo.segmentNumber = subSegmentCounter;
 
 					trackOutputNotes.push_back(songNoteInfo);
 				}
@@ -18811,12 +20251,6 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 					{
 						songNoteInfo.noteNumber = note + 0xC;
 						songNoteInfo.instrument = (2 * 0x80);
-
-						
-						if (std::find(usedPercussionSet.begin(), usedPercussionSet.end(), note) == usedPercussionSet.end()) 
-						{
-							usedPercussionSet.push_back(note);
-						}
 					}
 					else
 					{
@@ -18824,10 +20258,6 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 						songNoteInfo.instrument = (note - 0x48) + (1 * 0x80);
 
 						int actualInstrument = buffer[drumDataPointer + ((note - 0x48) * 0xC) + 1];
-						if (std::find(usedInstruments.begin(), usedInstruments.end(), actualInstrument) == usedInstruments.end()) 
-						{
-							usedInstruments.push_back(actualInstrument);
-						}
 
 						if (!setVolume)
 						{
@@ -18859,6 +20289,7 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 
 					songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + length;
 
+					songNoteInfo.segmentNumber = subSegmentCounter;
 					trackOutputNotes.push_back(songNoteInfo);
 				}
 			}
@@ -19042,11 +20473,6 @@ void CMidiParse::ParsePaperMarioTrack(unsigned char* ROM, int romSize, int track
 						currentInstrument = buffer[spot];
 
 						int actualInstrument = buffer[instrumentDataPointer + (currentInstrument * 8) + 1];
-						if (std::find(usedInstruments.begin(), usedInstruments.end(), actualInstrument) == usedInstruments.end()) 
-						{
-							usedInstruments.push_back(actualInstrument);
-						}
-
 						if (!setVolume)
 						{
 							currentVolume = buffer[instrumentDataPointer + (currentInstrument * 8) + 2];
@@ -19659,16 +21085,746 @@ void CMidiParse::PaperMarioTrackToDebugTextFile(FILE* outFile, unsigned char* in
 	}
 }
 
-void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, std::vector<int>& usedInstruments, std::vector<int>& usedPercussionSet, std::vector<int>& usedExtraInstruments, bool combineSegments)
+void CMidiParse::WritePaperMarioDelay(unsigned long delay, unsigned char* outputBuffer, int& outputPosition)
+{
+	while (delay > 0)
+	{
+		if (delay < 0x78)
+		{
+			outputBuffer[outputPosition++] = delay;
+			delay = 0;
+		}
+		else
+		{
+			delay = delay - 0x78;
+			unsigned long maskLowExtra = delay >> 8;
+
+			if (maskLowExtra > 7)
+				maskLowExtra = 7;
+
+			outputBuffer[outputPosition++] = 0x78 | maskLowExtra;
+
+			delay = delay - (maskLowExtra << 8);
+
+			unsigned long extraByte = 0;
+			if (delay > 0)
+			{
+				if (delay > 0x78)
+					extraByte = 0x78;
+				else
+					extraByte = delay;
+			}
+
+			outputBuffer[outputPosition++] = extraByte;
+
+			delay = delay - extraByte;
+		}
+	}
+}
+
+bool CMidiParse::MidiToPaperMario(CString input[4], CString output, bool loop, unsigned long& loopPoint, unsigned long name)
+{
+	SngSegmentInfoPaperMario sngSegments[4];
+	for (int segmentNumber = 0; segmentNumber < 4; segmentNumber++)
+	{
+		if (input[segmentNumber] == "")
+			continue;
+
+		std::vector<TimeAndValue> tempoPositions;
+		std::vector<SngNoteInfoMidiImport> channels[0x10];
+		int numChannels = 0;
+		std::vector<int> instruments;
+		int lowestAbsoluteTime = 0x7FFFFFFF;
+		int highestAbsoluteTime = 0;
+
+		unsigned short division = 0x30;
+		if (!MidiToPaperMarioSngList(input[segmentNumber], tempoPositions, channels, numChannels, instruments, lowestAbsoluteTime, highestAbsoluteTime, loop, loopPoint, division))
+			return false;
+
+		std::vector<int> subSegments;
+
+		for (int trackNum = 0; trackNum < 0x10; trackNum++)
+		{
+			for (int x = 0; x < channels[trackNum].size(); x++)
+			{
+				if (std::find(subSegments.begin(), subSegments.end(), channels[trackNum][x].segmentNumber) == subSegments.end())
+				{
+					subSegments.push_back(channels[trackNum][x].segmentNumber);
+				}
+			}
+		}
+
+		float noteTimeDivisor = division / 0x30;
+
+		unsigned long loopPointReal = (float)loopPoint / noteTimeDivisor;
+
+		// Renumber segments
+		for (int trackNum = 0; trackNum < 0x10; trackNum++)
+		{
+			for (int x = 0; x < channels[trackNum].size(); x++)
+			{
+				int oldSegment = channels[trackNum][x].segmentNumber;
+
+				bool notFoundSeg = false;
+				for (int s = 0; s < subSegments.size(); s++)
+				{
+					if (oldSegment == subSegments[s])
+					{
+						int newSegmentNumber = s;
+						if (loop && (channels[trackNum][x].startAbsoluteTime >= loopPointReal))
+							newSegmentNumber++;
+
+						channels[trackNum][x].segmentNumber = newSegmentNumber;
+						notFoundSeg = true;
+						break;
+					}
+				}
+
+				if (!notFoundSeg)
+				{
+					// Should never happen
+					channels[trackNum][x].segmentNumber = 0;
+				}
+			}
+		}
+
+		subSegments.clear();
+
+		for (int trackNum = 0; trackNum < 0x10; trackNum++)
+		{
+			for (int x = 0; x < channels[trackNum].size(); x++)
+			{
+				if (std::find(subSegments.begin(), subSegments.end(), channels[trackNum][x].segmentNumber) == subSegments.end())
+				{
+					subSegments.push_back(channels[trackNum][x].segmentNumber);
+				}
+			}
+		}
+
+
+		std::vector<int> subSegmentStarts;
+		std::vector<int> subSegmentEnds;
+		subSegmentStarts.resize(subSegments.size());
+		subSegmentEnds.resize(subSegments.size());
+
+		for (int subSegment = 0; subSegment < subSegments.size(); subSegment++)
+		{
+			int startSegment = 0x7FFFFFFF;
+			int endSegment = 0;
+			for (int trackNum = 0; trackNum < 0x10; trackNum++)
+			{
+				for (int x = 0; x < channels[trackNum].size(); x++)
+				{
+					if (subSegment == channels[trackNum][x].segmentNumber)
+					{
+						if (channels[trackNum][x].startAbsoluteTime < startSegment)
+							startSegment = channels[trackNum][x].startAbsoluteTime;
+
+						if (channels[trackNum][x].endAbsoluteTime > endSegment)
+							endSegment = channels[trackNum][x].endAbsoluteTime;
+					}
+				}
+			}
+
+			if (subSegment == 0)
+			{
+				subSegmentStarts[subSegment] = 0;
+			}
+			else
+			{
+				subSegmentStarts[subSegment] = startSegment;
+			}
+			subSegmentEnds[subSegment] = endSegment;
+		}
+
+		for (int x = 0; x < subSegments.size(); x++)
+		{
+			for (int y = 0; y < subSegments.size(); y++)
+			{
+				if (x != y)
+				{
+					if (IsOverlap(subSegmentStarts[x], subSegmentEnds[x], subSegmentStarts[y], subSegmentEnds[y]))
+					{
+						int iResults = MessageBox(NULL, "Warning Overlap of sub-segments", "Do you want to continue?", MB_YESNO);
+
+						if (iResults == IDNO)
+							return false;
+						
+						x = subSegments.size();
+						y = subSegments.size();
+						break;
+					}
+				}
+			}
+		}
+		
+		for (int trackNum = 0; trackNum < 0x10; trackNum++)
+		{
+			for (int x = 0; x < channels[trackNum].size(); x++)
+			{
+				sngSegments[segmentNumber].sngSegmentTracks[trackNum].sngNoteList.push_back(channels[trackNum][x]);
+			}
+		}
+
+		sngSegments[segmentNumber].tempoPositions = tempoPositions;
+	}
+	std::vector<SngDrumPaperMario> drumsList;
+	std::vector<SngInstrumentPaperMario> instrumentsList;
+
+	return MidiToPaperMario(output, drumsList, instrumentsList, sngSegments, name, loop);
+}
+
+bool CMidiParse::MidiToPaperMario(CString output, std::vector<SngDrumPaperMario> drums, std::vector<SngInstrumentPaperMario> instruments, SngSegmentInfoPaperMario sngSegments[4], unsigned long name, bool loop)
+{
+	/*{
+	FILE* testoutFile = fopen("C:\\temp\\a.txt", "w");
+	for (int x = 1; x < 32151; x++)
+	{
+		unsigned char* testoutputBuffer = new unsigned char[0x110];
+		for (int x = 0; x < 0x110; x++)
+			testoutputBuffer[x] = 0;
+
+		int testPos = 0;
+		WritePaperMarioDelay(x, testoutputBuffer, testPos);
+
+		fprintf(testoutFile, "%d,", x);
+		for (int y = 0; y < testPos; y++)
+			fprintf(testoutFile, "%02X", testoutputBuffer[y]);
+
+		fprintf(testoutFile, ",");
+		unsigned long value = 0;
+
+		int newPos = 0;
+		while (testoutputBuffer[newPos] != 0)
+		{
+			if (testoutputBuffer[newPos] < 0x78)
+			{
+				fprintf(testoutFile, " ((Delay))");
+				fprintf(testoutFile, " %02X (%d)", testoutputBuffer[newPos], testoutputBuffer[newPos]);
+				value += testoutputBuffer[newPos];
+				newPos++;
+			}
+			else
+			{
+				value += 0x78 + testoutputBuffer[newPos + 1] + ((testoutputBuffer[newPos] & 0x7) << 8);
+
+				fprintf(testoutFile, " ((Delay))");
+				fprintf(testoutFile, " %02X (%d) %02X - %04X (%d)", testoutputBuffer[newPos], testoutputBuffer[newPos], testoutputBuffer[newPos + 1], value, value);
+				newPos += 2;
+			}
+		}
+
+		if (value != x)
+		{
+			value = value;
+		}
+
+		fprintf(testoutFile, ",Match %d \n", value);
+	}
+	fclose(testoutFile);
+	}*/
+
+	int outputPosition = 0;
+
+	unsigned char* outputBuffer = new unsigned char[0x100000];
+
+	for (int x = 0; x < 0x100000; x++)
+		outputBuffer[x] = 0x00;
+
+	WriteLongToBuffer(outputBuffer, outputPosition, 0x42474D20);
+	outputPosition += 4;
+	
+	int finalSizePosition = outputPosition;
+
+	// Size here
+	outputPosition += 4;
+
+	WriteLongToBuffer(outputBuffer, outputPosition, name);
+	outputPosition += 4;
+
+	WriteLongToBuffer(outputBuffer, outputPosition, 0x00000000);
+	outputPosition += 4;
+
+	int numberSegments = 4;
+	outputBuffer[outputPosition] = 0x04;
+	outputBuffer[outputPosition + 1] = 0x00;
+	outputBuffer[outputPosition + 2] = 0x00;
+	outputBuffer[outputPosition + 3] = 0x00;
+	outputPosition += 4;
+
+	int segmentOffsetPosition = outputPosition;
+	outputPosition += (2 * numberSegments);
+
+	int drumOffsetPosition = outputPosition;
+	outputPosition += 2;
+	WriteShortToBuffer(outputBuffer, outputPosition, drums.size());
+	outputPosition += 2;
+
+	int instrumentOffsetPosition = outputPosition;
+	outputPosition += 2;
+	WriteShortToBuffer(outputBuffer, outputPosition, instruments.size());
+	outputPosition += 2;
+
+	if (drums.size() > 0)
+		WriteShortToBuffer(outputBuffer, drumOffsetPosition, (outputPosition >> 2));
+	else
+		WriteShortToBuffer(outputBuffer, drumOffsetPosition, 0);
+
+	for (int x = 0; x < drums.size(); x++)
+	{
+		outputBuffer[outputPosition++] = drums[x].flags;
+		outputBuffer[outputPosition++] = drums[x].instrument;
+		outputBuffer[outputPosition++] = drums[x].unknown2;
+		outputBuffer[outputPosition++] = drums[x].unknown3;
+		outputBuffer[outputPosition++] = drums[x].volume;
+		outputBuffer[outputPosition++] = drums[x].pan;
+		outputBuffer[outputPosition++] = drums[x].effect;
+		outputBuffer[outputPosition++] = drums[x].unknown7;
+		outputBuffer[outputPosition++] = drums[x].unknown8;
+		outputBuffer[outputPosition++] = drums[x].unknown9;
+		outputBuffer[outputPosition++] = drums[x].unknownA;
+		outputBuffer[outputPosition++] = drums[x].unknownB;
+	}
+	
+	if (instruments.size() > 0)
+		WriteShortToBuffer(outputBuffer, instrumentOffsetPosition, (outputPosition >> 2));
+	else
+		WriteShortToBuffer(outputBuffer, instrumentOffsetPosition, 0x0000);
+
+	for (int x = 0; x < instruments.size(); x++)
+	{
+		outputBuffer[outputPosition++] = instruments[x].flags;
+		outputBuffer[outputPosition++] = instruments[x].instrument;
+		outputBuffer[outputPosition++] = instruments[x].volume;
+		outputBuffer[outputPosition++] = instruments[x].pan;
+		outputBuffer[outputPosition++] = instruments[x].effect;
+		outputBuffer[outputPosition++] = instruments[x].unknown5;
+		outputBuffer[outputPosition++] = instruments[x].unknown6;
+		outputBuffer[outputPosition++] = instruments[x].unknown7;
+	}
+
+	int segmentOffsetPointers[4];
+	std::vector<int> subSegments[4];
+	for (int segment = 0; segment < numberSegments; segment++)
+	{
+		bool hasNote = false;
+
+		for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
+		{
+			if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList.size() > 0)
+			{
+				hasNote = true;
+				break;
+			}
+		}
+
+		if (hasNote)
+		{
+			WriteShortToBuffer(outputBuffer, segmentOffsetPosition + (segment * 2), (outputPosition >> 2));
+			segmentOffsetPointers[segment] = outputPosition;
+		}
+		else
+		{
+			WriteShortToBuffer(outputBuffer, segmentOffsetPosition + (segment * 2), 0x0000);
+			segmentOffsetPointers[segment] = 0x00000000;
+			continue;
+		}
+
+		for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
+		{
+			for (int y = 0; y < sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList.size(); y++)
+			{
+				if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].segmentNumber != -1)
+				{
+					if (std::find(subSegments[segment].begin(), subSegments[segment].end(), sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].segmentNumber) == subSegments[segment].end())
+					{
+						subSegments[segment].push_back(sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].segmentNumber);
+					}
+				}
+			}
+		}
+
+		std::sort(subSegments[segment].begin(), subSegments[segment].end());
+
+		bool didSpecial30 = false;
+
+		if (subSegments[segment].size() > 0)
+		{
+			for (int x = 0; x < (subSegments[segment][subSegments[segment].size() - 1] + 1); x++)
+			{
+				// Skip one
+				if (std::find(subSegments[segment].begin(), subSegments[segment].end(), x) == subSegments[segment].end())
+				{
+					WriteLongToBuffer(outputBuffer, outputPosition, 0x30000000);
+					didSpecial30 = true;
+				}
+				outputPosition += 4;
+			}
+		}
+
+		if (didSpecial30)
+		{
+			WriteLongToBuffer(outputBuffer, outputPosition, 0x50000000);
+			outputPosition += 4;
+		}
+		// Last 00000000 terminator
+		outputPosition += 4;
+	}
+
+	for (int segment = 0; segment < numberSegments; segment++)
+	{
+		if (subSegments[segment].size() > 0)
+		{
+			bool isAfterLoopSubSegment = false;
+			for (int x = 0; x < (subSegments[segment][subSegments[segment].size() - 1] + 1); x++)
+			{
+				int maxAbsoluteTime = 0;
+
+				if (std::find(subSegments[segment].begin(), subSegments[segment].end(), x) != subSegments[segment].end())
+				{
+					for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
+					{
+						for (int y = 0; y < sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList.size(); y++)
+				 		{
+							if (x == sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].segmentNumber)
+							{
+								if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].endAbsoluteTime > maxAbsoluteTime)
+								{
+									maxAbsoluteTime = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].endAbsoluteTime;
+								}
+							}
+						}
+					}
+
+					if (sngSegments[segment].sngSubSegmentInfo.find(x) != sngSegments[segment].sngSubSegmentInfo.end())
+					{
+						if (maxAbsoluteTime < sngSegments[segment].sngSubSegmentInfo[x].endSegmentTime)
+						{
+							maxAbsoluteTime = sngSegments[segment].sngSubSegmentInfo[x].endSegmentTime;
+						}
+					}
+
+					bool isDrumTrack = false;
+
+					WriteLongToBuffer(outputBuffer, segmentOffsetPointers[segment] + (x * 4), 0x10000000 | ((outputPosition - segmentOffsetPointers[segment]) >> 2));
+
+					int trackPointerOffset = outputPosition;
+
+					outputPosition += 0x40;
+
+					for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
+					{
+						if ((trackNumber == 0) || (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList.size() > 0))
+						{
+							// Flags
+							//0x0080 Drum Track
+							if (isDrumTrack)
+							{
+								WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4), ((outputPosition - trackPointerOffset)));
+								// Flags
+								WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4) + 2, 0xE080);
+							}
+							else
+							{
+								WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4), ((outputPosition - trackPointerOffset)));
+								// Flags
+								WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4) + 2, 0xA000);
+							}
+						}
+						else
+						{
+							WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4), 0x0000);
+							WriteShortToBuffer(outputBuffer, trackPointerOffset + (trackNumber * 0x4) + 2, 0x0000);
+							continue;
+						}
+
+						int absoluteTime = 0;
+						int startAbsoluteTime = 0;
+
+						if (sngSegments[segment].sngSubSegmentInfo.find(x) != sngSegments[segment].sngSubSegmentInfo.end())
+						{
+							absoluteTime = sngSegments[segment].sngSubSegmentInfo[x].startSegmentTime;
+							startAbsoluteTime = sngSegments[segment].sngSubSegmentInfo[x].startSegmentTime;;
+						}
+
+						if (trackNumber == 0)
+						{
+							// Tempo only 
+							for (int t = 0; t < sngSegments[segment].tempoPositions.size(); t++)
+							{
+								if (sngSegments[segment].tempoPositions[t].absoluteTime >= startAbsoluteTime)
+								{
+									if (sngSegments[segment].tempoPositions[t].absoluteTime >= maxAbsoluteTime)
+										break;
+
+									if ((t > 0) && (sngSegments[segment].tempoPositions[t].value == sngSegments[segment].tempoPositions[t - 1].value))
+										continue;
+
+									if (sngSegments[segment].tempoPositions[t].absoluteTime > absoluteTime)
+									{
+										WritePaperMarioDelay((sngSegments[segment].tempoPositions[t].absoluteTime - absoluteTime), outputBuffer, outputPosition);
+										absoluteTime = sngSegments[segment].tempoPositions[t].absoluteTime;
+									}
+
+									unsigned short tempoValue = sngSegments[segment].tempoPositions[t].value;
+
+									outputBuffer[outputPosition++] = 0xE0;
+									WriteShortToBuffer(outputBuffer, outputPosition, tempoValue);
+									outputPosition += 2;
+
+									if (t == 0)
+									{
+										// Write Master Volume
+										outputBuffer[outputPosition++] = 0xE1;
+										outputBuffer[outputPosition++] = 0x64;
+
+										// Write Effect
+										outputBuffer[outputPosition++] = 0xE6;
+										WriteShortToBuffer(outputBuffer, outputPosition, 0x0001);
+										outputPosition += 2;
+									}
+								}
+							}
+						}
+						else
+						{
+							int currentInstrument = -1;
+							int currentVolume = -1;
+							int currentPan = -1;
+							int currentReverb = -1;
+
+							for (int y = 0; y < sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList.size(); y++)
+				 			{
+								if (x == sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].segmentNumber)
+								{
+									if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].startAbsoluteTime > absoluteTime)
+									{
+										WritePaperMarioDelay((sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].startAbsoluteTime - absoluteTime), outputBuffer, outputPosition);
+										absoluteTime = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].startAbsoluteTime;
+									}
+
+									if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].effect != currentReverb)
+									{
+										outputBuffer[outputPosition++] = 0xEB;
+										outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].effect;
+										currentReverb = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].effect;
+									}
+
+									if (isDrumTrack)
+									{
+										if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume != currentVolume)
+										{
+											outputBuffer[outputPosition++] = 0xE9;
+											outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume;
+
+											currentVolume = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume;
+										}
+
+										if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan != currentPan)
+										{
+											outputBuffer[outputPosition++] = 0xEA;
+											outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan;
+
+											currentPan = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan;
+										}
+
+										// TODO do this
+									}
+									else
+									{
+										if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].instrument != currentInstrument)
+										{
+											bool foundInstrument = false;
+											for (int i = 0; i < instruments.size(); i++)
+											{
+												if (instruments[i].instrument == sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].instrument)
+												{
+													foundInstrument = true;
+													outputBuffer[outputPosition++] = 0xF5;
+													outputBuffer[outputPosition++] = instruments[i].instrument;
+
+													currentInstrument = instruments[i].instrument;
+													break;
+												}
+											}
+
+											if (!foundInstrument)
+											{
+												outputBuffer[outputPosition++] = 0xE8;
+												outputBuffer[outputPosition++] = 0x30;
+												outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].instrument;
+
+												currentInstrument = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].instrument;
+											}
+										}
+
+										if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume != currentVolume)
+										{
+											outputBuffer[outputPosition++] = 0xE9;
+											outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume;
+
+											currentVolume = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].volume;
+										}
+
+										if (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan != currentPan)
+										{
+											outputBuffer[outputPosition++] = 0xEA;
+											outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan;
+
+											currentPan = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].pan;
+										}
+
+										unsigned char noteNumber = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].noteNumber - 0xC;
+										if (noteNumber > 0x53)
+											noteNumber = 0x53;
+
+										unsigned long noteLength = (sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].endAbsoluteTime - sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].startAbsoluteTime);
+
+										int originalLength = noteLength;
+										if (noteLength > 0xD3FF)
+											noteLength = 0xD3FF;
+
+										outputBuffer[outputPosition++] = noteNumber + 0x80;
+										outputBuffer[outputPosition++] = sngSegments[segment].sngSegmentTracks[trackNumber].sngNoteList[y].velocity;
+										
+										if (noteLength < 0xC0)
+										{
+											outputBuffer[outputPosition++] = noteLength;
+											noteLength = 0;
+										}
+										else
+										{
+											noteLength = noteLength - 0xC0;
+
+											unsigned long maskLowExtra = noteLength >> 8;
+
+											if (maskLowExtra > 0x3F)
+												maskLowExtra = 0x3F;
+
+											outputBuffer[outputPosition++] = 0xC0 | maskLowExtra;
+
+											noteLength = noteLength - (maskLowExtra << 8);
+
+											unsigned long extraByte = 0;
+											if (noteLength > 0)
+											{
+												if (noteLength > 0xFF)
+													extraByte = 0xFF;
+												else
+													extraByte = noteLength;
+											}
+
+											outputBuffer[outputPosition++] = extraByte;
+
+											noteLength = noteLength - extraByte;
+										}
+									}
+								}
+							}
+						}
+
+						if (absoluteTime < maxAbsoluteTime)
+						{
+							WritePaperMarioDelay((maxAbsoluteTime - absoluteTime), outputBuffer, outputPosition);
+							absoluteTime = maxAbsoluteTime;
+						}
+
+						// End
+						outputBuffer[outputPosition++] = 0x00;
+
+						if ((outputPosition % 4) != 0)
+						{
+							int pad = 4 - (outputPosition % 4);
+							for (int p = 0; p < pad; p++)
+								outputBuffer[outputPosition++] = 0x00;
+						}
+					}
+
+					isAfterLoopSubSegment = false;
+
+				}
+				else
+				{
+					isAfterLoopSubSegment = true;
+				}
+			}
+		}
+	}
+
+	WriteLongToBuffer(outputBuffer, finalSizePosition, outputPosition);
+
+	FILE* outFile = fopen(output, "wb");
+	if (outFile == NULL)
+	{
+		delete [] outputBuffer;
+
+		MessageBox(NULL, "Error outputting file", "Error", NULL);
+		return false;
+	}
+
+	fwrite(outputBuffer, 1, outputPosition, outFile);
+
+	delete [] outputBuffer;
+	fclose(outFile);
+
+	return true;
+}
+
+void CMidiParse::TestPaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, std::vector<SngInstrumentPaperMario>& usedInstruments, std::vector<SngDrumPaperMario>& usedPercussionSet, std::vector<int>& usedExtraInstruments, bool combineSegments)
 {
 	numberInstruments = 1;
 
 	int numberSegments = inputMID[0x10];
 
+	unsigned long name = CharArrayToLong(&inputMID[8]);
+
 	unsigned long drumDataPointer = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (0 * 2)]) << 2;
 	int numberDrum = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (1 * 2)]);
 	unsigned long instrumentDataPointer = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (2 * 2)]) << 2;
 	int numberInst = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (3 * 2)]);
+
+	// Test Output
+	std::vector<SngDrumPaperMario> drums;
+	for (int x = 0; x < numberDrum; x++)
+	{
+		SngDrumPaperMario drumInfo;
+
+		drumInfo.flags = inputMID[drumDataPointer + (x * 0xC) + 0x0];
+		drumInfo.instrument = inputMID[drumDataPointer + (x * 0xC) + 0x1];
+		drumInfo.unknown2 = inputMID[drumDataPointer + (x * 0xC) + 0x2];
+		drumInfo.unknown3 = inputMID[drumDataPointer + (x * 0xC) + 0x3];
+		drumInfo.volume = inputMID[drumDataPointer + (x * 0xC) + 0x4];
+		drumInfo.pan = inputMID[drumDataPointer + (x * 0xC) + 0x5];
+		drumInfo.effect = inputMID[drumDataPointer + (x * 0xC) + 0x6];
+		drumInfo.unknown7 = inputMID[drumDataPointer + (x * 0xC) + 0x7];
+		drumInfo.unknown8 = inputMID[drumDataPointer + (x * 0xC) + 0x8];
+		drumInfo.unknown9 = inputMID[drumDataPointer + (x * 0xC) + 0x9];
+		drumInfo.unknownA = inputMID[drumDataPointer + (x * 0xC) + 0xA];
+		drumInfo.unknownB = inputMID[drumDataPointer + (x * 0xC) + 0xB];
+
+		drums.push_back(drumInfo);
+		usedPercussionSet.push_back(drumInfo);
+	}
+
+	std::vector<SngInstrumentPaperMario> instruments;
+	for (int x = 0; x < numberInst; x++)
+	{
+		SngInstrumentPaperMario instrumentInfo;
+
+		instrumentInfo.flags = inputMID[instrumentDataPointer + (x * 0x8) + 0x0];
+		instrumentInfo.instrument = inputMID[instrumentDataPointer + (x * 0x8) + 0x1];
+		instrumentInfo.volume = inputMID[instrumentDataPointer + (x * 0x8) + 0x2];
+		instrumentInfo.pan = inputMID[instrumentDataPointer + (x * 0x8) + 0x3];
+		instrumentInfo.effect = inputMID[instrumentDataPointer + (x * 0x8) + 0x4];
+		instrumentInfo.unknown5 = inputMID[instrumentDataPointer + (x * 0x8) + 0x5];
+		instrumentInfo.unknown6 = inputMID[instrumentDataPointer + (x * 0x8) + 0x6];
+		instrumentInfo.unknown7 = inputMID[instrumentDataPointer + (x * 0x8) + 0x7];
+
+		instruments.push_back(instrumentInfo);
+		usedInstruments.push_back(instrumentInfo);
+	}
+
+	SngSegmentInfoPaperMario sngSegments[4];
 
 	for (int x = 0; x < numberSegments; x++)
 	{
@@ -19708,14 +21864,9 @@ void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMI
 			{
 				unsigned long segmentDataOffset = segmentDataPointer + (CharArrayToShort(&inputMID[segmentTempDataPointer + 2]) << 2);
 
-				if (!combineSegments)
-				{
-					sngNoteList.clear();
-					noteUniqueId = 0;
-					tempoPositions.clear();
-				}
-
 				unsigned long previousTempo = currentTempo;
+
+				sngSegments[x].sngSubSegmentInfo[segmentCounter].startSegmentTime = absoluteTimeStart[0];
 
 				for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
 				{
@@ -19723,13 +21874,156 @@ void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMI
 					{
 						unsigned long trackDataOffset = segmentDataOffset + (CharArrayToShort(&inputMID[segmentDataOffset + (trackNumber * 4)]));
 						unsigned short trackFlags = (CharArrayToShort(&inputMID[segmentDataOffset + (trackNumber * 4 + 2)]));
-								
-						if (!combineSegments)
-						{
-							absoluteTimeStart[trackNumber] = 0;
-						}
 
-						ParsePaperMarioTrack(ROM, romSize, trackNumber, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataOffset, inputSize, noteUniqueId, drumDataPointer, numberDrum, instrumentDataPointer, numberInst, trackFlags, usedInstruments, usedPercussionSet, usedExtraInstruments, currentPan, currentInstrument, currentVolume, currentEffect, currentTempo, currentCoarseTune, setReverb, setVolume, setPan, absoluteTimeStart[trackNumber]);
+						SngSegmentInfoPaperMario* sngSegmentInfo = &(sngSegments[x]);
+						
+						sngSegmentInfo->sngSubSegmentInfo[segmentCounter].trackFlags = trackFlags;
+
+						SngSegmentTrackInfoPaperMario* sngSegmentTrackInfo = &(sngSegmentInfo->sngSegmentTracks[trackNumber]);
+						ParsePaperMarioTrack(ROM, romSize, trackNumber, numberInstruments, tempoPositions, sngSegmentTrackInfo->sngNoteList, inputMID, trackDataOffset, inputSize, noteUniqueId, drumDataPointer, numberDrum, instrumentDataPointer, numberInst, trackFlags, usedExtraInstruments, currentPan, currentInstrument, currentVolume, currentEffect, currentTempo, currentCoarseTune, setReverb, setVolume, setPan, absoluteTimeStart[trackNumber], segmentCounter);
+						sngSegmentTrackInfo->sngNoteList = sngSegmentTrackInfo->sngNoteList;
+					}
+				}
+
+				sngSegments[x].sngSubSegmentInfo[segmentCounter].endSegmentTime = absoluteTimeStart[0];
+
+				if (tempoPositions.size() == 0)
+				{
+					tempoPositions.push_back(TimeAndValue(0, currentTempo));
+				}
+
+				if (tempoPositions[0].absoluteTime != 0)
+				{
+					tempoPositions.insert(tempoPositions.begin(), TimeAndValue(0, previousTempo));	
+				}
+
+				sngSegments[x].tempoPositions = tempoPositions;
+			}
+			else if ((inputMID[segmentTempDataPointer] & 0x70) == 0x00)
+			{
+				break;
+			}
+
+			segmentTempDataPointer += 4;
+			segmentCounter++;
+		}
+	}
+
+	MidiToPaperMario("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\papermariooutput.bin", drums, instruments, sngSegments, name, false);
+}
+
+void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, std::vector<SngInstrumentPaperMario>& usedInstruments, std::vector<SngDrumPaperMario>& usedPercussionSet, std::vector<int>& usedExtraInstruments, bool combineSegments)
+{
+	numberInstruments = 1;
+
+	int numberSegments = inputMID[0x10];
+
+	unsigned long drumDataPointer = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (0 * 2)]) << 2;
+	int numberDrum = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (1 * 2)]);
+	unsigned long instrumentDataPointer = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (2 * 2)]) << 2;
+	int numberInst = CharArrayToShort(&inputMID[0x14 + (numberSegments * 2) + (3 * 2)]);
+
+	std::vector<SngDrumPaperMario> drums;
+	for (int x = 0; x < numberDrum; x++)
+	{
+		SngDrumPaperMario drumInfo;
+
+		drumInfo.flags = inputMID[drumDataPointer + (x * 0xC) + 0x0];
+		drumInfo.instrument = inputMID[drumDataPointer + (x * 0xC) + 0x1];
+		drumInfo.unknown2 = inputMID[drumDataPointer + (x * 0xC) + 0x2];
+		drumInfo.unknown3 = inputMID[drumDataPointer + (x * 0xC) + 0x3];
+		drumInfo.volume = inputMID[drumDataPointer + (x * 0xC) + 0x4];
+		drumInfo.pan = inputMID[drumDataPointer + (x * 0xC) + 0x5];
+		drumInfo.effect = inputMID[drumDataPointer + (x * 0xC) + 0x6];
+		drumInfo.unknown7 = inputMID[drumDataPointer + (x * 0xC) + 0x7];
+		drumInfo.unknown8 = inputMID[drumDataPointer + (x * 0xC) + 0x8];
+		drumInfo.unknown9 = inputMID[drumDataPointer + (x * 0xC) + 0x9];
+		drumInfo.unknownA = inputMID[drumDataPointer + (x * 0xC) + 0xA];
+		drumInfo.unknownB = inputMID[drumDataPointer + (x * 0xC) + 0xB];
+
+		usedPercussionSet.push_back(drumInfo);
+	}
+
+	std::vector<SngInstrumentPaperMario> instruments;
+	for (int x = 0; x < numberInst; x++)
+	{
+		SngInstrumentPaperMario instrumentInfo;
+
+		instrumentInfo.flags = inputMID[instrumentDataPointer + (x * 0x8) + 0x0];
+		instrumentInfo.instrument = inputMID[instrumentDataPointer + (x * 0x8) + 0x1];
+		instrumentInfo.volume = inputMID[instrumentDataPointer + (x * 0x8) + 0x2];
+		instrumentInfo.pan = inputMID[instrumentDataPointer + (x * 0x8) + 0x3];
+		instrumentInfo.effect = inputMID[instrumentDataPointer + (x * 0x8) + 0x4];
+		instrumentInfo.unknown5 = inputMID[instrumentDataPointer + (x * 0x8) + 0x5];
+		instrumentInfo.unknown6 = inputMID[instrumentDataPointer + (x * 0x8) + 0x6];
+		instrumentInfo.unknown7 = inputMID[instrumentDataPointer + (x * 0x8) + 0x7];
+
+		usedInstruments.push_back(instrumentInfo);
+	}
+
+	for (int x = 0; x < numberSegments; x++)
+	{
+		unsigned long segmentDataPointer = CharArrayToShort(&inputMID[0x14 + (x * 2)]) << 2;
+
+		if (segmentDataPointer == 0x0000)
+			continue;
+
+		unsigned long segmentTempDataPointer = segmentDataPointer;
+		int segmentCounter = 0;
+
+		unsigned char currentPan = 0x40;
+		unsigned long currentInstrument = 0x00;
+		unsigned char currentVolume = 0x7F;
+
+		int currentEffect = 0;
+
+		unsigned long currentTempo = (unsigned long)(60000000.0 / (float)120.0);
+
+		signed long currentCoarseTune = 0x00;
+
+		bool setReverb = false;
+		bool setVolume = false;
+		bool setPan = false;
+
+		std::vector<SngNoteInfo> sngNoteList;
+		int noteUniqueId = 0;
+		std::vector<TimeAndValue> tempoPositions;
+
+		int absoluteTimeStartTempo = 0;
+
+		while (true)
+		{
+			if ((inputMID[segmentTempDataPointer] & 0x70) == 0x10)
+			{
+				unsigned long segmentDataOffset = segmentDataPointer + (CharArrayToShort(&inputMID[segmentTempDataPointer + 2]) << 2);
+
+				if (!combineSegments)
+				{
+					sngNoteList.clear();
+					noteUniqueId = 0;
+					tempoPositions.clear();
+				}
+
+				unsigned long previousTempo = absoluteTimeStartTempo;
+
+				int currentAbsoluteStart = absoluteTimeStartTempo;
+				for (int trackNumber = 0; trackNumber < 0x10; trackNumber++)
+				{
+					if (CharArrayToLong(&inputMID[segmentDataOffset + (trackNumber * 4)]) != 0x00000000)
+					{
+						unsigned long trackDataOffset = segmentDataOffset + (CharArrayToShort(&inputMID[segmentDataOffset + (trackNumber * 4)]));
+						unsigned short trackFlags = (CharArrayToShort(&inputMID[segmentDataOffset + (trackNumber * 4 + 2)]));
+							
+						int absoluteTimeStart;
+						if (!combineSegments)
+							absoluteTimeStart = 0;
+						else
+							absoluteTimeStart = previousTempo;
+
+						ParsePaperMarioTrack(ROM, romSize, trackNumber, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataOffset, inputSize, noteUniqueId, drumDataPointer, numberDrum, instrumentDataPointer, numberInst, trackFlags, usedExtraInstruments, currentPan, currentInstrument, currentVolume, currentEffect, currentTempo, currentCoarseTune, setReverb, setVolume, setPan, absoluteTimeStart, segmentCounter);
+
+						if (trackNumber == 0)
+							absoluteTimeStartTempo = absoluteTimeStart;
 					}
 				}
 
@@ -19765,7 +22059,7 @@ void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMI
 					else
 						tempMidiNumber += ".mid";
 
-					WriteSngList(sngNoteList, tempoPositions, tempMidiNumber, separateByInstrument, 0x0030);
+					WriteSngList(sngNoteList, tempoPositions, tempMidiNumber, separateByInstrument, 0x0030, false, 24);
 				}
 			}
 			else if ((inputMID[segmentTempDataPointer] & 0x70) == 0x00)
@@ -19796,8 +22090,4853 @@ void CMidiParse::PaperMarioToMidi(unsigned char* ROM, int romSize, byte* inputMI
 			else
 				tempMidiNumber += ".mid";
 
-			WriteSngList(sngNoteList, tempoPositions, tempMidiNumber, separateByInstrument, 0x0030);
+			WriteSngList(sngNoteList, tempoPositions, tempMidiNumber, separateByInstrument, 0x0030, false, 24);
 		}
+	}
+}
+
+bool CMidiParse::MidiToEADMusicSngList(CString input, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfoMidiImport> channels[0x10], int& numChannels, int& lowestAbsoluteTime, int& highestAbsoluteTime, bool loop, unsigned long loopPoint, unsigned short & division)
+{
+	numChannels = 0;
+	lowestAbsoluteTime = 0x7FFFFFFF;
+	highestAbsoluteTime = 0;
+
+	int noteUniqueId = 0;
+
+	numberTracks = 0;
+
+	
+
+
+	CString tempFileName = input;
+
+	struct stat results;
+	stat(tempFileName, &results);		
+
+	FILE* inFile1 = fopen(tempFileName, "rb");
+	if (inFile1 == NULL)
+	{
+		MessageBox(NULL, "Error reading file", "Error", NULL);
+		return false;
+	}	
+
+	byte* inputMID = new byte[results.st_size];
+	fread(inputMID, 1, results.st_size, inFile1);
+	fclose(inFile1);
+
+	unsigned long header = CharArrayToLong(&inputMID[0]);
+
+	if (header != 0x4D546864)
+	{
+		delete [] inputMID;
+		MessageBox(NULL, "Invalid midi hdr", "Error", NULL);
+		return false;
+	}
+
+	unsigned long headerLength = CharArrayToLong(&inputMID[4]);
+
+	unsigned short type = CharArrayToShort(&inputMID[8]);
+	unsigned short numTracks = CharArrayToShort(&inputMID[0xA]);
+	division = CharArrayToShort(&inputMID[0xC]);
+
+	float noteTimeDivisor = division / 0x30;
+
+	loopPoint = (float)loopPoint / noteTimeDivisor;
+
+	if (type == 0)
+	{
+		
+	}
+	else if (type == 1)
+	{
+
+	}
+	else
+	{
+		delete [] inputMID;
+
+		MessageBox(NULL, "Invalid midi type", "Error", NULL);
+		return false;
+	}
+
+
+
+	int position = 0xE;
+
+	byte* repeatPattern = NULL;
+	byte altOffset = 0;
+	byte altLength = 0;
+
+	bool unknownsHit = false;
+	for (int trackNum = 0; trackNum < numTracks; trackNum++)
+	{
+		std::vector<SngNoteInfoMidiImport> pendingNoteList;
+
+		unsigned char currentPan[0x10];
+		unsigned char currentVolume[0x10];
+		unsigned char currentReverb[0x10];
+		signed char currentPitchBend[0x10];
+
+		unsigned char currentMSBBank[0x10];
+		unsigned char currentLSBBank[0x10];
+		unsigned char currentInstrument[0x10];
+
+		// Controllers defaults
+		for (int x = 0; x < 0x10; x++)
+		{
+			currentPan[x] = 0x40;
+			currentVolume[x] = 0x7F;
+			currentReverb[x] = 0x00;
+			currentInstrument[x] = 0x00;
+			currentPitchBend[x] = 0x40;
+
+			currentMSBBank[x] = 0x00;
+			currentLSBBank[x] = 0x00;
+		}
+
+		unsigned long absoluteTime = 0;
+		float absoluteTimeFloat = 0;
+
+		unsigned long trackHeader = ((((((inputMID[position] << 8) | inputMID[position+1]) << 8) | inputMID[position+2]) << 8) | inputMID[position+3]);
+		if (trackHeader != 0x4D54726B)
+		{
+			delete [] inputMID;
+
+			MessageBox(NULL, "Invalid track midi hdr", "Error", NULL);
+			return false;
+		}
+		
+		unsigned long trackLength = ((((((inputMID[position+4] << 8) | inputMID[position+5]) << 8) | inputMID[position+6]) << 8) | inputMID[position+7]);
+
+		position += 8;
+
+		byte previousEventValue = 0xFF;
+
+		bool endFlag = false;
+
+		while (!endFlag && (position < results.st_size))
+		{
+			unsigned long original;
+			unsigned long timeTag = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+			absoluteTimeFloat += (float)timeTag / noteTimeDivisor;
+			
+			absoluteTime = absoluteTimeFloat;
+
+			byte eventVal = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+			bool statusBit = false;
+
+			if (eventVal <= 0x7F)
+			{
+				// continuation
+				statusBit = true;
+			}
+			else
+			{
+				statusBit = false;
+			}
+
+			if (eventVal == 0xFF) // meta event
+			{
+				byte subType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				if (subType == 0x2F) //End of Track Event.
+				{
+					endFlag = true;
+
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);  // end 00 in real mid
+				}
+				else if (subType == 0x51) //Set Tempo Event.
+				{
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+					unsigned char byteData[3];
+					byteData[0] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					byteData[1] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					byteData[2] = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+					unsigned long microSecondsSinceQuarterNote = ((((byteData[0] << 8) | byteData[1]) << 8) | byteData[2]);
+					unsigned long tempTempo = 60000000.0 / microSecondsSinceQuarterNote;
+
+					if (tempTempo > 255)
+						tempTempo = 255;
+					else if (tempTempo < 1)
+						tempTempo = 1;
+					else
+						tempTempo = (unsigned char)tempTempo;
+
+					bool matchTempo = false;
+					for (int y = 0; y < tempoPositions.size(); y++)
+					{
+						if (tempoPositions[y].absoluteTime == absoluteTime)
+						{
+							matchTempo = true;
+						}
+					}
+
+					if (!matchTempo)
+					{
+						tempoPositions.push_back(TimeAndValue(absoluteTime, tempTempo));
+					}
+				}
+				//Various Unused Meta Events.
+				else if ((subType < 0x7F) && !(subType == 0x51 || subType == 0x2F))
+				{
+					//newTrackEvent->type = 0xFF;
+					unsigned long length = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false); 
+
+					for (int i = 0; i < length; i++)
+						ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+				}
+				else if (subType == 0x7F) //Unused Sequencer Specific Event.
+				{
+					//newTrackEvent->type = 0xFF;
+					int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+					// subtract length
+					for (int i = 0; i < length; i++)
+					{
+						ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					}
+				}
+
+				previousEventValue = eventVal;
+			}
+			// Note off
+			else if ((eventVal >= 0x80 && eventVal < 0x90) || (statusBit && (previousEventValue >= 0x80 && previousEventValue < 0x90)))
+			{
+				byte curEventVal;
+
+				byte noteNumber;
+				if (statusBit)
+				{
+					noteNumber = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				for (int p = 0; p < pendingNoteList.size(); p++)
+				{
+					if (pendingNoteList[p].originalController != (controller))
+						continue;
+
+					// Go backwards in list
+					if (pendingNoteList[p].noteNumber == noteNumber)
+					{
+						pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+						// Promote to regular
+						channels[controller].push_back(pendingNoteList[p]);
+
+						pendingNoteList.erase(pendingNoteList.begin() + p);
+						break;
+					}
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if ((eventVal >= 0x90 && eventVal < 0xA0) || (statusBit && (previousEventValue >= 0x90 && previousEventValue < 0xA0)))
+			{
+				byte curEventVal;
+
+				byte noteNumber;
+				if (statusBit)
+				{
+					noteNumber = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					noteNumber = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+				byte velocity = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				if (velocity == 0)
+				{
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Go backwards in list
+						if (pendingNoteList[p].noteNumber == noteNumber)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+							// Promote to regular
+							channels[controller].push_back(pendingNoteList[p]);
+
+							pendingNoteList.erase(pendingNoteList.begin() + p);
+							break;
+						}
+					}
+				}
+				else
+				{
+					// If wasn't shut off, turn it off from before, then start new note
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Go backwards in list
+						if (pendingNoteList[p].noteNumber == noteNumber)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+
+							// Promote to regular
+							channels[controller].push_back(pendingNoteList[p]);
+
+							pendingNoteList.erase(pendingNoteList.begin() + p);
+							break;
+						}
+					}
+
+					SngNoteInfoMidiImport newSongInfo;
+					newSongInfo.originalController = controller;
+					newSongInfo.originalTrack = trackNum;
+					newSongInfo.originalNoteUniqueId = noteUniqueId++;
+					newSongInfo.noteNumber = noteNumber;
+					newSongInfo.velocity = velocity;
+					// Apply tempo later as master track
+					//newSongInfo.tempo = currentTempo;
+					newSongInfo.pan = currentPan[controller];
+					newSongInfo.volume = currentVolume[controller];
+					newSongInfo.effect = currentReverb[controller];
+					newSongInfo.instrument = currentInstrument[controller] + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+					newSongInfo.pitchBend = currentPitchBend[controller];
+					newSongInfo.startAbsoluteTime = absoluteTime;
+					pendingNoteList.push_back(newSongInfo);
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xB0) && (eventVal < 0xC0))  || (statusBit && (previousEventValue >= 0xB0 && previousEventValue < 0xC0))) // controller change
+			{
+				byte controllerType;
+				unsigned char curEventVal;
+
+				if (statusBit)
+				{
+					controllerType = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					controllerType = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				int controller = (curEventVal & 0xF);
+
+				byte controllerValue = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				if (controllerType == 0) // MSB Instrument Bank
+				{
+					currentMSBBank[controller] = controllerValue;	
+				}
+				else if (controllerType == 7) // Volume
+				{
+					if (controllerValue != currentVolume[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[controller].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].volume = controllerValue;
+						}
+					}
+
+					currentVolume[controller] = controllerValue;	
+				}
+				else if (controllerType == 10) // Pan
+				{
+					if (controllerValue != currentPan[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[controller].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].pan = controllerValue;
+						}
+					}
+
+					currentPan[controller] = controllerValue;
+				}
+				else if (controllerType == 32) // LSB Instrument Bank
+				{
+					currentLSBBank[controller] = controllerValue;	
+				}
+				else if (controllerType == 91) // Reverb
+				{
+					if (controllerValue != currentReverb[controller])
+					{
+						for (int p = 0; p < pendingNoteList.size(); p++)
+						{
+							if (pendingNoteList[p].originalController != (controller))
+								continue;
+
+							// Reopen
+							if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+							{
+								pendingNoteList[p].endAbsoluteTime = absoluteTime;
+					
+								// Promote to regular
+								channels[controller].push_back(pendingNoteList[p]);
+
+								// Reset
+								pendingNoteList[p].startAbsoluteTime = absoluteTime;
+								pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+							}
+							
+							pendingNoteList[p].effect = controllerValue;
+						}
+					}
+
+					currentReverb[controller] = controllerValue;
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xC0) && (eventVal < 0xD0)) || (statusBit && (previousEventValue >= 0xC0 && previousEventValue < 0xD0))) // change instrument
+			{
+				byte instrument;
+				unsigned char curEventVal;
+
+				if (statusBit)
+				{
+					instrument = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					instrument = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				if ((eventVal & 0xF) == 9) // Drums in GM
+					instrument = instrument;
+				else
+					instrument = instrument;
+
+				int controller = (curEventVal & 0xF);
+
+				unsigned short tempInstrument = instrument + (currentLSBBank[controller] * 0x80) + (currentMSBBank[controller] * 0x8000);
+				
+				for (int p = 0; p < pendingNoteList.size(); p++)
+				{
+					if (pendingNoteList[p].originalController != (controller))
+						continue;
+
+					if (pendingNoteList[p].instrument != tempInstrument)
+					{
+						// Reopen
+						if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+				
+							// Promote to regular
+							channels[controller].push_back(pendingNoteList[p]);
+
+							// Reset
+							pendingNoteList[p].startAbsoluteTime = absoluteTime;
+							pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+						}
+
+						pendingNoteList[p].instrument = tempInstrument;
+					}
+				}
+
+				currentInstrument[controller] = instrument;
+				
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (((eventVal >= 0xD0) && (eventVal < 0xE0))  || (statusBit && (previousEventValue >= 0xD0 && previousEventValue < 0xE0))) // channel aftertouch
+			{
+				unsigned char curEventVal;
+				byte amount;
+				if (statusBit)
+				{
+					amount = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					amount = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			// Pitch Bend
+			else if (((eventVal >= 0xE0) && (eventVal < 0xF0))  || (statusBit && (previousEventValue >= 0xE0 && previousEventValue < 0xF0))) // pitch bend
+			{
+				byte valueLSB;
+
+				unsigned char curEventVal;
+				if (statusBit)
+				{
+					valueLSB = eventVal;
+					curEventVal = previousEventValue;
+				}
+				else
+				{
+					valueLSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+					curEventVal = eventVal;
+				}
+
+				byte valueMSB = ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+
+				int controller = (curEventVal & 0xF);
+
+				if (currentPitchBend[controller] != valueMSB)
+				{
+					for (int p = 0; p < pendingNoteList.size(); p++)
+					{
+						if (pendingNoteList[p].originalController != (controller))
+							continue;
+
+						// Reopen
+						if (pendingNoteList[p].startAbsoluteTime != absoluteTime)
+						{
+							pendingNoteList[p].endAbsoluteTime = absoluteTime;
+				
+							// Promote to regular
+							channels[controller].push_back(pendingNoteList[p]);
+
+							// Reset
+							pendingNoteList[p].startAbsoluteTime = absoluteTime;
+							pendingNoteList[p].endAbsoluteTime = 0xFFFFFFFF;
+						}
+						
+						pendingNoteList[p].pitchBend = valueMSB;
+					}
+				}
+
+				currentPitchBend[controller] = valueMSB;
+
+				if (!statusBit)
+					previousEventValue = eventVal;
+			}
+			else if (eventVal == 0xF0 || eventVal == 0xF7)
+			{
+				unsigned char curEventVal = eventVal;
+				int length = GetVLBytes(inputMID, position, original, repeatPattern, altOffset, altLength, false);
+				// subtract length
+				for (int i = 0; i < length; i++)
+				{
+					ReadMidiByte(inputMID, position, repeatPattern, altOffset, altLength, false);
+				}
+			}
+			else
+			{
+				if (!unknownsHit)
+				{
+					MessageBox(NULL, "Invalid midi character found", "Error", NULL);
+					unknownsHit = true;
+				}
+			}
+		}
+
+		for (int p = 0; p < pendingNoteList.size(); p++)
+		{
+			pendingNoteList[p].endAbsoluteTime = absoluteTime;
+			channels[pendingNoteList[p].originalController].push_back(pendingNoteList[p]);
+		}
+	}
+
+	numChannels = 0x10;
+
+	for (int y = 0; y < numChannels; y++)
+	{
+		// Clear empty notes
+		for (int x = (channels[y].size() - 1); x >= 0; x--)
+		{
+			if (channels[y][x].startAbsoluteTime == channels[y][x].endAbsoluteTime)
+				channels[y].erase(channels[y].begin() + x);
+		}
+
+		for (int x = 0; x < channels[y].size(); x++)
+		{
+			SngNoteInfoMidiImport tempNoteInfo = channels[y][x];
+
+			if (tempNoteInfo.endAbsoluteTime > highestAbsoluteTime)
+				highestAbsoluteTime = tempNoteInfo.endAbsoluteTime;
+
+			if (tempNoteInfo.startAbsoluteTime < lowestAbsoluteTime)
+				lowestAbsoluteTime = tempNoteInfo.startAbsoluteTime;
+		}
+	}
+	
+	delete [] inputMID;
+
+
+
+
+
+
+
+	//FILE* outDebug = fopen("C:\\GoldeneyeStuff\\GE Editor Source\\debug.txt", "w");
+	FILE* outDebug = NULL;
+
+	if (outDebug != NULL)
+	{
+		for (int channel = 0; channel < numChannels; channel++)
+		{
+			for (int x = 0; x < channels[channel].size(); x++)
+			{
+				fprintf(outDebug, "Start %08X End %08X Instrument %02X Note %02X Volume %02X Pitch Bend %02X Pan %02X Velocity %02X\n", channels[channel][x].startAbsoluteTime, channels[channel][x].endAbsoluteTime, channels[channel][x].instrument, channels[channel][x].noteNumber, channels[channel][x].volume, channels[channel][x].pitchBend, channels[channel][x].pan, channels[channel][x].velocity);
+			}
+		}
+	}
+
+	if (outDebug != NULL)
+		fclose(outDebug);
+
+	
+
+	if (loop && (loopPoint > highestAbsoluteTime))
+	{
+
+		MessageBox(NULL, "Error, loop point is beyond end of midi", "Error", NULL);
+		return false;
+	}
+
+	std::sort(tempoPositions.begin(), tempoPositions.end(), timeAndValueSortByTime());
+
+	// Weed out equal tempos
+	for (int t = 0; t < tempoPositions.size(); t++)
+	{
+		if ((t + 1) < tempoPositions.size())
+		{
+			if (tempoPositions[t].value == tempoPositions[t+1].value)
+			{
+				tempoPositions.erase(tempoPositions.begin() + t + 1);
+				t--;
+			}
+		}
+	}
+
+	for (int x = 0; x < numChannels; x++)
+	{
+		// Separate
+		if (loop && (loopPoint != 0))
+		{
+			for (int y = (channels[x].size() - 1); y >= 0; y--)
+			{
+				SngNoteInfoMidiImport noteMidiImport = channels[x][y];
+				if ((loopPoint > noteMidiImport.startAbsoluteTime) && (loopPoint < noteMidiImport.endAbsoluteTime))
+				{
+					// Need to split
+					channels[x][y].endAbsoluteTime = loopPoint;
+
+					noteMidiImport.startAbsoluteTime = loopPoint;
+					channels[x].push_back(noteMidiImport);
+
+				}
+			}
+		}
+
+		std::sort(channels[x].begin(), channels[x].end(), sngSortByStartTime());
+	}
+
+	return true;
+}
+
+bool CMidiParse::MidiToEADMusic(int gameStyle, CString input, CString output, bool loop, unsigned long loopPoint)
+{
+	try
+	{
+		std::vector<TimeAndValue> tempoPositions;
+		std::vector<SngNoteInfoMidiImport> channels[0x10];
+		int numChannels = 0;
+		int lowestAbsoluteTime = 0x7FFFFFFF;
+		int highestAbsoluteTime = 0;
+
+		unsigned short division = 0x30;
+		if (!MidiToEADMusicSngList(input, tempoPositions, channels, numChannels, lowestAbsoluteTime, highestAbsoluteTime, loop, loopPoint, division))
+			return false;
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				// Max in Zelda is FF
+				channels[x][y].effect *= 2;
+
+				// Fix Note Range
+				if (channels[x][y].noteNumber <= 0x15)
+					channels[x][y].noteNumber = 0x00;
+				else if (channels[x][y].noteNumber >= 0x54)
+					channels[x][y].noteNumber = 0x3F;
+				else
+					channels[x][y].noteNumber = channels[x][y].noteNumber - 0x15;
+
+				// Adjust Pitch Bend from 00-7F to Signed Char
+				channels[x][y].pitchBend = ((signed char)channels[x][y].pitchBend - 0x40) * 2;
+				if (channels[x][y].pitchBend < 0)
+					channels[x][y].pitchBend = 0;
+				if (channels[x][y].pitchBend > 0x7F)
+					channels[x][y].pitchBend = 0x7F;
+			}
+		}
+		
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			for (int y = 0; y < channels[x].size(); y++)
+			{
+				SngNoteInfoMidiImport tempSongNote = channels[x][y];
+
+				if (y == (channels[x].size() - 1))
+					break;
+
+				SngNoteInfoMidiImport tempSongNoteNext = channels[x][y + 1];
+
+				if (
+					(tempSongNote.endAbsoluteTime == tempSongNoteNext.startAbsoluteTime)
+					&& (tempSongNote.effect == tempSongNoteNext.effect)
+					&& (tempSongNote.instrument == tempSongNoteNext.instrument)
+					&& (tempSongNote.noteNumber == tempSongNoteNext.noteNumber)
+					&& (tempSongNote.pan == tempSongNoteNext.pan)
+					&& (tempSongNote.velocity == tempSongNoteNext.velocity)
+					&& (tempSongNote.pitchBend == tempSongNoteNext.pitchBend)
+					&& (tempSongNote.volume == tempSongNoteNext.volume)
+					&& (tempSongNote.originalTrack == tempSongNoteNext.originalTrack)
+					&& (tempSongNote.originalController == tempSongNoteNext.originalController)
+					&& (tempSongNote.originalNoteUniqueId == tempSongNoteNext.originalNoteUniqueId)
+					)
+				{
+					// Merge
+					channels[x][y].endAbsoluteTime = tempSongNoteNext.endAbsoluteTime;
+					channels[x].erase(channels[x].begin() + y + 1);
+
+					// Redo Note
+					y--;
+				}
+			}
+		}
+
+
+		float noteTimeDivisor = division / 0x30;
+
+		unsigned long loopPointReal = (float)loopPoint / noteTimeDivisor;
+
+		int outputPosition = 0;
+
+		unsigned char* outputBuffer = new unsigned char[0x100000];
+
+		for (int x = 0; x < 0x100000; x++)
+			outputBuffer[x] = 0x00;
+
+		// Sequence Format
+		outputBuffer[outputPosition++] = 0xD3;
+		outputBuffer[outputPosition++] = 0x20;
+
+		// Sequence Type
+		outputBuffer[outputPosition++] = 0xD5;
+		outputBuffer[outputPosition++] = 0x32;
+
+		unsigned short channelsEnabled = 0;
+
+		for (int x = 0; x < numChannels; x++)
+		{
+			if (channels[x].size() > 0)
+			{
+				channelsEnabled |= (1 << x);
+			}
+		}
+
+		// Enable Channels
+		outputBuffer[outputPosition++] = 0xD7;
+		outputBuffer[outputPosition++] = ((channelsEnabled >> 8) & 0xFF);
+		outputBuffer[outputPosition++] = ((channelsEnabled) & 0xFF);
+
+		int loopCounter = 1;
+		if (loop && (loopPointReal != 0))
+		{
+			loopCounter = 2;
+		}
+
+		int loopPointByteOffset = 0;
+
+		int currentTempo = 0x78;
+
+		int currentInstrument = -1;
+		int currentEffect = 0;
+		int currentPan = 0x40;
+		int currentVolume = 0x7F;
+		int currentPitchBend = -1;
+
+
+		// Write out the sequence first
+		int absoluteTempoTime = 0;
+		int absoluteTimeSequence = 0;
+
+		int absoluteChanPointerLocations[2][0x10];
+
+		for (int currentGroup = 0; currentGroup < loopCounter; currentGroup++)
+		{
+			int previousAbsoluteTimeSequence = absoluteTimeSequence;
+
+			if (loop)
+			{
+				if (currentGroup == (loopCounter - 1))
+					loopPointByteOffset = outputPosition;
+			}
+
+
+			std::vector<TimeAndValue> subTempoPositions;
+			std::vector<SngNoteInfoMidiImport> subChannels[0x10];
+
+			if (loopCounter == 1)
+			{
+				subTempoPositions = tempoPositions;
+				for (int x = 0; x < numChannels; x++)
+				{
+					subChannels[x] = channels[x];
+				}
+			}
+			else
+			{
+				if (currentGroup == 0)
+				{
+					for (int t = 0; t < tempoPositions.size(); t++)
+					{
+						if (tempoPositions[t].absoluteTime < loopPointReal)
+						{
+							subTempoPositions.push_back(tempoPositions[t]);
+						}
+					}
+				}
+				else if (currentGroup == 1)
+				{
+					for (int t = 0; t < tempoPositions.size(); t++)
+					{
+						if (tempoPositions[t].absoluteTime >= loopPointReal)
+						{
+							subTempoPositions.push_back(tempoPositions[t]);
+						}
+					}
+				}
+
+				for (int x = 0; x < numChannels; x++)
+				{
+					for (int y = 0; y < channels[x].size(); y++)
+					{
+						if (currentGroup == 0)
+						{
+							if (channels[x][y].startAbsoluteTime < loopPointReal)
+							{
+								subChannels[x].push_back(channels[x][y]);
+							}
+						}
+						else if (currentGroup == 1)
+						{
+							if (channels[x][y].startAbsoluteTime >= loopPointReal)
+							{
+								subChannels[x].push_back(channels[x][y]);
+							}
+						}
+					}
+				}
+			}
+			
+
+
+
+
+			// Placeholder channel offsets
+			for (int x = 0; x < numChannels; x++)
+			{
+				if (subChannels[x].size() > 0)
+				{
+					outputBuffer[outputPosition++] = 0x90 | x;
+					absoluteChanPointerLocations[currentGroup][x] = outputPosition;
+
+					// Placeholder
+					outputBuffer[outputPosition++] = 0x00;
+					outputBuffer[outputPosition++] = 0x00;
+				}
+				else
+				{
+					absoluteChanPointerLocations[currentGroup][x] = -1;
+				}
+			}
+
+			// Write Master Volume
+			outputBuffer[outputPosition++] = 0xDB;
+			outputBuffer[outputPosition++] = 0x46;
+
+
+			if ((subTempoPositions.size() == 0) || (subTempoPositions[0].absoluteTime > previousAbsoluteTimeSequence))
+			{
+				outputBuffer[outputPosition++] = 0xDD;
+				outputBuffer[outputPosition++] = currentTempo;
+			}
+
+			
+
+			// Write Tempos
+			for (int t = 0; t < subTempoPositions.size(); t++)
+			{
+				while (subTempoPositions[t].absoluteTime > absoluteTempoTime)
+				{
+					int delta = (subTempoPositions[t].absoluteTime - absoluteTempoTime);
+					outputBuffer[outputPosition++] = 0xFD;
+					WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+					absoluteTempoTime += delta;
+				}
+
+				outputBuffer[outputPosition++] = 0xDD;
+				outputBuffer[outputPosition++] = subTempoPositions[t].value;
+
+				currentTempo = subTempoPositions[t].value;
+			}
+
+			// Timestamp channel to get to end of section
+			if ((loop == true) && (loopPointReal != 0))
+			{
+				if (currentGroup == 0)
+				{
+					while (loopPointReal > absoluteTimeSequence)
+					{
+						int delta = (loopPointReal - absoluteTimeSequence);
+						outputBuffer[outputPosition++] = 0xFD;
+						WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+						absoluteTimeSequence += delta;
+					}
+				}
+				else if (currentGroup == 1)
+				{
+					while (highestAbsoluteTime > absoluteTimeSequence)
+					{
+						int delta = (highestAbsoluteTime - absoluteTimeSequence);
+						outputBuffer[outputPosition++] = 0xFD;
+						WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+						absoluteTimeSequence += delta;
+					}
+				}
+			}
+			else
+			{
+				while (highestAbsoluteTime > absoluteTimeSequence)
+				{
+					int delta = (highestAbsoluteTime - absoluteTimeSequence);
+					outputBuffer[outputPosition++] = 0xFD;
+					WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+					absoluteTimeSequence += delta;
+				}
+			}
+
+
+			if (currentGroup == (loopCounter - 1))
+			{
+				if (loop)
+				{
+					outputBuffer[outputPosition++] = 0xFB;
+					outputBuffer[outputPosition++] = ((loopPointByteOffset >> 8) & 0xFF);
+					outputBuffer[outputPosition++] = ((loopPointByteOffset) & 0xFF);
+				}
+
+				// Disable Channels
+				outputBuffer[outputPosition++] = 0xD6;
+				outputBuffer[outputPosition++] = ((channelsEnabled >> 8) & 0xFF);
+				outputBuffer[outputPosition++] = ((channelsEnabled) & 0xFF);
+
+				// Terminator Sequence
+				outputBuffer[outputPosition++] = 0xFF;
+			}
+
+			if (loop && (loopPoint != 0))
+			{
+				absoluteTimeSequence = loopPointReal;
+			}
+			else
+			{
+				absoluteTimeSequence = highestAbsoluteTime;
+			}
+		}
+
+		absoluteTimeSequence = 0;
+
+		for (int currentGroup = 0; currentGroup < loopCounter; currentGroup++)
+		{
+			int previousAbsoluteTimeSequence = absoluteTimeSequence;
+
+			std::vector<SngNoteInfoMidiImport> subChannels[0x10];
+
+			if (loopCounter == 1)
+			{
+				for (int x = 0; x < numChannels; x++)
+				{
+					subChannels[x] = channels[x];
+				}
+			}
+			else
+			{
+				for (int x = 0; x < numChannels; x++)
+				{
+					for (int y = 0; y < channels[x].size(); y++)
+					{
+						if (currentGroup == 0)
+						{
+							if (channels[x][y].startAbsoluteTime < loopPointReal)
+							{
+								subChannels[x].push_back(channels[x][y]);
+							}
+						}
+						else if (currentGroup == 1)
+						{
+							if (channels[x][y].startAbsoluteTime >= loopPointReal)
+							{
+								subChannels[x].push_back(channels[x][y]);
+							}
+						}
+					}
+				}
+			}
+
+			bool warnedMissingNotes = false;
+			for (int x = 0; x < numChannels; x++)
+			{
+				if (subChannels[x].size() > 0)
+				{
+					int absoluteTimeChannel = previousAbsoluteTimeSequence;
+					int previousAbsoluteTimeChannel = absoluteTimeChannel;
+
+					// Write channel location
+					WriteShortToBuffer(outputBuffer, absoluteChanPointerLocations[currentGroup][x], outputPosition);
+
+					std::vector<SngNoteInfoMidiImport> tracks[0x10];
+
+					int maxTracks = 0;
+
+					std::vector<TimeAndValueAndType> instrumentByAbsoluteTime;
+					std::vector<TimeAndValueAndType> effectByAbsoluteTime;
+					std::vector<TimeAndValueAndType> volumeByAbsoluteTime;
+					std::vector<TimeAndValueAndType> panByAbsoluteTime;
+					std::vector<TimeAndValueAndType> pitchBendByAbsoluteTime;
+
+					for (int y = 0; y < subChannels[x].size(); y++)
+					{
+						instrumentByAbsoluteTime.push_back(TimeAndValueAndType(subChannels[x][y].startAbsoluteTime, subChannels[x][y].instrument, INSTRUMENTTYPE));
+						effectByAbsoluteTime.push_back(TimeAndValueAndType(subChannels[x][y].startAbsoluteTime, subChannels[x][y].effect, EFFECTTYPE));
+						volumeByAbsoluteTime.push_back(TimeAndValueAndType(subChannels[x][y].startAbsoluteTime, subChannels[x][y].volume, VOLUMETYPE));
+						panByAbsoluteTime.push_back(TimeAndValueAndType(subChannels[x][y].startAbsoluteTime, subChannels[x][y].pan, PANTYPE));
+						pitchBendByAbsoluteTime.push_back(TimeAndValueAndType(subChannels[x][y].startAbsoluteTime, subChannels[x][y].pitchBend, PITCHBENDTYPE));
+					}
+
+					std::sort(instrumentByAbsoluteTime.begin(), instrumentByAbsoluteTime.end(), timeAndValueAndTypeSortByTime());
+					std::sort(effectByAbsoluteTime.begin(), effectByAbsoluteTime.end(), timeAndValueAndTypeSortByTime());
+					std::sort(volumeByAbsoluteTime.begin(), volumeByAbsoluteTime.end(), timeAndValueAndTypeSortByTime());
+					std::sort(panByAbsoluteTime.begin(), panByAbsoluteTime.end(), timeAndValueAndTypeSortByTime());
+					std::sort(pitchBendByAbsoluteTime.begin(), pitchBendByAbsoluteTime.end(), timeAndValueAndTypeSortByTime());
+
+					for (int y = 0; y < instrumentByAbsoluteTime.size(); y++)
+					{
+						int size = instrumentByAbsoluteTime.size();
+						if ((y + 1) < (instrumentByAbsoluteTime.size()))
+						{
+							if (instrumentByAbsoluteTime[y].value == instrumentByAbsoluteTime[y+1].value)
+							{
+								instrumentByAbsoluteTime.erase(instrumentByAbsoluteTime.begin() + y + 1);
+								y--;
+							}
+						}
+					}
+
+					// Not sure what to do if no instrument and beginning
+					if (currentGroup > 0)
+					{
+						if (currentInstrument != -1)
+						{
+							if ((instrumentByAbsoluteTime.size() == 0) || (instrumentByAbsoluteTime[0].absoluteTime > previousAbsoluteTimeSequence))
+							{
+								instrumentByAbsoluteTime.insert(instrumentByAbsoluteTime.begin(), TimeAndValueAndType(previousAbsoluteTimeSequence, currentInstrument, INSTRUMENTTYPE));
+							}
+						}
+					}
+					
+
+					for (int y = 0; y < effectByAbsoluteTime.size(); y++)
+					{
+						if ((y + 1) < (effectByAbsoluteTime.size()))
+						{
+							if (effectByAbsoluteTime[y].value == effectByAbsoluteTime[y+1].value)
+							{
+								effectByAbsoluteTime.erase(effectByAbsoluteTime.begin() + y + 1);
+								y--;
+							}
+						}
+					}
+
+					if ((effectByAbsoluteTime.size() == 0) || (effectByAbsoluteTime[0].absoluteTime > previousAbsoluteTimeSequence))
+					{
+						if ((effectByAbsoluteTime.size() > 0) && (effectByAbsoluteTime[0].value == currentEffect))
+							effectByAbsoluteTime[0].absoluteTime = previousAbsoluteTimeSequence;
+						else
+							effectByAbsoluteTime.insert(effectByAbsoluteTime.begin(), TimeAndValueAndType(previousAbsoluteTimeSequence, currentEffect, EFFECTTYPE));
+					}
+
+					for (int y = 0; y < volumeByAbsoluteTime.size(); y++)
+					{
+						if ((y + 1) < (volumeByAbsoluteTime.size()))
+						{
+							if (volumeByAbsoluteTime[y].value == volumeByAbsoluteTime[y+1].value)
+							{
+								volumeByAbsoluteTime.erase(volumeByAbsoluteTime.begin() + y + 1);
+								y--;
+							}
+						}
+					}
+
+					if ((volumeByAbsoluteTime.size() == 0) || (volumeByAbsoluteTime[0].absoluteTime > previousAbsoluteTimeSequence))
+					{
+						if ((volumeByAbsoluteTime.size() > 0) && (volumeByAbsoluteTime[0].value == currentVolume))
+							volumeByAbsoluteTime[0].absoluteTime = previousAbsoluteTimeSequence;
+						else
+							volumeByAbsoluteTime.insert(volumeByAbsoluteTime.begin(), TimeAndValueAndType(previousAbsoluteTimeSequence, currentVolume, VOLUMETYPE));
+					}
+
+					for (int y = 0; y < panByAbsoluteTime.size(); y++)
+					{
+						if ((y + 1) < (panByAbsoluteTime.size()))
+						{
+							if (panByAbsoluteTime[y].value == panByAbsoluteTime[y+1].value)
+							{
+								panByAbsoluteTime.erase(panByAbsoluteTime.begin() + y + 1);
+								y--;
+							}
+						}
+					}
+
+					if ((panByAbsoluteTime.size() == 0) || (panByAbsoluteTime[0].absoluteTime > previousAbsoluteTimeSequence))
+					{
+						if ((panByAbsoluteTime.size() > 0) && (panByAbsoluteTime[0].value == currentPan))
+							panByAbsoluteTime[0].absoluteTime = previousAbsoluteTimeSequence;
+						else
+							panByAbsoluteTime.insert(panByAbsoluteTime.begin(), TimeAndValueAndType(previousAbsoluteTimeSequence, currentPan, PANTYPE));
+					}
+
+					for (int y = 0; y < pitchBendByAbsoluteTime.size(); y++)
+					{
+						if ((y + 1) < (pitchBendByAbsoluteTime.size()))
+						{
+							if (pitchBendByAbsoluteTime[y].value == pitchBendByAbsoluteTime[y+1].value)
+							{
+								pitchBendByAbsoluteTime.erase(pitchBendByAbsoluteTime.begin() + y + 1);
+								y--;
+							}
+						}
+					}
+
+					if ((currentPitchBend == -1) && (pitchBendByAbsoluteTime.size() == 1) && (pitchBendByAbsoluteTime[0].value == 0x40))
+					{
+						// Clear if 0x40, defaulted
+						pitchBendByAbsoluteTime.clear();
+					}
+					
+					// Pitch Bend probably doesn't need 0 value
+					if (currentGroup > 0)
+					{
+						if (currentPitchBend != -1)
+						{
+							if ((pitchBendByAbsoluteTime.size() == 0) || (pitchBendByAbsoluteTime[0].absoluteTime > previousAbsoluteTimeSequence))
+							{
+								pitchBendByAbsoluteTime.insert(pitchBendByAbsoluteTime.begin(), TimeAndValueAndType(previousAbsoluteTimeSequence, currentPitchBend, PITCHBENDTYPE));
+							}
+						}
+					}
+
+					// Merge all
+					std::vector<TimeAndValueAndType> mergedChannelActions;
+
+					for (int y = 0; y < instrumentByAbsoluteTime.size(); y++)
+					{
+						mergedChannelActions.push_back(instrumentByAbsoluteTime[y]);
+					}
+
+					for (int y = 0; y < effectByAbsoluteTime.size(); y++)
+					{
+						mergedChannelActions.push_back(effectByAbsoluteTime[y]);
+					}
+
+					for (int y = 0; y < volumeByAbsoluteTime.size(); y++)
+					{
+						mergedChannelActions.push_back(volumeByAbsoluteTime[y]);
+					}
+
+					for (int y = 0; y < panByAbsoluteTime.size(); y++)
+					{
+						mergedChannelActions.push_back(panByAbsoluteTime[y]);
+					}
+
+					for (int y = 0; y < pitchBendByAbsoluteTime.size(); y++)
+					{
+						mergedChannelActions.push_back(pitchBendByAbsoluteTime[y]);
+					}
+
+					std::sort(mergedChannelActions.begin(), mergedChannelActions.end(), timeAndValueAndTypeSortByTime());
+
+
+
+
+
+
+
+
+					// Merge notes now that had same of those values that are part of channel
+					for (int y = 0; y < subChannels[x].size(); y++)
+					{
+						SngNoteInfoMidiImport tempSongNote = subChannels[x][y];
+
+						for (int z = 0; z < subChannels[x].size(); z++)
+						{
+							if (y == z)
+								continue;
+
+							SngNoteInfoMidiImport tempSongNoteNext = subChannels[x][z];
+
+							if (
+								(tempSongNote.endAbsoluteTime == tempSongNoteNext.startAbsoluteTime)
+								&& (tempSongNote.instrument == tempSongNoteNext.instrument)
+								&& (tempSongNote.noteNumber == tempSongNoteNext.noteNumber)
+								&& (tempSongNote.velocity == tempSongNoteNext.velocity)
+								&& (tempSongNote.originalTrack == tempSongNoteNext.originalTrack)
+								&& (tempSongNote.originalController == tempSongNoteNext.originalController)
+								&& (tempSongNote.originalNoteUniqueId == tempSongNoteNext.originalNoteUniqueId)
+								)
+							{
+								// Merge
+								subChannels[x][y].endAbsoluteTime = tempSongNoteNext.endAbsoluteTime;
+								subChannels[x].erase(subChannels[x].begin() + z);
+
+								// Redo Note
+								y--;
+								break;
+							}
+						}
+					}
+
+					for (int y = 0; y < subChannels[x].size(); y++)
+					{
+						int selectedTrack = -1;
+						int maxAvailableTracks = 4;
+						if (gameStyle == EADMUSICSTYLEZELDA)
+							maxAvailableTracks = 4;
+						else if (gameStyle == EADMUSICSTYLESTARFOX)
+							maxAvailableTracks = 0x10;
+						else if (gameStyle == EADMUSICSTYLEMARIO)
+							maxAvailableTracks = 4;
+						for (int t = 0; t < maxAvailableTracks; t++)
+						{
+							bool overlap = false;
+							for (int z = 0; z < tracks[t].size(); z++)
+							{
+								if (IsOverlap(subChannels[x][y].startAbsoluteTime, subChannels[x][y].endAbsoluteTime, tracks[t][z].startAbsoluteTime, tracks[t][z].endAbsoluteTime))
+								{
+									overlap = true;
+									break;
+								}
+							}
+
+							if (!overlap)
+							{
+								selectedTrack = t;
+								break;
+							}
+						}
+
+						if (selectedTrack == -1)
+						{
+							// Skip
+							if (!warnedMissingNotes)
+							{
+								warnedMissingNotes = true;
+								CString trackStr;
+								trackStr.Format("%02X", x);
+								MessageBox(NULL, "Too many simultaneous notes on track " + trackStr, "Error", NULL);
+							}
+						}
+						else
+						{
+							if ((selectedTrack + 1) > maxTracks)
+								maxTracks = selectedTrack + 1;
+							tracks[selectedTrack].push_back(subChannels[x][y]);
+						}
+					}
+
+
+
+
+
+
+					// Channel Start
+					outputBuffer[outputPosition++] = 0xC4;
+
+					int absoluteTrackOffset[0x10];
+					for (int y = 0; y < maxTracks; y++)
+					{
+						// Placeholder
+						if (gameStyle == EADMUSICSTYLEZELDA)
+						{
+							// Max 4
+							outputBuffer[outputPosition++] = 0x88 + y;
+						}
+						else if (gameStyle == EADMUSICSTYLEMARIO)
+						{
+							// Max 4
+							outputBuffer[outputPosition++] = 0x90 + y;
+						}
+						else if (gameStyle == EADMUSICSTYLESTARFOX)
+						{
+							// Max 0x10
+							outputBuffer[outputPosition++] = 0x90 + y;
+						}
+						absoluteTrackOffset[y] = outputPosition;
+
+						outputBuffer[outputPosition++] = 0x00;
+						outputBuffer[outputPosition++] = 0x00;
+					}
+
+					// Priority default
+					outputBuffer[outputPosition++] = 0xE9;
+					outputBuffer[outputPosition++] = 0x02;
+
+					// Now write the events
+					for (int y = 0; y < mergedChannelActions.size(); y++)
+					{
+						while (mergedChannelActions[y].absoluteTime > absoluteTimeChannel)
+						{
+							int delta = (mergedChannelActions[y].absoluteTime - absoluteTimeChannel);
+							outputBuffer[outputPosition++] = 0xFD;
+							WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+							absoluteTimeChannel += delta;
+						}
+
+						if (mergedChannelActions[y].type == INSTRUMENTTYPE)
+						{
+							outputBuffer[outputPosition++] = 0xC1;
+							outputBuffer[outputPosition++] = mergedChannelActions[y].value;
+
+							currentInstrument = mergedChannelActions[y].value;
+						}
+						else if (mergedChannelActions[y].type == EFFECTTYPE)
+						{
+							outputBuffer[outputPosition++] = 0xD4;
+							outputBuffer[outputPosition++] = mergedChannelActions[y].value;
+
+							currentEffect = mergedChannelActions[y].value;
+						}
+						else if (mergedChannelActions[y].type == VOLUMETYPE)
+						{
+							outputBuffer[outputPosition++] = 0xDF;
+							outputBuffer[outputPosition++] = mergedChannelActions[y].value;
+
+							currentVolume = mergedChannelActions[y].value;
+						}
+						else if (mergedChannelActions[y].type == PANTYPE)
+						{
+							outputBuffer[outputPosition++] = 0xDD;
+							outputBuffer[outputPosition++] = mergedChannelActions[y].value;
+
+							currentPan = mergedChannelActions[y].value;
+						}
+						else if (mergedChannelActions[y].type == PITCHBENDTYPE)
+						{
+							outputBuffer[outputPosition++] = 0xD3;
+							outputBuffer[outputPosition++] = mergedChannelActions[y].value;
+
+							currentPitchBend = mergedChannelActions[y].value;
+						}
+					}
+
+					// Timestamp channel to get to end of section
+					if ((loop == true) && (loopPointReal != 0))
+					{
+						if (currentGroup == 0)
+						{
+							while (loopPointReal > absoluteTimeChannel)
+							{
+								int delta = (loopPointReal - absoluteTimeChannel);
+								outputBuffer[outputPosition++] = 0xFD;
+								WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+								absoluteTimeChannel += delta;
+							}
+						}
+						else if (currentGroup == 1)
+						{
+							while (highestAbsoluteTime > absoluteTimeChannel)
+							{
+								int delta = (highestAbsoluteTime - absoluteTimeChannel);
+								outputBuffer[outputPosition++] = 0xFD;
+								WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+								absoluteTimeChannel += delta;
+							}
+						}
+					}
+					else
+					{
+						while (highestAbsoluteTime > absoluteTimeChannel)
+						{
+							int delta = (highestAbsoluteTime - absoluteTimeChannel);
+							outputBuffer[outputPosition++] = 0xFD;
+							WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+							absoluteTimeChannel += delta;
+						}
+					}
+
+					// Terminator Sequence Channel
+					outputBuffer[outputPosition++] = 0xFF;
+
+
+
+
+					
+
+					// Now write tracks
+					for (int z = 0; z < maxTracks; z++)
+					{
+						// Wite offset
+						WriteShortToBuffer(outputBuffer, absoluteTrackOffset[z], outputPosition);
+
+						int absoluteTimeTrack = previousAbsoluteTimeChannel;
+
+						int lastNoteTimeStamp = -1;
+
+						for (int y = 0; y < tracks[z].size(); y++)
+						{
+							while (tracks[z][y].startAbsoluteTime > absoluteTimeTrack)
+							{
+								int delta = (tracks[z][y].startAbsoluteTime - absoluteTimeTrack);
+								outputBuffer[outputPosition++] = 0xC0;
+								WriteEADMusicTimeValue(outputBuffer, outputPosition, delta);			
+
+								absoluteTimeTrack += delta;
+							}
+
+							//  1   -   NoteLength               =    (((duration / 256))
+							//	       	    /
+							//	      TimeTillNextNote
+
+							int noteLength = tracks[z][y].endAbsoluteTime - tracks[z][y].startAbsoluteTime;
+							int timeStamp = noteLength;
+							int ratio = -1;
+							bool useDuration = false;
+							if ((y + 1) < (tracks[z].size()))
+							{
+								int nextNote = tracks[z][y+1].startAbsoluteTime - tracks[z][y].startAbsoluteTime;
+								if (nextNote == noteLength)
+								{
+									useDuration = false;
+								}
+								else
+								{
+									double fractionalRatio = ((1.0 - ((double)noteLength / (double)nextNote)) * 256.0);
+									ratio = ceil(fractionalRatio);
+									int noteLengthCalculated = (nextNote - ((ratio * nextNote) >> 8));
+
+									if ((ratio >= 0x100) || (ratio <= 0))
+									{
+										useDuration = false;
+									}
+									else if (noteLengthCalculated != noteLength)
+									{
+										useDuration = false;
+									}
+									else
+									{
+										useDuration = true;
+										
+										timeStamp = nextNote;
+									}
+								}
+							}
+
+							if ((!useDuration) || ((y + 1) == (tracks[z].size())))
+							{
+								// Do TV always
+								outputBuffer[outputPosition++] = 0x40 | tracks[z][y].noteNumber;
+								WriteEADMusicTimeValue(outputBuffer, outputPosition, timeStamp);
+								outputBuffer[outputPosition++] = tracks[z][y].velocity;
+								
+							}
+							else if (timeStamp == lastNoteTimeStamp)
+							{
+								// VG
+								outputBuffer[outputPosition++] = 0x80 | tracks[z][y].noteNumber;
+								outputBuffer[outputPosition++] = tracks[z][y].velocity;
+								outputBuffer[outputPosition++] = (unsigned char)ratio;
+							}
+							else
+							{
+								// Do TVG
+								outputBuffer[outputPosition++] = tracks[z][y].noteNumber;
+								WriteEADMusicTimeValue(outputBuffer, outputPosition, timeStamp);
+								outputBuffer[outputPosition++] = tracks[z][y].velocity;
+								outputBuffer[outputPosition++] = (unsigned char)ratio;
+							}
+
+							lastNoteTimeStamp = timeStamp;
+
+							absoluteTimeTrack += timeStamp;
+						}
+						outputBuffer[outputPosition++] = 0xFF;
+					}
+				}
+			}
+
+			if (loop && (loopPoint != 0))
+			{
+				absoluteTimeSequence = loopPointReal;
+			}
+			else
+			{
+				absoluteTimeSequence = highestAbsoluteTime;
+			}
+		}
+
+		FILE* outFile = fopen(output, "wb");
+		if (outFile == NULL)
+		{
+			delete [] outputBuffer;
+
+			MessageBox(NULL, "Error outputting file", "Error", NULL);
+			return false;
+		}
+
+		fwrite(outputBuffer, 1, outputPosition, outFile);
+
+		delete [] outputBuffer;
+		fclose(outFile);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error converting", "Error", NULL);
+		return false;
+	}
+	return true;
+}
+
+int CMidiParse::IncrementSpot(unsigned long& spot, int count, unsigned char* coverage)
+{
+	if (coverage)
+	{
+		for (int x = spot; x < spot + count; x++)
+		{
+			coverage[x] = 0x00;
+		}
+	}
+
+	spot += count;
+	return spot;
+}
+
+int CMidiParse::ReadEADMusicTimeValue(unsigned char* inputMID, unsigned long& offset, unsigned char* coverage)
+{
+	if (inputMID[offset] & 0x80)
+	{
+		int timevalue = (((inputMID[offset] & 0x7F) << 8) | inputMID[offset+1]);
+		IncrementSpot(offset, 2, coverage);
+		return timevalue;
+	}
+	else
+	{
+		int timevalue = inputMID[offset];
+		IncrementSpot(offset, 1, coverage);
+		return timevalue;
+	}
+}
+
+int CMidiParse::WriteEADMusicTimeValue(unsigned char* outputMID, int& offset, int value)
+{
+	int delta = value;
+
+	if (delta > 0x7FFF)
+		delta = 0x7FFF;
+
+	if (delta < 0x80)
+	{
+		outputMID[offset++] = delta;
+	}
+	else
+	{
+		outputMID[offset++] = 0x80 | (delta >> 8);
+		outputMID[offset++] = (delta & 0xFF);
+	}
+
+	return delta;
+}
+
+void CMidiParse::ParseEADMusicTrackLayer(int gameStyle, FILE* outFileDebug, unsigned char* inputMID, int end, int offset, int channel, int layer, unsigned long absoluteTime,
+							   int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& trackOutputNotes,
+							   int& noteUniqueId,
+							   std::vector<unsigned long>& jumpStarts, std::vector<unsigned long>& jumpsTaken, bool attemptJumps, unsigned char* coverage, bool channelStarted)
+{
+	fprintfIfDebug(outFileDebug, "-------------------Track Chn %X Layer %X-------------------\n", channel, layer);
+
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	std::vector<int> returnBackOffset;
+	std::vector<int> returnBackAlternateChoices;
+
+	int currentCoarseTune = 0;
+	int lastTimestamp = 0x0;
+
+loopAgain:
+	while ((command != 0xFF) && (spot < end))
+	{
+		command = inputMID[spot];
+
+		IncrementSpot(spot, 1, coverage);
+
+		if (command >= 0xC0)
+		{
+			fprintfIfDebug(outFileDebug, "TRK %08X Time: %08X CMD:      %02X", spot-1, absoluteTime, command);
+
+			if (command == 0xC0)
+			{
+				fprintfIfDebug(outFileDebug, " Timestamp");
+				
+				int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+				if (timestamp < 0x80)
+					fprintfIfDebug(outFileDebug, " %02X (%d)", timestamp, timestamp);
+				else
+					fprintfIfDebug(outFileDebug, " %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+				absoluteTime += timestamp;
+			}
+			else if (command == 0xC1)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xC2)
+			{
+				fprintfIfDebug(outFileDebug, " Coarse Tune");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				currentCoarseTune = inputMID[spot];
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xC3)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xC4)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xC5)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xC6)
+			{
+				fprintfIfDebug(outFileDebug, " SFX Id");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xC7)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+				IncrementSpot(spot, 3, coverage);
+			}
+			else if (command == 0xC8)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xC9)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xCA)
+			{
+				fprintfIfDebug(outFileDebug, " SFX Pan");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xCB)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X%02X %02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+				
+				IncrementSpot(spot, 3, coverage);
+			}
+			else if (command == 0xCC)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xCD)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xCE)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xCF)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xD0)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD1)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD2)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD3)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD4)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD5)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD6)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD7)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD8)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xD9)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDA)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDB)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDC)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDD)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDE)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xDF)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE0)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE1)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE2)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE3)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE4)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE5)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE6)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE7)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE8)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xE9)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xEA)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xEB)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xEC)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xED)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xEE)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xEF)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xF0)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xF1)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xF2)
+			{
+				fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value < 0");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				int relativeOffset = (signed char)inputMID[spot];
+				IncrementSpot(spot, 1, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 2);
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(relativeOffset);
+							spot = spot + relativeOffset;
+						}
+					}
+				}
+			}
+			else if (command == 0xF3)
+			{
+				fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value == 0");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+				int relativeOffset = (signed char)inputMID[spot];
+				IncrementSpot(spot, 1, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 2);
+					}
+					else
+					{			
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(relativeOffset);
+							spot = spot + relativeOffset;
+						}
+					}
+				}
+			}
+			else if (command == 0xF4)
+			{
+				fprintfIfDebug(outFileDebug, " Go to  relative offset");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], (signed char)inputMID[spot]);
+
+				int relativeOffset = (signed char)inputMID[spot];
+				IncrementSpot(spot, 1, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 2);
+						break;
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(relativeOffset);
+							spot = spot + relativeOffset;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+			else if (command == 0xF5)
+			{
+				fprintfIfDebug(outFileDebug, " Go to absolute offset if Play Value >= 0");
+				fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+				int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+				IncrementSpot(spot, 2, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 3);
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(absoluteOffset);
+							spot =  absoluteOffset;
+						}
+					}
+				}
+			}
+			else if (command == 0xF6)
+			{
+				fprintfIfDebug(outFileDebug, " Restart Song");
+
+				if (attemptJumps)
+				{
+					int startSpot = 0;
+
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), startSpot) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(startSpot);
+						offset = startSpot;
+					}
+				}
+			}
+			else if (command == 0xF7)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+			else if (command == 0xF8)
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+				IncrementSpot(spot, 1, coverage);
+			}
+			else if (command == 0xF9)
+			{
+				fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value < 0");
+				fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+				int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+				IncrementSpot(spot, 2, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 3);
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(absoluteOffset);
+							offset =  absoluteOffset;
+						}
+					}
+				}
+			}
+			else if (command == 0xFA)
+			{
+				fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value == 0");
+				fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+				int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+				IncrementSpot(spot, 2, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 3);
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(absoluteOffset);
+							spot = absoluteOffset;
+						}
+					}
+				}
+			}
+			else if (command == 0xFB)
+			{
+				fprintfIfDebug(outFileDebug, " Go to absolute offset");
+				fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+				
+				int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+				IncrementSpot(spot, 2, coverage);
+
+				if (attemptJumps)
+				{
+					if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+						jumpStarts.push_back(spot);
+						returnBackAlternateChoices.push_back(spot - 3);
+						break;
+					}
+					else
+					{
+						if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+						{
+							fprintfIfDebug(outFileDebug, "...Taking\n");
+							jumpsTaken.push_back(absoluteOffset);
+							spot = absoluteOffset;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+			}
+			else if (command == 0xFC)
+			{
+				unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+				fprintfIfDebug(outFileDebug, " Jump and Link");
+				fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+				IncrementSpot(spot, 2, coverage);
+				returnBackOffset.push_back(spot);
+
+				spot = offset;
+			}
+			else if (command == 0xFD)
+			{
+				fprintfIfDebug(outFileDebug, " Delay");
+				
+				int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+				if (timestamp < 0x80)
+					fprintfIfDebug(outFileDebug, " %02X (%d)", timestamp, timestamp);
+				else
+					fprintfIfDebug(outFileDebug, " %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+				absoluteTime += timestamp;
+			}
+			else if (command == 0xFE)
+			{
+				fprintfIfDebug(outFileDebug, " RETURN");
+			}
+			else if (command == 0xFF)
+			{
+				fprintfIfDebug(outFileDebug, " END");
+			}
+			else
+			{
+				fprintfIfDebug(outFileDebug, " UNKNOWN");
+			}
+		}
+		else if (!channelStarted)
+		{
+			// Note + Time
+			int preTimestampSpot = spot;
+
+			int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+		
+			lastTimestamp = timestamp;
+
+			fprintfIfDebug(outFileDebug, "TRK %08X Time: %08X Note T:  %02X Note %02X", preTimestampSpot-1, absoluteTime, command, command);
+
+			if (timestamp < 0x80)
+				fprintfIfDebug(outFileDebug, " Length %02X (%d)", timestamp, timestamp);
+			else
+				fprintfIfDebug(outFileDebug, " Length %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+			int note = command & 0x3F;
+			int velocity = inputMID[spot];
+			int noteLength = timestamp;
+
+			SngNoteInfo songNoteInfo;
+			songNoteInfo.originalTrack = channel;
+			songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+			songNoteInfo.startAbsoluteTime = absoluteTime;
+			songNoteInfo.noteNumber = note + currentCoarseTune + 0x15;
+
+			songNoteInfo.instrument = 0x00;
+			songNoteInfo.velocity = 0x7F;
+
+			songNoteInfo.effect = 0x00;
+			songNoteInfo.tempo = 0x78;
+			songNoteInfo.pan = 0x40;
+			songNoteInfo.pitchBend = 0x40;
+			songNoteInfo.volume = 0x7F;
+
+			songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+			trackOutputNotes.push_back(songNoteInfo);
+
+			absoluteTime += timestamp;
+		}
+		else if (command & 0x40)
+		{
+			int preTimestampSpot = spot;
+
+			int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+
+			lastTimestamp = timestamp;
+
+			fprintfIfDebug(outFileDebug, "TRK %08X Time: %08X Note TV:  %02X Note %02X", preTimestampSpot-1, absoluteTime, command, command & 0x3F);
+
+			if (timestamp < 0x80)
+				fprintfIfDebug(outFileDebug, " Length %02X (%d)", timestamp, timestamp);
+			else
+				fprintfIfDebug(outFileDebug, " Length %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+			fprintfIfDebug(outFileDebug, " Velocity %02X (%d) [True Note Length %04X]", inputMID[spot], inputMID[spot], timestamp);
+
+			int note = command & 0x3F;
+			int velocity = inputMID[spot];
+			int noteLength = timestamp;
+
+			SngNoteInfo songNoteInfo;
+			songNoteInfo.originalTrack = channel;
+			songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+			songNoteInfo.startAbsoluteTime = absoluteTime;
+			songNoteInfo.noteNumber = note + currentCoarseTune + 0x15;
+
+			songNoteInfo.instrument = 0x00;
+			songNoteInfo.velocity = velocity;
+
+			songNoteInfo.effect = 0x00;
+			songNoteInfo.tempo = 0x78;
+			songNoteInfo.pan = 0x40;
+			songNoteInfo.pitchBend = 0x40;
+			songNoteInfo.volume = 0x7F;
+
+			songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+			trackOutputNotes.push_back(songNoteInfo);
+
+			absoluteTime += timestamp;
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command & 0x80)
+		{
+			fprintfIfDebug(outFileDebug, "TRK %08X Time: %08X Note VD:  %02X Note %02X", spot-1, absoluteTime, command, command & 0x3F);
+			
+			int duration = inputMID[spot+1];
+			fprintfIfDebug(outFileDebug, " [Timestamp %04X] Velocity %02X (%d) Duration %02X (%d) [True Note Length %04X]", lastTimestamp, inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], (lastTimestamp - ((duration * lastTimestamp) >> 8)));
+
+			int note = command & 0x3F;
+			int velocity = inputMID[spot];
+			int noteLength = (lastTimestamp - ((duration * lastTimestamp) >> 8));
+
+			SngNoteInfo songNoteInfo;
+			songNoteInfo.originalTrack = channel;
+			songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+			songNoteInfo.startAbsoluteTime = absoluteTime;
+			songNoteInfo.noteNumber = note + currentCoarseTune + 0x15;
+
+			songNoteInfo.instrument = 0x00;
+			songNoteInfo.velocity = velocity;
+
+			songNoteInfo.effect = 0x00;
+			songNoteInfo.tempo = 0x78;
+			songNoteInfo.pan = 0x40;
+			songNoteInfo.pitchBend = 0x40;
+			songNoteInfo.volume = 0x7F;
+
+			songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+			trackOutputNotes.push_back(songNoteInfo);
+
+			absoluteTime += lastTimestamp;
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else
+		{
+			int preTimestampSpot = spot;
+
+			int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+			lastTimestamp = timestamp;
+
+			fprintfIfDebug(outFileDebug, "TRK %08X Time: %08X Note TVD: %02X Note %02X", preTimestampSpot-1, absoluteTime, command, command & 0x3F);
+
+			if (timestamp < 0x80)
+				fprintfIfDebug(outFileDebug, " Length %02X (%d)", timestamp, timestamp);
+			else
+				fprintfIfDebug(outFileDebug, " Length %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+			int duration = inputMID[spot+1];
+			fprintfIfDebug(outFileDebug, " Velocity %02X (%d) Duration %02X (%d) [True Note Length %04X]", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], (timestamp - ((duration * timestamp) >> 8)));
+
+			int note = command & 0x3F;
+			int velocity = inputMID[spot];
+			int noteLength = (timestamp - ((duration * timestamp) >> 8));
+
+			SngNoteInfo songNoteInfo;
+			songNoteInfo.originalTrack = channel;
+			songNoteInfo.originalNoteUniqueId = noteUniqueId++;
+			songNoteInfo.startAbsoluteTime = absoluteTime;
+			songNoteInfo.noteNumber = note + currentCoarseTune + 0x15;
+
+			songNoteInfo.instrument = 0x00;
+			songNoteInfo.velocity = velocity;
+
+			songNoteInfo.effect = 0x00;
+			songNoteInfo.tempo = 0x78;
+			songNoteInfo.pan = 0x40;
+			songNoteInfo.pitchBend = 0x40;
+			songNoteInfo.volume = 0x7F;
+
+			songNoteInfo.endAbsoluteTime = songNoteInfo.startAbsoluteTime + noteLength;
+
+			trackOutputNotes.push_back(songNoteInfo);
+
+			absoluteTime += timestamp;
+
+			//Time %02X Velocity %02X Duration %02X
+			//, inputMID[spot], inputMID[spot+1], inputMID[spot+2]
+			IncrementSpot(spot, 2, coverage);
+
+			// This goes backwards or something odd...figure out later, command was 00FFFF00 1080 Snowboarding Midi 0
+			/*if (duration == 0)
+			{
+				fprintfIfDebug(outFileDebug, "\n");
+				break;
+			}*/
+		}
+
+		fprintfIfDebug(outFileDebug, "\n");
+	}
+
+	if (returnBackAlternateChoices.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackAlternateChoices.back();
+		returnBackAlternateChoices.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Taking Alternate Path to %08X\n", spot);
+		goto loopAgain;
+	}
+
+	if (returnBackOffset.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackOffset.back();
+		returnBackOffset.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Returning from Subroutine to %08X\n", spot);
+		goto loopAgain;
+	}
+}
+
+void CMidiParse::ParseEADMusicChannel(int gameStyle, FILE* outFileDebug, unsigned char* inputMID, int end, int offset, int channel, unsigned long absoluteTime,
+							int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes,
+							int& noteUniqueId, int currentInstrument[0x10], int currentPan[0x10], int currentVolume[0x10], int currentPitchBend[0x10], int currentEffect[0x10],
+							std::vector<unsigned long>& jumpStarts, std::vector<unsigned long>& jumpsTaken, bool attemptJumps, unsigned char* coverage, bool channelStarted[0x10])
+{
+	fprintfIfDebug(outFileDebug, "-------------------Channel %X-------------------\n", channel);
+
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	std::vector<int> returnBackOffset;
+	std::vector<int> returnBackAlternateChoices;
+
+	std::vector<SngNoteInfo> pendingChannelNotes;
+
+	std::vector<SngTimeValue> instrumentByAbsoluteTime;
+	std::vector<SngTimeValue> effectByAbsoluteTime;
+	std::vector<SngTimeValue> volumeByAbsoluteTime;
+	std::vector<SngTimeValue> panByAbsoluteTime;
+	std::vector<SngTimeValue> pitchBendByAbsoluteTime;
+
+loopAgain:
+	while ((command != 0xFF) && (spot < end))
+	{
+		command = inputMID[spot];
+
+		fprintfIfDebug(outFileDebug, "CHN %08X Time: %08X CMD:      %02X", spot, absoluteTime, command);
+
+		IncrementSpot(spot, 1, coverage);
+
+		if (command == 0xFF)
+		{
+			fprintfIfDebug(outFileDebug, " END\n");
+			break;
+		}
+		else if (command == 0xFE)
+		{
+			fprintfIfDebug(outFileDebug, " RETURN\n");
+			break;
+		}
+		else if ((command >= 0x0) && (command < 0x10))
+		{
+			if ((gameStyle == EADMUSICSTYLEZELDA) || (gameStyle == EADMUSICSTYLEMARIO))
+			{
+				fprintfIfDebug(outFileDebug, " Delay");
+				fprintfIfDebug(outFileDebug, " %02X (%d)", command, command);
+
+				absoluteTime += command;
+			}
+			else
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+		}
+		else if ((command >= 0x10) && (command < 0x20))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x20) && (command < 0x30))
+		{
+			// 1080
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+
+			fprintfIfDebug(outFileDebug, " Change Channel %02X to Offset?", command & 0xF);
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+
+			int callChannel = command & 0xF;
+
+			fprintfIfDebug(outFileDebug, "\n");
+			ParseEADMusicChannel(gameStyle, outFileDebug, inputMID, end, offset, callChannel, absoluteTime, numberInstruments, tempoPositions, outputNotes, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentEffect, jumpStarts, jumpsTaken, attemptJumps, coverage, channelStarted);
+		}
+		else if ((command >= 0x30) && (command < 0x40))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x40) && (command < 0x50))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x50) && (command < 0x60))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x60) && (command < 0x70))
+		{
+			if (gameStyle == EADMUSICSTYLESTARFOX)
+			{
+				fprintfIfDebug(outFileDebug, " Delay");
+				fprintfIfDebug(outFileDebug, " %02X (%d) [Real delay %02X (%d)]", command, command, command & 0xF, command & 0xF);
+
+				absoluteTime += (command & 0xF);
+			}
+			else
+			{
+				fprintfIfDebug(outFileDebug, " ?");
+			}
+		}
+		else if ((command >= 0x70) && (command < 0x78))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x78) && (command < 0x7C))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = command & 0x3;
+			fprintfIfDebug(outFileDebug, " Track Layer Offset %02X", (command & 0x3));
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			IncrementSpot(spot, 2, coverage);
+
+			if (offset > 0)
+			{
+				std::vector<unsigned long> jumpStartsTrack;
+				std::vector<unsigned long> jumpsTakenTrack;
+
+				ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, spot + offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+			}
+		}
+		else if ((command >= 0x7C) && (command < 0x80))
+		{
+			// Looks like placeholder, defaults back to 0 in Zelda
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = 0;
+			fprintfIfDebug(outFileDebug, " Track Layer Offset %02X", layer);
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			IncrementSpot(spot, 2, coverage);
+
+			if (offset > 0)
+			{
+				std::vector<unsigned long> jumpStartsTrack;
+				std::vector<unsigned long> jumpsTakenTrack;
+
+				ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, spot + offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+			}
+		}
+		else if ((command >= 0x80) && (command < 0x84))
+		{
+			// & 0x3 Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x84) && (command < 0x88))
+		{
+			// Default 0 placeholder Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x88) && (command < 0x8C)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = command & 0x3;
+			fprintfIfDebug(outFileDebug, " Track Layer %02X", (command & 0x3));
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsTrack;
+			std::vector<unsigned long> jumpsTakenTrack;
+
+			ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x8C) && (command < 0x90)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = 0;
+			fprintfIfDebug(outFileDebug, " Track Layer %02X", 0);
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsTrack;
+			std::vector<unsigned long> jumpsTakenTrack;
+
+			ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLEMARIO) && ((command >= 0x88) && (command < 0x90)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLESTARFOX) && ((command >= 0x88) && (command < 0x90)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x90) && (command < 0x94)))
+		{
+			// & 0x3 Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x94) && (command < 0x98)))
+		{
+			// Default 0 Placeholder Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+
+		else if ((gameStyle == EADMUSICSTYLEMARIO) && ((command >= 0x90) && (command < 0x94)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = command & 0x3;
+			fprintfIfDebug(outFileDebug, " Track Layer %02X", (command & 0x3));
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsTrack;
+			std::vector<unsigned long> jumpsTakenTrack;
+
+			ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLEMARIO) && ((command >= 0x94) && (command < 0x98)))
+		{
+			// Not sure just put in
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((gameStyle == EADMUSICSTYLEMARIO) && ((command >= 0x98) && (command < 0x9C)))
+		{
+			// & 0x3 Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x98) && (command < 0x9C)))
+		{
+			// & 0x3 Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLEMARIO) && ((command >= 0x9C) && (command < 0xA0)))
+		{
+			// Default 0 Placeholder Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLEZELDA) && ((command >= 0x9C) && (command < 0xA0)))
+		{
+			// Default 0 Placeholder Track Layer
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((gameStyle == EADMUSICSTYLESTARFOX) && ((command >= 0x90) && (command < 0xA0)))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			int layer = command & 0xF;
+			fprintfIfDebug(outFileDebug, " Track Layer %02X", (command & 0xF));
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsTrack;
+			std::vector<unsigned long> jumpsTakenTrack;
+
+			ParseEADMusicTrackLayer(gameStyle, outFileDebug, inputMID, end, offset, channel, layer, absoluteTime, numberInstruments, tempoPositions, pendingChannelNotes, noteUniqueId, jumpStartsTrack, jumpsTakenTrack, attemptJumps, coverage, channelStarted[channel]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((command >= 0xA0) && (command < 0xB0))
+		{
+			// NOOP in Zelda
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xB0)
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			fprintfIfDebug(outFileDebug, " Add to 80100000 and ?");
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			IncrementSpot(spot, 2, coverage);
+
+			break;
+		}
+		else if (command == 0xB1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xB2)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xB3)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xB4)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xB5)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xB6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xB7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xB8)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xB9)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xBA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xBB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X %02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xBC)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xBD)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X %02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2], inputMID[spot+3]);
+			
+			IncrementSpot(spot, 4, coverage);
+		}
+		else if (command == 0xBE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xBF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xC0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xC1)
+		{
+			fprintfIfDebug(outFileDebug, " Instrument");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			currentInstrument[channel] = inputMID[spot];
+
+			SngTimeValue pair;
+			pair.value = currentInstrument[channel];
+			pair.startAbsoluteTime = absoluteTime;
+			pair.endAbsoluteTime = absoluteTime;
+			instrumentByAbsoluteTime.push_back(pair);
+
+			if (currentInstrument[channel] >= numberInstruments)
+				numberInstruments = (currentInstrument[channel] + 1);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC2)
+		{
+			if (outFileDebug)
+			{
+				fflush(outFileDebug);
+			}
+			// Really uses play values and external to set...can probably not ever get this right sadly.
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+
+			std::vector<unsigned short> values;
+
+			fprintfIfDebug(outFileDebug, " Set Jump Table Channel");
+			fprintfIfDebug(outFileDebug, " Offset with Data %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			unsigned short previousValueTemp = 0;
+			while (true)
+			{
+				unsigned short  valueTemp = CharArrayToShort(&inputMID[offset + (values.size() * 2)]);
+
+				if ((valueTemp >= end) || (valueTemp <= previousValueTemp))
+					break;
+
+				fprintfIfDebug(outFileDebug, " Value %02X %04X", (values.size()), valueTemp);
+				values.push_back(valueTemp);
+
+				previousValueTemp = valueTemp;
+			}
+
+			IncrementSpot(spot, 2, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			for (int v = 0; v < values.size(); v++)
+			{
+				if ((offset + (v * 2 + 1)) < end)
+				{
+					coverage[offset + (v * 2)] = 0x00;
+					coverage[offset + (v * 2) + 1] = 0x00;
+
+					ParseEADMusicChannel(gameStyle, outFileDebug, inputMID, end, values[v], channel, absoluteTime, numberInstruments, tempoPositions, outputNotes, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentEffect, jumpStarts, jumpsTaken, attemptJumps, coverage, channelStarted);
+				}
+			}
+		}
+		else if (command == 0xC3)
+		{
+			fprintfIfDebug(outFileDebug, " Channel End (Disable Velocity/Duration on Notes)");
+			channelStarted[channel] = false;
+		}
+		else if (command == 0xC4)
+		{
+			fprintfIfDebug(outFileDebug, " Channel Start (Enable Velocity/Duration on Notes)");
+			channelStarted[channel] = true;
+		}
+		else if (command == 0xC5)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xC6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC7)
+		{
+			// Absolute offset in second spot
+			unsigned short offset = ((inputMID[spot+1] << 8) | inputMID[spot+2]);
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X %02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xC8)
+		{
+			fprintfIfDebug(outFileDebug, " Subtract Play Value - Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC9)
+		{
+			fprintfIfDebug(outFileDebug, " And Play Value and Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xCC)
+		{
+			fprintfIfDebug(outFileDebug, " Set Play Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCD)
+		{
+			fprintfIfDebug(outFileDebug, " ? [Value is channel number]");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xCF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xD0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD2)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD3)
+		{
+			fprintfIfDebug(outFileDebug, " Pitch Bend");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			// signed char to 00-7F range
+			currentPitchBend[channel] = (signed char)inputMID[spot];
+			if (currentPitchBend[channel] == 0)
+				currentPitchBend[channel] = 0x40;
+			else if (currentPitchBend[channel] < 0)
+				currentPitchBend[channel] = currentPitchBend[channel] / 2 + 0x40;
+			else if (currentPitchBend[channel] > 0)
+				currentPitchBend[channel] = currentPitchBend[channel] / 2 + 0x40;
+			
+			SngTimeValue pair;
+			pair.value = currentPitchBend[channel];
+			pair.startAbsoluteTime = absoluteTime;
+			pair.endAbsoluteTime = absoluteTime;
+			pitchBendByAbsoluteTime.push_back(pair);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD4)
+		{
+			fprintfIfDebug(outFileDebug, " Reverb");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			currentEffect[channel] = inputMID[spot] / 2;
+
+			SngTimeValue pair;
+			pair.value = currentEffect[channel];
+			pair.startAbsoluteTime = absoluteTime;
+			pair.endAbsoluteTime = absoluteTime;
+			effectByAbsoluteTime.push_back(pair);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD5)
+		{
+			fprintfIfDebug(outFileDebug, " Reverb");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD8)
+		{
+			fprintfIfDebug(outFileDebug, " Vibrato");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD9)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDA)
+		{
+			// Absolute offset
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xDB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDC)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDD)
+		{
+			fprintfIfDebug(outFileDebug, " Pan");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			currentPan[channel] = inputMID[spot];
+
+			SngTimeValue pair;
+			pair.value = currentPan[channel];
+			pair.startAbsoluteTime = absoluteTime;
+			pair.endAbsoluteTime = absoluteTime;
+			panByAbsoluteTime.push_back(pair);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xDF)
+		{
+			fprintfIfDebug(outFileDebug, " Volume");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			currentVolume[channel] = inputMID[spot];
+
+			SngTimeValue pair;
+			pair.value = currentVolume[channel];
+			pair.startAbsoluteTime = absoluteTime;
+			pair.endAbsoluteTime = absoluteTime;
+			volumeByAbsoluteTime.push_back(pair);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xE2)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X %02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xE3)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE4)
+		{
+			fprintfIfDebug(outFileDebug, " Use Play Value to Offset into Jump Table (from last Command C2)");
+		}
+		else if (command == 0xE5)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xE8)
+		{
+			// NUD-DMGJ
+			//E800000E003F7F0000
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d)", 
+			inputMID[spot], inputMID[spot],
+			inputMID[spot+1], inputMID[spot+1],
+			inputMID[spot+2], inputMID[spot+2],
+			inputMID[spot+3], inputMID[spot+3],
+			inputMID[spot+4], inputMID[spot+4],
+			inputMID[spot+5], inputMID[spot+5],
+			inputMID[spot+6], inputMID[spot+6],
+			inputMID[spot+7], inputMID[spot+7]
+			);
+
+			IncrementSpot(spot, 8, coverage);
+		}
+		else if (command == 0xE9)
+		{
+			fprintfIfDebug(outFileDebug, " Priority");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xEA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xEB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xEC)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xED)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xEE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xEF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X %02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xF0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xF1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xF2)
+		{
+			fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value < 0");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF3)
+		{
+			fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value == 0");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+				}
+				else
+				{			
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF4)
+		{
+			fprintfIfDebug(outFileDebug, " Go to  relative offset");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], (signed char)inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+					break;
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		else if (command == 0xF5)
+		{
+			fprintfIfDebug(outFileDebug, " Go to absolute offset if Play Value >= 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot =  absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF6)
+		{
+			fprintfIfDebug(outFileDebug, " Restart Song");
+
+			if (attemptJumps)
+			{
+				int startSpot = 0;
+
+				if (std::find(jumpsTaken.begin(), jumpsTaken.end(), startSpot) == jumpsTaken.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Taking\n");
+					jumpsTaken.push_back(startSpot);
+					spot = startSpot;
+				}
+			}
+		}
+		else if (command == 0xF7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xF8)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xF9)
+		{
+			fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value < 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot =  absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xFA)
+		{
+			fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value == 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot = absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xFB)
+		{
+			fprintfIfDebug(outFileDebug, " Go to absolute offset");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+					break;
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot = absoluteOffset;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		else if (command == 0xFC)
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			fprintfIfDebug(outFileDebug, " Jump and Link");
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			IncrementSpot(spot, 2, coverage);
+			returnBackOffset.push_back(spot);
+
+			spot = offset;
+		}
+		else if (command == 0xFD)
+		{
+			fprintfIfDebug(outFileDebug, " Delay");
+			
+			int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+			if (timestamp < 0x80)
+				fprintfIfDebug(outFileDebug, " %02X (%d)", timestamp, timestamp);
+			else
+				fprintfIfDebug(outFileDebug, " %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+			absoluteTime += timestamp;
+		}
+		else
+		{
+			fprintfIfDebug(outFileDebug, " UNKNOWN");
+			return;
+		}
+
+		fprintfIfDebug(outFileDebug, "\n");
+	}
+
+	if (returnBackAlternateChoices.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackAlternateChoices.back();
+		returnBackAlternateChoices.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Taking Alternate Path to %08X\n", spot);
+		goto loopAgain;
+	}
+
+	if (returnBackOffset.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackOffset.back();
+		returnBackOffset.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Returning from Subroutine to %08X\n", spot);
+		goto loopAgain;
+	}
+
+	int maxAbsoluteTime = 0;
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		if (pendingChannelNotes[x].endAbsoluteTime > maxAbsoluteTime)
+			maxAbsoluteTime = pendingChannelNotes[x].endAbsoluteTime;
+	}
+
+	std::sort(pendingChannelNotes.begin(), pendingChannelNotes.end(), sngSortByStartTime());
+
+
+	if (instrumentByAbsoluteTime.size() > 0)
+	{
+		if (instrumentByAbsoluteTime.size() > 1)
+		{
+			for (int x = (instrumentByAbsoluteTime.size() - 2); x >= 0; x--)
+			{
+				instrumentByAbsoluteTime[x].endAbsoluteTime = instrumentByAbsoluteTime[x+1].startAbsoluteTime;
+			}
+		}
+
+		instrumentByAbsoluteTime[instrumentByAbsoluteTime.size() - 1].endAbsoluteTime = maxAbsoluteTime;
+	}
+
+	if (effectByAbsoluteTime.size() > 0)
+	{
+		if (effectByAbsoluteTime.size() > 1)
+		{
+			for (int x = (effectByAbsoluteTime.size() - 2); x >= 0; x--)
+			{
+				effectByAbsoluteTime[x].endAbsoluteTime = effectByAbsoluteTime[x+1].startAbsoluteTime;
+			}
+		}
+
+		effectByAbsoluteTime[effectByAbsoluteTime.size() - 1].endAbsoluteTime = maxAbsoluteTime;
+	}
+
+	if (volumeByAbsoluteTime.size() > 0)
+	{
+		if (volumeByAbsoluteTime.size() > 1)
+		{
+			for (int x = (volumeByAbsoluteTime.size() - 2); x >= 0; x--)
+			{
+				volumeByAbsoluteTime[x].endAbsoluteTime = volumeByAbsoluteTime[x+1].startAbsoluteTime;
+			}
+		}
+
+		volumeByAbsoluteTime[volumeByAbsoluteTime.size() - 1].endAbsoluteTime = maxAbsoluteTime;
+	}
+
+	if (panByAbsoluteTime.size() > 0)
+	{
+		if (panByAbsoluteTime.size() > 1)
+		{
+			for (int x = (panByAbsoluteTime.size() - 2); x >= 0; x--)
+			{
+				panByAbsoluteTime[x].endAbsoluteTime = panByAbsoluteTime[x+1].startAbsoluteTime;
+			}
+		}
+
+		panByAbsoluteTime[panByAbsoluteTime.size() - 1].endAbsoluteTime = maxAbsoluteTime;
+	}
+
+	if (pitchBendByAbsoluteTime.size() > 0)
+	{
+		if (pitchBendByAbsoluteTime.size() > 1)
+		{
+			for (int x = (pitchBendByAbsoluteTime.size() - 2); x >= 0; x--)
+			{
+				pitchBendByAbsoluteTime[x].endAbsoluteTime = pitchBendByAbsoluteTime[x+1].startAbsoluteTime;
+			}
+		}
+
+		pitchBendByAbsoluteTime[pitchBendByAbsoluteTime.size() - 1].endAbsoluteTime = maxAbsoluteTime;
+	}
+
+
+
+	// Add in Volume
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		for (int y = 0; y < volumeByAbsoluteTime.size(); y++)
+		{
+			// Volume To Left/Equal Ending in Middle
+			if (
+				(pendingChannelNotes[x].startAbsoluteTime >= volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (pendingChannelNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].startAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//Volume In Middle, Ending to Right
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (pendingChannelNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// Volume Completely Inside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (pendingChannelNotes[x].volume != volumeByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+					SngNoteInfo newNoteInfo2 = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = volumeByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.volume = volumeByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = volumeByAbsoluteTime[y].endAbsoluteTime;
+
+					pendingChannelNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// Volume Completely Outside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime >= volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < volumeByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > volumeByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= volumeByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				pendingChannelNotes[x].volume = volumeByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+	
+
+
+	// Add in Pitch Bend
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		for (int y = 0; y < pitchBendByAbsoluteTime.size(); y++)
+		{
+			// PitchBend To Left/Equal Ending in Middle
+			if (
+				(pendingChannelNotes[x].startAbsoluteTime >= pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (pendingChannelNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].startAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//PitchBend In Middle, Ending to Right
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (pendingChannelNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// PitchBend Completely Inside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (pendingChannelNotes[x].pitchBend != pitchBendByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+					SngNoteInfo newNoteInfo2 = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = pitchBendByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pitchBend = pitchBendByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = pitchBendByAbsoluteTime[y].endAbsoluteTime;
+
+					pendingChannelNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// PitchBend Completely Outside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime >= pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > pitchBendByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= pitchBendByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				pendingChannelNotes[x].pitchBend = pitchBendByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+
+	// Add in Pan
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		for (int y = 0; y < panByAbsoluteTime.size(); y++)
+		{
+			// Pan To Left/Equal Ending in Middle
+			if (
+				(pendingChannelNotes[x].startAbsoluteTime >= panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (pendingChannelNotes[x].pan != panByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].startAbsoluteTime = panByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = panByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pan = panByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//Pan In Middle, Ending to Right
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= panByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (pendingChannelNotes[x].pan != panByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = panByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = panByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.pan = panByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// Pan Completely Inside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (pendingChannelNotes[x].pan != panByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+					SngNoteInfo newNoteInfo2 = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = panByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = panByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = panByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.pan = panByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = panByAbsoluteTime[y].endAbsoluteTime;
+
+					pendingChannelNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// Pan Completely Outside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime >= panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < panByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > panByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= panByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				pendingChannelNotes[x].pan = panByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+
+	// Add in Effect
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		for (int y = 0; y < effectByAbsoluteTime.size(); y++)
+		{
+			// Effect To Left/Equal Ending in Middle
+			if (
+				(pendingChannelNotes[x].startAbsoluteTime >= effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (pendingChannelNotes[x].effect != effectByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].startAbsoluteTime = effectByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = effectByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.effect = effectByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//Effect In Middle, Ending to Right
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= effectByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (pendingChannelNotes[x].effect != effectByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = effectByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = effectByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.effect = effectByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// Effect Completely Inside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (pendingChannelNotes[x].effect != effectByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+					SngNoteInfo newNoteInfo2 = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = effectByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = effectByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = effectByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.effect = effectByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = effectByAbsoluteTime[y].endAbsoluteTime;
+
+					pendingChannelNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// Effect Completely Outside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime >= effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < effectByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > effectByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= effectByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				pendingChannelNotes[x].effect = effectByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+
+	// Add in Instrument
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		for (int y = 0; y < instrumentByAbsoluteTime.size(); y++)
+		{
+			// Instrument To Left/Equal Ending in Middle
+			if (
+				(pendingChannelNotes[x].startAbsoluteTime >= instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].startAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to Beginning
+
+				if (pendingChannelNotes[x].instrument != instrumentByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].startAbsoluteTime = instrumentByAbsoluteTime[y].endAbsoluteTime;
+					
+					newNoteInfo.endAbsoluteTime = instrumentByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.instrument = instrumentByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+				
+			}
+			//Instrument In Middle, Ending to Right
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= instrumentByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				//Split at Middle, Apply to End
+				if (pendingChannelNotes[x].instrument != instrumentByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = instrumentByAbsoluteTime[y].startAbsoluteTime;
+					
+					newNoteInfo.startAbsoluteTime = instrumentByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.instrument = instrumentByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+
+					x--;
+					break;
+				}
+			}
+			// Instrument Completely Inside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Split at Mid-Left and Mid-Right
+				if (pendingChannelNotes[x].instrument != instrumentByAbsoluteTime[y].value)
+				{
+					SngNoteInfo newNoteInfo = pendingChannelNotes[x];
+					SngNoteInfo newNoteInfo2 = pendingChannelNotes[x];
+
+					pendingChannelNotes[x].endAbsoluteTime = instrumentByAbsoluteTime[y].startAbsoluteTime;
+
+
+					
+
+					newNoteInfo.startAbsoluteTime = instrumentByAbsoluteTime[y].startAbsoluteTime;
+					newNoteInfo.endAbsoluteTime = instrumentByAbsoluteTime[y].endAbsoluteTime;
+					newNoteInfo.instrument = instrumentByAbsoluteTime[y].value;
+
+					pendingChannelNotes.push_back(newNoteInfo);
+					
+					newNoteInfo2.startAbsoluteTime = instrumentByAbsoluteTime[y].endAbsoluteTime;
+
+					pendingChannelNotes.push_back(newNoteInfo2);
+
+					x--;
+					break;
+				}
+			}
+			// Instrument Completely Outside
+			else if (
+				(pendingChannelNotes[x].startAbsoluteTime >= instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].startAbsoluteTime < instrumentByAbsoluteTime[y].endAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime > instrumentByAbsoluteTime[y].startAbsoluteTime)
+				&& (pendingChannelNotes[x].endAbsoluteTime <= instrumentByAbsoluteTime[y].endAbsoluteTime)
+				)
+			{
+				// Apply to whole
+				pendingChannelNotes[x].instrument = instrumentByAbsoluteTime[y].value;
+			}
+			// No Overlap
+			else
+			{
+
+			}
+		}
+	}
+
+	for (int x = 0; x < pendingChannelNotes.size(); x++)
+	{
+		outputNotes.push_back(pendingChannelNotes[x]);
+	}
+}
+
+void CMidiParse::ParseEADMusicSequence(int gameStyle, FILE* outFileDebug, unsigned char* inputMID, int offset ,int end, unsigned long& absoluteTime, std::vector<unsigned long>& jumpStarts, std::vector<unsigned long>& jumpsTaken, bool attemptJumps,
+							 int& numberInstruments, std::vector<TimeAndValue>& tempoPositions, std::vector<SngNoteInfo>& outputNotes,
+							 int& noteUniqueId,
+							int currentInstrument[0x10], int currentPan[0x10], int currentVolume[0x10], int currentPitchBend[0x10], int currentReverb[0x10], bool& hitConditional, unsigned char* coverage, bool channelStarted[0x10]
+							 )
+{
+	unsigned char command = 0x00;
+	unsigned long spot = offset;
+
+	fprintfIfDebug(outFileDebug, "-------------------SEQUENCE %08X-------------------\n", offset);
+
+	std::vector<int> returnBackOffset;
+	std::vector<int> returnBackAlternateChoices;
+
+loopAgain:
+	while ((command != 0xFF) && (spot < end))
+	{
+		command = inputMID[spot];
+
+		fprintfIfDebug(outFileDebug, "SEQ %08X Time: %08X CMD:      %02X", spot, absoluteTime, command);
+
+		IncrementSpot(spot, 1, coverage);
+
+		if (command == 0xFF)
+		{
+			fprintfIfDebug(outFileDebug, " END\n");
+			break;
+		}
+		else if (command == 0xFE)
+		{
+			fprintfIfDebug(outFileDebug, " RETURN\n");
+			break;
+		}
+		else if ((command >= 0x0) && (command < 0x10))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x10) && (command < 0x40))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x40) && (command < 0x50))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if ((command >= 0x50) && (command < 0x60))
+		{
+			fprintfIfDebug(outFileDebug, " Set Play Value to (Play Value - Channel Value %02X)", command & 0xF);
+		}
+		else if ((command >= 0x60) && (command < 0x70))
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if ((command >= 0x70) && (command < 0x80))
+		{
+			fprintfIfDebug(outFileDebug, " Set Channel Value %02X to Play Value", command & 0xF);
+		}
+		else if ((command >= 0x80) && (command < 0x90))
+		{
+			// READMusic Values Set 1
+			// Write to Values Set 2 if >= 2
+			// else Write FFFF (-1)
+
+			fprintfIfDebug(outFileDebug, " Set Play Value to Channel Value %02X If Channel >= 2 Else -1", command & 0xF);
+		}
+		else if ((command >= 0x90) && (command < 0xA0))
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			unsigned char channel = command & 0xF;
+			fprintfIfDebug(outFileDebug, " Channel Pointer Channel %X", command & 0xF);
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			IncrementSpot(spot, 2, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsChannel;
+			std::vector<unsigned long> jumpsTakenChannel;
+
+			ParseEADMusicChannel(gameStyle, outFileDebug, inputMID, end, offset, channel, absoluteTime, numberInstruments, tempoPositions, outputNotes, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentReverb, jumpStartsChannel, jumpsTakenChannel, attemptJumps, coverage, channelStarted);
+		}
+		else if ((command >= 0xA0) && (command < 0xB0))
+		{
+			// Not sure about this
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			unsigned char channel = command & 0xF;
+			fprintfIfDebug(outFileDebug, " Channel Pointer Offset Channel %X", command & 0xF);
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			
+			IncrementSpot(spot, 2, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			std::vector<unsigned long> jumpStartsChannel;
+			std::vector<unsigned long> jumpsTakenChannel;
+
+			ParseEADMusicChannel(gameStyle, outFileDebug, inputMID, end, spot + offset, channel, absoluteTime, numberInstruments, tempoPositions, outputNotes, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentReverb, jumpStartsChannel, jumpsTakenChannel, attemptJumps, coverage, channelStarted);
+		}
+		else if ((command >= 0xB0) && (command < 0xC0))
+		{
+			unsigned char index = inputMID[spot];
+			unsigned short offset = ((inputMID[spot + 1] << 8) | inputMID[spot+2]);
+
+			fprintfIfDebug(outFileDebug, " Load And Goto Sequence at Offset");
+			fprintfIfDebug(outFileDebug, " %02X At %02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			
+			IncrementSpot(spot, 3, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			break;
+		}
+		else if (command == 0xC0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xC1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC2)
+		{
+			// Really uses play values and external to set...can probably not ever get this right sadly.
+			//DMGJ 0x10
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+
+			std::vector<unsigned short> values;
+
+			fprintfIfDebug(outFileDebug, " Set Jump Table Sequence");
+			fprintfIfDebug(outFileDebug, " Offset with Data %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			unsigned short previousValueTemp = 0;
+			while (true)
+			{
+				unsigned short  valueTemp = CharArrayToShort(&inputMID[offset + (values.size() * 2)]);
+
+				if ((valueTemp >= end) || (valueTemp <= previousValueTemp))
+					break;
+
+				fprintfIfDebug(outFileDebug, " Value %02X %04X", (values.size()), valueTemp);
+				values.push_back(valueTemp);
+
+				previousValueTemp = valueTemp;
+			}
+
+			IncrementSpot(spot, 2, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			for (int v = 0; v < values.size(); v++)
+			{
+				if ((offset + (v * 2 + 1)) < end)
+				{
+					coverage[offset + (v * 2)] = 0x00;
+					coverage[offset + (v * 2) + 1] = 0x00;
+
+					ParseEADMusicSequence(gameStyle, outFileDebug, inputMID, values[v], end, absoluteTime, jumpStarts, jumpsTaken, attemptJumps, numberInstruments, tempoPositions, outputNotes, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentReverb, hitConditional, coverage, channelStarted);
+				}
+			}
+		}
+		else if (command == 0xC3)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xC4)
+		{
+			fprintfIfDebug(outFileDebug, " DONE?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			
+			IncrementSpot(spot, 2, coverage);
+
+			fprintfIfDebug(outFileDebug, "\n");
+			break;
+		}
+		else if (command == 0xC5)
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xC6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC7)
+		{
+			fprintfIfDebug(outFileDebug, " ? Pitch Related");
+			fprintfIfDebug(outFileDebug, " %02X%02X%02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xC8)
+		{
+			fprintfIfDebug(outFileDebug, " Subtract Play Value - Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xC9)
+		{
+			fprintfIfDebug(outFileDebug, " And Play Value and Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xCB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xCC)
+		{
+			fprintfIfDebug(outFileDebug, " Set Play Value");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCD)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			fprintfIfDebug(outFileDebug, "\n");
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xCE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xCF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xD0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD2)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xD3)
+		{
+			fprintfIfDebug(outFileDebug, " Begin Sequence");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD4)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xD5)
+		{
+			fprintfIfDebug(outFileDebug, " Sequence Type");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD6)
+		{
+			fprintfIfDebug(outFileDebug, " Channel Disable");
+			fprintfIfDebug(outFileDebug, " %02X%02X Channels", inputMID[spot], inputMID[spot+1]);
+
+			unsigned short channelEnables = ((inputMID[spot] << 8) | inputMID[spot + 1]);
+			for (int x = 0; x < 0x10; x++)
+			{
+				if (channelEnables & 0x1)
+					fprintfIfDebug(outFileDebug, " %X", x);
+
+				channelEnables >>= 1;
+			}
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xD7)
+		{
+			fprintfIfDebug(outFileDebug, " Channel Enable");
+			fprintfIfDebug(outFileDebug, " %02X%02X Channels", inputMID[spot], inputMID[spot+1]);
+
+			unsigned short channelEnables = ((inputMID[spot] << 8) | inputMID[spot + 1]);
+			for (int x = 0; x < 0x10; x++)
+			{
+				if (channelEnables & 0x1)
+					fprintfIfDebug(outFileDebug, " %X", x);
+
+				channelEnables >>= 1;
+			}
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xD8)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xD9)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xDA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d) %02X (%d) %02X (%d)", inputMID[spot], inputMID[spot], inputMID[spot+1], inputMID[spot+1], inputMID[spot+2], inputMID[spot+2]);
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xDB)
+		{
+			fprintfIfDebug(outFileDebug, " Master Volume");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDC)
+		{
+			fprintfIfDebug(outFileDebug, " SFX Volume");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDD)
+		{
+			fprintfIfDebug(outFileDebug, " Tempo");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			unsigned char tempo = inputMID[spot];
+			unsigned long currentTempo = (unsigned long)(60000000.0 / (float)tempo);
+
+			tempoPositions.push_back(TimeAndValue(absoluteTime, currentTempo));
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xDE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			IncrementSpot(spot, 2, coverage);
+		}
+		else if (command == 0xDF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X %02X %02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xE2)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X %02X %02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xE3)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE4)
+		{
+			fprintfIfDebug(outFileDebug, " Use Play Value to Offset into Jump Table (from last Command C2)");
+		}
+		else if (command == 0xE5)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE6)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xE7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xE8)
+		{
+			// NUD-DMGJ
+			//E800000E003F7F0000
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d) %02X (%d)", 
+			inputMID[spot], inputMID[spot],
+			inputMID[spot+1], inputMID[spot+1],
+			inputMID[spot+2], inputMID[spot+2],
+			inputMID[spot+3], inputMID[spot+3],
+			inputMID[spot+4], inputMID[spot+4],
+			inputMID[spot+5], inputMID[spot+5],
+			inputMID[spot+6], inputMID[spot+6],
+			inputMID[spot+7], inputMID[spot+7]
+			);
+
+			IncrementSpot(spot, 8, coverage);
+		}
+		else if (command == 0xE9)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xEA)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xEB)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xEC)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xED)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xEE)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xEF)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X%02X %02X", inputMID[spot], inputMID[spot+1], inputMID[spot+2]);
+			IncrementSpot(spot, 3, coverage);
+		}
+		else if (command == 0xF0)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xF1)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xF2)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value < 0");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF3)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to Relative Offset if Play Value == 0");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+				}
+				else
+				{			
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF4)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to  relative offset");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], (signed char)inputMID[spot]);
+
+			int relativeOffset = (signed char)inputMID[spot];
+			IncrementSpot(spot, 1, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 2);
+					break;
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), relativeOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(relativeOffset);
+						spot = spot + relativeOffset;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		else if (command == 0xF5)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to absolute offset if Play Value >= 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot =  absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xF6)
+		{
+			fprintfIfDebug(outFileDebug, " Restart Song");
+
+			if (attemptJumps)
+			{
+				int startSpot = 0;
+
+				if (std::find(jumpsTaken.begin(), jumpsTaken.end(), startSpot) == jumpsTaken.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Taking\n");
+					jumpsTaken.push_back(startSpot);
+					spot = startSpot;
+				}
+			}
+		}
+		else if (command == 0xF7)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+		}
+		else if (command == 0xF8)
+		{
+			fprintfIfDebug(outFileDebug, " ?");
+			fprintfIfDebug(outFileDebug, " %02X (%d)", inputMID[spot], inputMID[spot]);
+			IncrementSpot(spot, 1, coverage);
+		}
+		else if (command == 0xF9)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value < 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot =  absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xFA)
+		{
+			hitConditional = true;
+			fprintfIfDebug(outFileDebug, " Go to Absolute Offset if Play Value == 0");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot = absoluteOffset;
+					}
+				}
+			}
+		}
+		else if (command == 0xFB)
+		{
+			fprintfIfDebug(outFileDebug, " Go to absolute offset");
+			fprintfIfDebug(outFileDebug, " %02X%02X", inputMID[spot], inputMID[spot+1]);
+			
+			int absoluteOffset = CharArrayToShort(&inputMID[spot]);
+			IncrementSpot(spot, 2, coverage);
+
+			// Assume if next Channel Disable, is actually end of song for a real loop
+			if (inputMID[spot] == 0xD6)
+			{
+				if (!hitConditional)
+				{
+					fprintfIfDebug(outFileDebug, "...Assuming End of Song\n");
+					break;
+				}
+			}
+
+			if (attemptJumps)
+			{
+				if (std::find(jumpStarts.begin(), jumpStarts.end(), spot) == jumpStarts.end())
+				{
+					fprintfIfDebug(outFileDebug, "...Skipping First Time\n");
+					jumpStarts.push_back(spot);
+					returnBackAlternateChoices.push_back(spot - 3);
+					break;
+				}
+				else
+				{
+					if (std::find(jumpsTaken.begin(), jumpsTaken.end(), absoluteOffset) == jumpsTaken.end())
+					{
+						fprintfIfDebug(outFileDebug, "...Taking\n");
+						jumpsTaken.push_back(absoluteOffset);
+						spot = absoluteOffset;
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+		else if (command == 0xFC)
+		{
+			unsigned short offset = ((inputMID[spot] << 8) | inputMID[spot+1]);
+			fprintfIfDebug(outFileDebug, " Jump and Link");
+			fprintfIfDebug(outFileDebug, " Offset %04X", offset);
+
+			IncrementSpot(spot, 2, coverage);
+			returnBackOffset.push_back(spot);
+
+			spot = offset;
+		}
+		else if (command == 0xFD)
+		{
+			fprintfIfDebug(outFileDebug, " Delay");
+			
+			int timestamp = ReadEADMusicTimeValue(inputMID, spot, coverage);
+			if (timestamp < 0x80)
+				fprintfIfDebug(outFileDebug, " %02X (%d)", timestamp, timestamp);
+			else
+				fprintfIfDebug(outFileDebug, " %02X%02X - %04X (%d)", inputMID[spot-2], inputMID[spot+1-2], timestamp, timestamp);
+
+			absoluteTime += timestamp;
+		}
+		else
+		{
+			fprintfIfDebug(outFileDebug, " UNKNOWN");
+			return;
+		}
+
+		fprintfIfDebug(outFileDebug, "\n");
+	}
+
+	if (returnBackAlternateChoices.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackAlternateChoices.back();
+		returnBackAlternateChoices.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Taking Alternate Path to %08X\n", spot);
+		goto loopAgain;
+	}
+
+	if (returnBackOffset.size() > 0)
+	{
+		// Return from Jump and Link
+		spot = returnBackOffset.back();
+		returnBackOffset.pop_back();
+		command = 0x00;
+		
+		fprintfIfDebug(outFileDebug, "... Returning from Subroutine to %08X\n", spot);
+		goto loopAgain;
+	}
+}
+
+void CMidiParse::EADMusicToMidi(CString gameName, int gameStyle, byte* inputMID, int address, int inputSize, CString outFileName, 
+				 int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, unsigned long extra,
+				 bool writeDebug, CString debugFilename)
+{
+	numberInstruments = 1;
+	int noteUniqueId = 0;
+	std::vector<TimeAndValue> tempoPositions;
+
+	try
+	{
+		std::vector<SngNoteInfo> sngNoteList;
+
+		numberInstruments = 1;
+		int noteUniqueId = 0;
+		std::vector<TimeAndValue> tempoPositions;
+
+		int currentInstrument[0x10];
+		int currentPan[0x10];
+		int currentVolume[0x10];
+		int currentPitchBend[0x10];
+		int currentReverb[0x10];
+		bool channelStarted[0x10];
+		for (int x = 0; x < 0x10; x++)
+		{
+			currentInstrument[x] = 0x00;
+			currentPan[x] = 0x40;
+			currentVolume[x] = 0x7F;
+			currentPitchBend[x] = 0x40;
+			currentReverb[x] = 0x00;
+			channelStarted[x] = false;
+		}
+
+		FILE* outFileDebug = NULL;
+		if (writeDebug)
+		{
+			outFileDebug = fopen(debugFilename, "w");
+
+			CString addressStr;
+			addressStr.Format("%08X", address);
+
+			fprintf(outFileDebug, gameName + " - " + addressStr + "\n");
+			fprintf(outFileDebug, "EAD Music\n\n");
+		}
+
+		unsigned long absoluteTime = 0;
+		std::vector<unsigned long> jumpStarts;
+		std::vector<unsigned long> jumpsTaken;
+		bool attemptJumps = true;
+		bool hitConditional = false;
+
+		unsigned char* coverage = new unsigned char[inputSize];
+		memcpy(coverage, &inputMID[address], inputSize);
+
+		ParseEADMusicSequence(gameStyle, outFileDebug, &inputMID[address], 0, inputSize, absoluteTime, jumpStarts, jumpsTaken, attemptJumps, numberInstruments, tempoPositions, sngNoteList, noteUniqueId, currentInstrument, currentPan, currentVolume, currentPitchBend, currentReverb, hitConditional, coverage, channelStarted);
+
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030, true, 12);
+
+		if (outFileDebug)
+		{
+			fflush(outFileDebug);
+			fclose(outFileDebug);
+			outFileDebug = NULL;
+
+			FILE* outDebugCoverage = fopen(debugFilename + "Coverage.bin", "wb");
+			if (outDebugCoverage)
+			{
+				fwrite(coverage, 1, inputSize, outDebugCoverage);
+			}
+			fclose(outDebugCoverage);
+
+			delete [] coverage;
+			
+		}
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
 	}
 }
 
@@ -20465,7 +27604,7 @@ void CMidiParse::Factor5ToMidi(byte* inputMID, int inputSize, CString outFileNam
 
 		//fprintf(outFile, "\n");
 
-		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0180);
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0180, false, 24);
 	}
 	catch (...)
 	{
@@ -20605,7 +27744,59 @@ void CMidiParse::KonamiToMidi(unsigned char* ROM, int romSize, byte* inputMID, i
 			ParseKonamiTrack(x, numberInstruments, tempoPositions, sngNoteList, inputMID, trackDataPointer, trackEnd, noteUniqueId, writeOutLoops, loopWriteCount, extendTracksToHighest, highestTrackLength);
 		}
 
-		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030);
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, 0x0030, false, 24);
+	}
+	catch (...)
+	{
+		MessageBox(NULL, "Error exporting", "Error", NULL);
+	}
+}
+
+void CMidiParse::SSEQToMidi(unsigned char* ROM, int romSize, byte* inputMID, int inputSize, CString outFileName, int& numberInstruments, bool calculateInstrumentCountOnly, bool separateByInstrument, bool writeOutLoops, int loopWriteCount, bool extendTracksToHighest, ExtraGameMidiInfo extraGameMidiInfo, unsigned long numberTracks)
+{
+	numberInstruments = 1;
+	int noteUniqueId = 0;
+	std::vector<TimeAndValue> tempoPositions;
+
+	
+	try
+	{
+		std::vector<SngNoteInfo> sngNoteList;
+
+		int trackRealLength = 0;
+		
+		int loopStart = 0;
+		int loopEnd = 0;
+		int maxTrackLength = 0;
+
+		int highestTrackLength = 0;
+
+		int trackLength = FindHighestSSEQLengthTrack(inputMID, inputSize, numberTracks);
+		if (trackLength > highestTrackLength)
+			highestTrackLength = trackLength;
+
+		unsigned long division = 0x1E0;
+
+		unsigned long offsetData = 0;
+		for (int track = 0; track < numberTracks; track++)
+		{
+			unsigned short extraFlag = CharArrayToShort(&inputMID[offsetData + 0xE]);
+			unsigned long sizeTrack = CharArrayToLong(&inputMID[offsetData + 0x10]);
+			division = CharArrayToLong(&inputMID[offsetData + 8]);
+
+			if (extraFlag)
+			{
+				offsetData += 4;
+			}
+
+			offsetData += 0x14;
+
+			ParseSSEQTrack(track, numberInstruments, tempoPositions, sngNoteList, inputMID, offsetData, inputSize, noteUniqueId, writeOutLoops, loopWriteCount, extendTracksToHighest, highestTrackLength);
+
+			offsetData += sizeTrack;
+		}
+
+		WriteSngList(sngNoteList, tempoPositions, outFileName, separateByInstrument, division, false, 24);
 	}
 	catch (...)
 	{

@@ -14,4 +14,5 @@ public:
 	static unsigned char StringToUnsignedChar(CString inString);
 	static unsigned char StringToSignedChar(CString inString);
 	static unsigned short StringToUnsignedShort(CString inString);
+	static double round(double number);
 };

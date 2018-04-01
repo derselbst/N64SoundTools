@@ -49,6 +49,8 @@ void CN64MidiToolDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMBOMASTERTRACKEFFECT2, mMasterTrackEffect2);
 	DDX_Control(pDX, IDC_MASTERTRACKEFFECTLABEL2, mMasterTrackEffectLabel2);
 	DDX_Control(pDX, IDC_GROUPEFFECTS, mEffectGroupBox);
+	DDX_Control(pDX, IDC_MASTERTRACKEFFECTLABEL3, mPitchBendSensitivityLabel);
+	DDX_Control(pDX, IDC_COMBOPITCHBENDSENSITIVITY, mPitchBendSensitivity);
 }
 
 BEGIN_MESSAGE_MAP(CN64MidiToolDlg, CDialog)
@@ -80,6 +82,8 @@ END_MESSAGE_MAP()
 BOOL CN64MidiToolDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
+
+	this->SetWindowText("N64 Midi Tool V2 by SubDrag " __DATE__);
 
 	// TEST CODE
 	/*CNintendoEncoder ninEnc;
@@ -165,6 +169,7 @@ BOOL CN64MidiToolDlg::OnInitDialog()
 
 	mExtendSmallerTracksToEnd.SetCheck(false);
 
+	mPitchBendSensitivity.SelectString(0, "4");
 	mLoopPoint.SetWindowText("0");
 	int iniOption;
 	char tempFolder[8000];
@@ -370,7 +375,7 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 	tempStr.Replace(" RNC", "");
 	tempStr.Replace(" AVL_0", "");
 
-	CFileDialog m_ldFile(TRUE, NULL, tempStr + " [!].z64", OFN_HIDEREADONLY, "N64 ROM(*.v64;*.z64;*.rom;*.n64)|*.v64;*.z64;*.rom;*.n64|", this);
+	CFileDialog m_ldFile(TRUE, NULL, tempStr + " [!].z64", OFN_HIDEREADONLY, "N64 ROM(*.v64;*.z64;*.rom;*.n64;*.ndd)|*.v64;*.z64;*.rom;*.n64;*.ndd|", this);
 	
 	int statusFileOpen = (int) m_ldFile.DoModal();
 
@@ -468,6 +473,8 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
 		{
 			mExtendSmallerTracksToEnd.SetWindowText("Combine Sub-segments");
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
 		}
 		else
 		{
@@ -511,6 +518,8 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mMasterTrackEffect.ShowWindow(SW_SHOW);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
 		}
 		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0))
 		{
@@ -537,15 +546,19 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mMasterTrackEffect2.ShowWindow(SW_SHOW);
 			
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
 		}
 		else if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
 		{
 			mEffectGroupBox.ShowWindow(SW_SHOW);
 			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
 			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
-			mMasterTrackEffect.ShowWindow(SW_SHOW);
-			mMasterTrackEffect2.ShowWindow(SW_SHOW);
+			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
 		}
 		else if ((gameConfig[gameNumber].gameType.CompareNoCase("Factor5Zlb") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5LZGCStyle") == 0) || (gameConfig[gameNumber].gameType.CompareNoCase("Factor5ZlbNoHeaderGCStyle") == 0))
 		{
@@ -555,6 +568,23 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_SHOW);
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
+		}
+		else if (
+			(gameConfig[gameNumber].gameType.CompareNoCase("BanjoKazooie") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("BanjoTooie") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("DonkeyKong") == 0)
+			)
+		{
+			mEffectGroupBox.ShowWindow(SW_HIDE);
+			mMasterTrackEffectLabel.ShowWindow(SW_HIDE);
+			mMasterTrackEffectLabel2.ShowWindow(SW_HIDE);
+			mMasterTrackEffect.ShowWindow(SW_HIDE);
+			mMasterTrackEffect2.ShowWindow(SW_HIDE);
+			mSeparateByInstrument.ShowWindow(SW_HIDE);
+			mPitchBendSensitivityLabel.ShowWindow(SW_SHOW);
+			mPitchBendSensitivity.ShowWindow(SW_SHOW);
 		}
 		else
 		{
@@ -564,6 +594,8 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 			mMasterTrackEffect.ShowWindow(SW_HIDE);
 			mMasterTrackEffect2.ShowWindow(SW_HIDE);
 			mSeparateByInstrument.ShowWindow(SW_HIDE);
+			mPitchBendSensitivityLabel.ShowWindow(SW_HIDE);
+			mPitchBendSensitivity.ShowWindow(SW_HIDE);
 		}
 
 		if (gameConfig[gameNumber].gameType.CompareNoCase("Konami") == 0)
@@ -606,6 +638,10 @@ void CN64MidiToolDlg::OnBnClickedButtonloadrom()
 		}
 		else if (
 			(gameConfig[gameNumber].gameType.CompareNoCase("Yaz0Seq64") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("Yaz0EADZelda") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("EADZelda") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("EADMario") == 0)
+			|| (gameConfig[gameNumber].gameType.CompareNoCase("EADStarFox") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("Midi") == 0)
 			|| (gameConfig[gameNumber].gameType.CompareNoCase("MidiLZSSWilliams") == 0)
@@ -707,6 +743,39 @@ void CN64MidiToolDlg::OnBnClickedButtonexportbin()
 		}
 	}
 
+	if (gameConfig[gameNumber].gameType.CompareNoCase("EADZelda") == 0)
+	{
+		unsigned long audioSeqIndex = address;
+		unsigned long audioSeqOffset = size;
+
+		unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+		address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+		size = CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("EADStarFox") == 0)
+	{
+		unsigned long audioSeqIndex = address;
+		unsigned long audioSeqOffset = size;
+
+		unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+		address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+		size = CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("EADMario") == 0)
+	{
+		unsigned long audioSeqIndex = address;
+		unsigned long audioSeqOffset = size;
+
+		unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+		address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 4 + (extra * 8)]);
+		size = CharArrayToLong(&buffer[audioSeqIndex + 4 + (extra * 8) + 4]);
+	}
+
+
+	
 	if (gameConfig[gameNumber].gameType.CompareNoCase("MultipartZLibXMFastTracker2") == 0)
 	{
 		CFileDialog m_svFile(FALSE, "xm", "FastTracker2.xm", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Xm File (*.xm)|*.xm|", this);
@@ -1097,11 +1166,18 @@ void CN64MidiToolDlg::OnBnClickedButtonexportmidi()
 			}
 		}
 
+		bool usePitchBendSensitivity =  (mPitchBendSensitivity.IsWindowVisible());
+		CString pitchBendValueStr;
+		mPitchBendSensitivity.GetWindowText(pitchBendValueStr);
+		int pitchBendSensitivity = atoi(pitchBendValueStr);
+		if (pitchBendSensitivity == 4)
+			usePitchBendSensitivity = false;
+
 		int numberInstruments;
 		bool hasLoopPoint = false;
 		int loopStart = 0;
 		int loopEnd = 0;
-		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
+		CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, fileName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo, usePitchBendSensitivity, pitchBendSensitivity);
 	}
 
 
@@ -1444,6 +1520,37 @@ void CN64MidiToolDlg::ConvertIntoSpot(CString inputFile)
 	}
 	else
 	{
+		if (gameConfig[gameNumber].gameType == "EADZelda")
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+			address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+			size = CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+		}
+		else if (gameConfig[gameNumber].gameType == "EADMario")
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+			address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 4 + (extra * 8)]);
+			size = CharArrayToLong(&buffer[audioSeqIndex + 4 + (extra * 8) + 4]);
+		}
+		else if (gameConfig[gameNumber].gameType == "EADStarFox")
+		{
+			unsigned long audioSeqIndex = address;
+			unsigned long audioSeqOffset = size;
+
+			unsigned long numberMidi = CharArrayToShort(&buffer[audioSeqIndex]);
+
+			address = audioSeqOffset + CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10)]);
+			size = CharArrayToLong(&buffer[audioSeqIndex + 0x10 + (extra * 0x10) + 4]);
+		}
+
 		int sizeOnDisk = GetSizeFile(inputFile);
 
 		if (sizeOnDisk > size)
@@ -1500,7 +1607,6 @@ void CN64MidiToolDlg::OnBnClickedButtonimportbin()
 		sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
 	else
 		sscanf(spotStr, "%08X:%08X", &address, &size);
-
 
 	ConvertIntoSpot(m_ldFile.GetPathName());
 }
@@ -1793,13 +1899,6 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 
 	if (m_spot.GetCount() == 0)
 		return;
-
-	CFileDialog m_ldFile(TRUE, NULL, "Midi.mid", OFN_HIDEREADONLY, "Midi (*.mid)|*.mid|", this);
-
-	int isFileOpened = m_ldFile.DoModal();
-
-	if (isFileOpened == IDCANCEL)
-		return;
 	
 	CString gameName;
 	m_game.GetWindowText(gameName);
@@ -1813,6 +1912,16 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 			break;
 		}
 	}
+
+	CString midiName = "Midi.mid";
+	if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
+		midiName.Format("MidiSegment0.mid");
+	CFileDialog m_ldFile(TRUE, NULL, midiName, OFN_HIDEREADONLY, "Midi (*.mid)|*.mid|", this);
+
+	int isFileOpened = m_ldFile.DoModal();
+
+	if (isFileOpened == IDCANCEL)
+		return;
 
 	CString outputFilename = (mainFolder + "ASDxs34sMIDI.bin");
 	if (gameConfig[gameNumber].gameType.CompareNoCase("BanjoTooie") == 0)
@@ -1944,6 +2053,116 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	{
 		outputFilename = m_ldFile.GetPathName();
 	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("Yaz0EADZelda") == 0)
+	{
+		MessageBox("Unsupported Compressed import - you must use Seq64 GUI to do this");
+		return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("EADZelda") == 0)
+	{
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		int loop = atoi(tempStr);
+
+		int numberTracks = 0;
+		if (!CN64MidiToolReader::midiParse.MidiToEADMusic(EADMUSICSTYLEZELDA, m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop))
+			return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("EADStarFox") == 0)
+	{
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		int loop = atoi(tempStr);
+
+		int numberTracks = 0;
+		if (!CN64MidiToolReader::midiParse.MidiToEADMusic(EADMUSICSTYLESTARFOX, m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop))
+			return;
+	}
+	else if (gameConfig[gameNumber].gameType.CompareNoCase("EADMario") == 0)
+	{
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		int loop = atoi(tempStr);
+
+		int numberTracks = 0;
+		if (!CN64MidiToolReader::midiParse.MidiToEADMusic(EADMUSICSTYLEMARIO, m_ldFile.GetPathName(), outputFilename, m_loop.GetCheck(), loop))
+			return;
+	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("Seq64") == 0)
 	{
 		MessageBox("Unsupported Compressed import - you must use Seq64 GUI to do this");
@@ -2021,8 +2240,59 @@ void CN64MidiToolDlg::OnBnClickedButtonimportmidi()
 	}
 	else if (gameConfig[gameNumber].gameType.CompareNoCase("PaperMario") == 0)
 	{
-		MessageBox("Unsupported PaperMario Compressed import");
-		return;
+		if (buffer == NULL)
+			return;
+
+		if (m_spot.GetCount() == 0)
+			return;
+
+		CString spotStr;
+		m_spot.GetWindowText(spotStr);
+
+		unsigned long address = 0;
+		unsigned long size = 0;
+		unsigned long extra = 0;
+		unsigned long extra2 = 0;
+		
+		int originalSize = spotStr.GetLength();
+		CString tempColonReplacedStr = spotStr;
+		int countColons = tempColonReplacedStr.Replace(":", "");
+
+		if (countColons == 3)
+			sscanf(spotStr, "%08X:%08X:%08X:%08X", &address, &size, &extra, &extra2);
+		else if (countColons == 2)
+			sscanf(spotStr, "%08X:%08X:%08X", &address, &size, &extra);
+		else
+			sscanf(spotStr, "%08X:%08X", &address, &size);
+
+		CString tempStr;
+		mLoopPoint.GetWindowText(tempStr);
+		unsigned long loop = atoi(tempStr);
+
+		CString input[4];
+		input[0] = m_ldFile.GetPathName();
+		input[1] = "";
+		input[2] = "";
+		input[3] = "";
+
+		for (int x = 1; x < 4; x++)
+		{
+			CString midiSegmentStr;
+			midiSegmentStr.Format("MidiSegment%X.mid", x);
+			CFileDialog m_ldFileSegment(TRUE, NULL, midiSegmentStr, OFN_HIDEREADONLY, "Midi (*.mid)|*.mid|", this);
+
+			int isFileOpenedSegment = m_ldFileSegment.DoModal();
+
+			if (isFileOpenedSegment == IDCANCEL)
+				break;
+
+			input[x] = m_ldFileSegment.GetPathName();
+		}
+
+		unsigned long name = CharArrayToLong(&buffer[address + 8]);
+
+		if (!CN64MidiToolReader::midiParse.MidiToPaperMario(input, outputFilename, m_loop.GetCheck(), loop, name))
+			return;
 	}
 	else if (
 		(gameConfig[gameNumber].gameType.CompareNoCase("Sng") == 0)
@@ -2222,10 +2492,17 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltomidi()
 
 				int numberInstruments;
 				
+				bool usePitchBendSensitivity =  (mPitchBendSensitivity.IsWindowVisible());
+				CString pitchBendValueStr;
+				mPitchBendSensitivity.GetWindowText(pitchBendValueStr);
+				int pitchBendSensitivity = atoi(pitchBendValueStr);
+				if (pitchBendSensitivity == 4)
+					usePitchBendSensitivity = false;
+
 				bool hasLoopPoint = false;
 				int loopStart = 0;
 				int loopEnd = 0;
-				CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo);
+				CN64MidiToolReader::midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, romSize, address, size, outputName, gameConfig[gameNumber].gameType, numberInstruments, 0, compressed, hasLoopPoint, loopStart, loopEnd, false, mSeparateByInstrument.GetCheck(), mDebugTextFile.GetCheck(), extra, extra2, mOutputLoop.GetCheck(), CEditControlToDecimalValue(&mOutputLoopCount), mExtendSmallerTracksToEnd.GetCheck(), gameConfig[gameNumber].extraGameMidiInfo, usePitchBendSensitivity, pitchBendSensitivity);
 			}
 			catch (...)
 			{
@@ -2352,7 +2629,7 @@ void CN64MidiToolDlg::OnBnClickedButtonexportalltorawbin()
 
 void CN64MidiToolDlg::OnBnClickedButtonwriterom()
 {
-	CFileDialog m_svFileOutROM(FALSE, NULL, lastRomName + ".rom", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "ROM(*.v64;*.z64;*.rom;*.n64)|*.v64;*.z64;*.rom;*.n64|", this);
+	CFileDialog m_svFileOutROM(FALSE, NULL, lastRomName + ".rom", OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "ROM(*.v64;*.z64;*.rom;*.n64;*.ndd)|*.v64;*.z64;*.rom;*.n64;*.ndd|", this);
 
 	int isFileOpened2 = m_svFileOutROM.DoModal();
 
@@ -2573,6 +2850,7 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 	{
 
 		FILE* outFile = fopen(m_svFile.GetPathName(), "w");
+		FILE* outFileAlt = fopen(m_svFile.GetPathName() + "alt.txt", "w");
 
 		CString fileNames[0x10000];
 		int count = WorkOnFilesIntoADirectory(tempPathChar, fileNames);
@@ -2608,7 +2886,7 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 			if (results.st_size > 10000)
 			{
 				bool wroteNameHeader = false;
-				for (unsigned long x = 0; x < (results.st_size - 0x44); x++)
+				for (unsigned long x = 0; x < (results.st_size - 0x44); x+=4)
 				{
 					//if ((CharArrayToLong(&binary[x]) == 0x00000044) && (CharArrayToLong(&binary[x + 0x40]) == 0x00000180))
 					//if (CharArrayToLong(&binary[x]) == 0x42310001)
@@ -2653,7 +2931,7 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 
 						(CharArrayToLong(&binary[x]) == 0x2D6C6835))
 						&& (binary[x+4] == 0x2D)) // lz/lh*/
-					//if (CharArrayToLong(&binary[x]) == 0x4D4F5254) //MORT
+					if (CharArrayToLong(&binary[x]) == 0x4D4F5254) //MORT
 					//if ((CharArrayToLong(&binary[x]) == 0x53444632) && ((x % 0x10) == 0))
 					//if ((CharArrayToShort(&binary[x]) == 0x5331) && ((CharArrayToShort(&binary[x+2]) < 0x500)) && (CharArrayToShort(&binary[x+4]) == 0x0000) && (CharArrayToShort(&binary[x+6]) != 0x0000) && (CharArrayToShort(&binary[x+8]) == 0x0000) && (CharArrayToShort(&binary[x+0xA]) != 0x0000) && ((x % 0x10) == 0))
 						//if ((CharArrayToLong(&binary[x]) == 0x00000215) && (CharArrayToShort(&binary[x+4]) == 0x0000) && (CharArrayToShort(&binary[x+6]) > 0x0000) && (CharArrayToShort(&binary[x+6]) <= 0x0040 && (CharArrayToLong(&binary[x + 0x28]) == 0x00000000) && (CharArrayToLong(&binary[x + 0x2C]) == 0x00000000)))
@@ -2706,10 +2984,41 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 						&& (CharArrayToLong(&binary[x+0x20]) == 0x00000064)
 						&& (CharArrayToLong(&binary[x+0x24]) == 0x00000064)
 						)*/
-					if ((CharArrayToLong(&binary[x]) == 0x53545500) &&
-						   (CharArrayToLong(&binary[x+4]) == 0x595A5B00)
-						   )
+					//if (((CharArrayToShort(&binary[x]) == 0x5431) || (CharArrayToShort(&binary[x]) == 0x5432)))
 					{
+						/*int sizeT1 = CharArrayToShort(&binary[x + 2]);
+						if ((sizeT1 <= 0x30) || (sizeT1 > 0x1000))
+							continue;
+						if ((x % 4) != 0)
+							continue;
+
+						bool continueNext = false;
+						for (int r = 0; r < (sizeT1 - 0x30); r += 8)
+						{
+							if (
+								(binary[x + 4 + (r * 8)] == 0x00)
+								&&
+								(
+								(
+								(CharArrayToLong(&binary[x + 4 + (r * 8) + 4]) > 0x400)
+								&&
+								(CharArrayToLong(&binary[x + 4 + (r * 8) + 4]) < 0x8000)
+								)
+								)
+								)
+							{
+								
+							}
+							else
+							{
+								continueNext = true;
+								break;
+							}
+						}
+						if (continueNext)
+							continue;*/
+
+
 						/*bool findLoopHead = false;
 						bool findLoopEnd = false;
 						for (int r = 0; r < 0x1000; r++)
@@ -2752,14 +3061,22 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 
 							if (!wroteNameHeader)
 							{
+								CString tempFileName = fileNames[y];
+								tempFileName.Replace(" [!]", "");
+								tempFileName.Replace(".z64", "");
+								tempFileName.Replace(".v64", "");
+								tempFileName.Replace(".rom", "");
 								wroteNameHeader = true;
-								fprintf(outFile, "[%s]:type=Sng\n", fileNames[y]);
+								fprintf(outFile, "[%s Speech]:type=MORT\n", tempFileName);
+								fprintf(outFileAlt, "[%s Speech]:type=MORT\n", tempFileName);
 							}
-							fprintf(outFile, "%08X",x);
+							fprintf(outFile, "%08X,%08X,%d", x, x + (CharArrayToLong(&binary[x + 8]) << 2), CharArrayToShort(&binary[x + 2]));
+							fprintf(outFileAlt, "%08X,%08X,%d", x, x + (CharArrayToLong(&binary[x + 8]) << 2), (CharArrayToShort(&binary[x + 2]) / 2));
 							//fprintf(outFile, "%08X,%08X",trueStart,end);
 							//for (int r = 0; r < 0x8; r++)
 								//fprintf(outFile, " %08X", CharArrayToLong(&binary[x + (4 * r)]));
 							fprintf(outFile, "\n");
+							fprintf(outFileAlt, "\n");
 
 							/*x += instrumentOffset;
 						}*/
@@ -2820,6 +3137,7 @@ void CN64MidiToolDlg::OnBnClickedButtonscandirformidis()
 		}
 
 		fclose(outFile);
+		fclose(outFileAlt);
 
 		/*FILE* rereadFile = fopen(m_svFile.GetPathName(), "r");
 

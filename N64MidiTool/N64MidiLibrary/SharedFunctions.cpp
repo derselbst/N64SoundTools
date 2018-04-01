@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "SharedFunctions.h"
+#include <math.h>
 
 CSharedFunctions::CSharedFunctions(void)
 {
@@ -177,4 +178,9 @@ unsigned long CSharedFunctions::StringHexToLong(CString inString)
 		tempLong = tempLong | hexInt<<((7-x)*4);
 	}
 	return tempLong;
+}
+
+double CSharedFunctions::round(double number)
+{
+    return number < 0.0 ? ceil(number - 0.5) : floor(number + 0.5);
 }

@@ -209,6 +209,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\NintendoEncoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\rnc_deco.cpp"
 				>
 			</File>
@@ -324,6 +328,10 @@
 			</File>
 			<File
 				RelativePath=".\NaganoDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\NintendoEncoder.h"
 				>
 			</File>
 			<File

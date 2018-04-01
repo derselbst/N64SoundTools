@@ -814,6 +814,98 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 			}
 		}
 	}
+	else if (gameName.CompareNoCase("ZLIBSSEQ") == 0)
+	{
+		compressed = true;
+
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			unsigned long sseqTable = gameConfig[gameNumber].midiBanks[x].start;
+
+			int fileSizeCompressed = -1;
+			GECompression gedecompress;
+			gedecompress.SetGame(MORTALKOMBAT);
+			gedecompress.SetCompressedBuffer(&buffer[sseqTable + 0x20], bufferSize - (sseqTable + 0x20));
+			int fileSizeUncompressed;
+			unsigned char* outputDecompressedSSEQ = gedecompress.OutputDecompressedBuffer(fileSizeUncompressed, fileSizeCompressed);
+
+			unsigned long reportedDecompressedSize = CharArrayToLong(&buffer[sseqTable + 0x18]);
+			unsigned long reportedCompressedSize = CharArrayToLong(&buffer[sseqTable + 0x14]);
+
+			unsigned long countEntries = reportedDecompressedSize / 0x10;
+
+			unsigned long startData = sseqTable + 0x20 + reportedCompressedSize;
+
+			int songIndex = 0;
+			while (songIndex < countEntries)
+			{
+				unsigned short numberTracks = CharArrayToShort(&outputDecompressedSSEQ[(songIndex * 0x10)]);
+				unsigned long lengthData = CharArrayToLong(&outputDecompressedSSEQ[(songIndex * 0x10) + 4]);
+				unsigned long offsetData = startData + CharArrayToLong(&outputDecompressedSSEQ[(songIndex * 0x10) + 8]);
+
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X:%08X", offsetData, lengthData, numberTracks);
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+
+				if (calculateInstrumentCount)
+				{
+					int numberInstTemp = 0;
+					bool hasLoopPoint = false;
+					int loopStart = 0;
+					int loopEnd = 0;
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, offsetData, lengthData, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+					if (numberInstTemp > numberInstruments)
+						numberInstruments = numberInstTemp;
+					::DeleteFile("asdasdaw43.mid");
+				}
+
+				songIndex++;
+			}
+
+			delete [] outputDecompressedSSEQ;
+		}
+	}
+	else if (gameName.CompareNoCase("SSEQ") == 0)
+	{
+		compressed = false;
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			unsigned long sseqTable = gameConfig[gameNumber].midiBanks[x].start;
+
+			unsigned long countEntries = CharArrayToLong(&buffer[sseqTable + 0xC]);
+			unsigned long tableSize = CharArrayToLong(&buffer[sseqTable + 0x18]);
+
+			unsigned long startData = 0x20 + sseqTable + tableSize;
+
+			int songIndex = 0;
+			while (songIndex < countEntries)
+			{
+				unsigned short numberTracks = CharArrayToShort(&buffer[sseqTable + 0x20 + (songIndex * 0x10)]);
+				unsigned long lengthData = CharArrayToLong(&buffer[sseqTable + 0x20 + (songIndex * 0x10) + 4]);
+				unsigned long offsetData = startData + CharArrayToLong(&buffer[sseqTable + 0x20 + (songIndex * 0x10) + 8]);
+
+				CString tempSpotStr;
+				tempSpotStr.Format("%08X:%08X:%08X", offsetData, lengthData, numberTracks);
+				addMidiStrings.push_back(tempSpotStr);
+				numberMidiStrings++;
+
+				if (calculateInstrumentCount)
+				{
+					int numberInstTemp = 0;
+					bool hasLoopPoint = false;
+					int loopStart = 0;
+					int loopEnd = 0;
+					midiParse.ExportToMidi(gameConfig[gameNumber].gameName, buffer, bufferSize, offsetData, lengthData, "asdasdaw43.mid", gameName, numberInstTemp, 0, compressed, hasLoopPoint, loopStart, loopEnd, true, separateByInstrument, false, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2, writeOutLoops, loopWriteCount, extendTracksToHighest, extraGameMidiInfo);
+					if (numberInstTemp > numberInstruments)
+						numberInstruments = numberInstTemp;
+					::DeleteFile("asdasdaw43.mid");
+				}
+
+				songIndex++;
+			}		
+		}
+	}
 	else if (gameName.CompareNoCase("PaperMario") == 0)
 	{
 		compressed = false;
@@ -1624,6 +1716,54 @@ void CN64MidiToolReader::ProcessMidis(MidiGameConfig* gameConfig, int gameNumber
 		{
 			CString tempSpotStr;
 			tempSpotStr.Format("%08X:%08X", gameConfig[gameNumber].midiBanks[x].start, (gameConfig[gameNumber].midiBanks[x].end - gameConfig[gameNumber].midiBanks[x].start));
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("Yaz0EADZelda") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X:%02X:%08X", gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, gameConfig[gameNumber].midiBanks[x].extra, gameConfig[gameNumber].midiBanks[x].extra2);
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("EADZelda") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X:%02X", gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, gameConfig[gameNumber].midiBanks[x].extra);
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("EADMario") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X:%02X", gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, gameConfig[gameNumber].midiBanks[x].extra);
+			addMidiStrings.push_back(tempSpotStr);
+			numberMidiStrings++;
+		}
+	}
+	else if (gameName.CompareNoCase("EADStarFox") == 0)
+	{
+		compressed = false;
+		//midiParse.ImportMidiConfig("aerofightersassault.txt");
+		for (int x = 0; x < gameConfig[gameNumber].numberMidis; x++)
+		{
+			CString tempSpotStr;
+			tempSpotStr.Format("%08X:%08X:%02X", gameConfig[gameNumber].midiBanks[x].start, gameConfig[gameNumber].midiBanks[x].end, gameConfig[gameNumber].midiBanks[x].extra);
 			addMidiStrings.push_back(tempSpotStr);
 			numberMidiStrings++;
 		}

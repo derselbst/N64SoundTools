@@ -5,11 +5,6 @@
   <cmdlist>
     <command cmd="255" name="End of Data" action="End of Data" validinseq="1"
              validinchn="1" validintrk="1"/>
-    <command cmd="0" name="Chn Timestamp" action="Timestamp" cmdend="111"
-             validinchn="1">
-      <parameter datasrc="offset" datalen="0" name="Time" meaning="Delay" add="0"
-                 multiply="1"/>
-    </command>
     <command cmd="120" name="Relative Trk Ptr" action="Ptr Track Data" cmdend="123"
              validinchn="1">
       <parameter datasrc="offset" datalen="0" name="Layer" meaning="Note Layer"
@@ -23,6 +18,11 @@
                  add="0" multiply="1"/>
       <parameter datasrc="fixed" datalen="2" name="Address" meaning="Absolute Address"
                  add="0" multiply="1"/>
+    </command>
+    <command cmd="96" name="Unknown (Volume 2nd byte?)" action="No Action"
+             cmdend="111" validinchn="1">
+      <parameter datasrc="offset" datalen="0" name="Value" meaning="None" add="0"
+                 multiply="1"/>
     </command>
     <command cmd="193" name="Instrument" action="Chn Instrument" validinchn="1">
       <parameter datasrc="fixed" datalen="1" name="Instrument" meaning="Value"
@@ -239,6 +239,11 @@
       <parameter datasrc="fixed" datalen="1" name="Ignored" meaning="None" add="0"
                  multiply="1"/>
     </command>
+    <command cmd="251" name="Branch Abs Always" action="Jump Same Level" validinseq="1"
+             validinchn="1" validintrk="1">
+      <parameter datasrc="fixed" datalen="2" name="Address" meaning="Absolute Address"
+                 add="0" multiply="1"/>
+    </command>
     <command cmd="242" name="Branch Rel if Q&lt;0" action="Jump Same Level"
              validinseq="1" validinchn="1" validintrk="1">
       <parameter datasrc="fixed" datalen="1" name="Address (Relative)" meaning="Relative Address"
@@ -278,11 +283,6 @@
     </command>
     <command cmd="250" name="Branch Abs if Q==0" action="Jump Same Level"
              validinseq="1" validinchn="1" validintrk="1">
-      <parameter datasrc="fixed" datalen="2" name="Address" meaning="Absolute Address"
-                 add="0" multiply="1"/>
-    </command>
-    <command cmd="251" name="Branch Abs Always" action="Jump Same Level" validinseq="1"
-             validinchn="1" validintrk="1">
       <parameter datasrc="fixed" datalen="2" name="Address" meaning="Absolute Address"
                  add="0" multiply="1"/>
     </command>
@@ -351,7 +351,7 @@
             writeseqformat="1" writeseqtype="1" writechanbits="1" writeloopall="1"
             writeheader="1" writechanreset="1" ptrtype="shortest" usecalls="1"
             useloops="1" q_pitch_time="1" q_pitch_amp="1" q_pan_time="3"
-            q_pan_amp="2"/>
+            q_pan_amp="2" addmstrvol="1" addmstrvolval="88"/>
   <audiobankidx>
     <indexentry index="34" name="Main Theme"/>
     <indexentry index="17" name="Title Theme"/>
@@ -367,7 +367,7 @@
     <indexentry index="21" name="Mazy Haze Cave"/>
     <indexentry index="37" name="Credits Band"/>
     <indexentry index="36" name="File Select Theme"/>
-    <indexentry index="35" name="Ending Band"/>
+    <indexentry index="35" name="Ending Ensemble"/>
     <indexentry index="27" name="Opening Band"/>
     <indexentry index="31" name="Brass Ensemble"/>
     <indexentry index="29" name="Bowser's Organ of Doom"/>
@@ -392,4 +392,127 @@
     <indexentry index="10" name="Master 10"/>
     <indexentry index="12" name="Unused- Acoustic Guitar"/>
   </audiobankidx>
+  <abfstructs align="16">
+    <struct name="ABIndex">
+      <field name="NUM_BANK" datatype="uint16" ispointer="0" isarray="0" meaning="NUM_BANK"/>
+      <field name="zeros" datatype="uint16" ispointer="0" isarray="1" meaning="None"
+             arraylenfixed="7" defaultval="0"/>
+      <field name="unnamed" datatype="ABIndexEntry" ispointer="0" isarray="1"
+             meaning="List of Banks" arraylenvar="NUM_BANK"/>
+    </struct>
+    <struct name="ABIndexEntry">
+      <field name="addr" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr Bank (in Audiobank)"
+             ptrto="ABHeader"/>
+      <field name="len" datatype="uint32" ispointer="0" isarray="0" meaning="Bank Length"/>
+    </struct>
+    <struct name="ABHeader">
+      <field name="NUM_INST" datatype="uint32" ispointer="0" isarray="0" meaning="NUM_INST"/>
+      <field name="NUM_DRUM" datatype="uint32" ispointer="0" isarray="0" meaning="NUM_DRUM"/>
+      <field name="SSIindex" datatype="uint32" ispointer="0" isarray="0" meaning="Sample Set Index number"/>
+      <field name="unk_compile_year1" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None" defaultval="25"/>
+      <field name="unk_compile_year2" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None" defaultval="150"/>
+      <field name="unk_compile_month" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None" defaultval="2"/>
+      <field name="unk_compile_day" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None" defaultval="20"/>
+    </struct>
+    <struct name="ABBank">
+      <field name="drumlist" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr Drum List"
+             ptrto="ABDrumList"/>
+      <field name="instlist" datatype="uint32" ispointer="1" isarray="1" meaning="List of Ptrs to Insts"
+             ptrto="ABInstrument" arraylenvar="NUM_INST"/>
+    </struct>
+    <struct name="ABDrumList">
+      <field name="drumlist" datatype="uint32" ispointer="1" isarray="1" meaning="None"
+             ptrto="ABDrum" arraylenvar="NUM_DRUM"/>
+    </struct>
+    <struct name="ABSFXList"/>
+    <struct name="ABInstrument">
+      <field name="unknown1" datatype="uint8" ispointer="0" isarray="0" meaning="None"/>
+      <field name="splitpoint1" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="splitpoint2" datatype="uint8" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="releaserate" datatype="uint8" ispointer="0" isarray="0" meaning="None"/>
+      <field name="envelope" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr Envelope"
+             ptrto="ABEnvelope"/>
+      <field name="splits" datatype="ABSound" ispointer="0" isarray="1" meaning="List of 3 Sounds for Splits"
+             arraylenfixed="3"/>
+    </struct>
+    <struct name="ABDrum">
+      <field name="unknown1" datatype="uint8" ispointer="0" isarray="0" meaning="None"
+             defaultval="10"/>
+      <field name="unknown2" datatype="uint8" ispointer="0" isarray="0" meaning="None"/>
+      <field name="unknown3" datatype="uint8" ispointer="0" isarray="0" meaning="None"
+             defaultval="0"/>
+      <field name="unknown4" datatype="uint8" ispointer="0" isarray="0" meaning="None"
+             defaultval="0"/>
+      <field name="drumsound" datatype="ABSound" ispointer="0" isarray="0"
+             meaning="Drum Sound"/>
+      <field name="envelope" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr Envelope"
+             ptrto="ABEnvelope"/>
+    </struct>
+    <struct name="ABSound">
+      <field name="sample" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr Sample"
+             ptrto="ABSample"/>
+      <field name="tuning" datatype="float32" ispointer="0" isarray="0" meaning="None"/>
+    </struct>
+    <struct name="ABEnvelope">
+      <field name="attackRate" datatype="int16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="attackLevel" datatype="uint16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="decay1Rate" datatype="int16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="decay1Level" datatype="uint16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="decay2Rate" datatype="int16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="decay2Level" datatype="uint16" ispointer="0" isarray="0"
+             meaning="None"/>
+      <field name="AllFs" datatype="int16" ispointer="0" isarray="0" meaning="None"/>
+      <field name="AllZeros" datatype="uint16" ispointer="0" isarray="0" meaning="None"/>
+    </struct>
+    <struct name="ABSample">
+      <field name="unknown1" datatype="uint32" ispointer="0" isarray="0" meaning="None"
+             defaultval="0"/>
+      <field name="sampleaddr" datatype="uint32" ispointer="0" isarray="0"
+             meaning="Sample Address (in Sample Set)" ptrto="ATSample"/>
+      <field name="loop" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr ALADPCMLoop"
+             ptrto="ALADPCMLoop"/>
+      <field name="book" datatype="uint32" ispointer="1" isarray="0" meaning="Ptr ALADPCMBook"
+             ptrto="ALADPCMBook"/>
+      <field name="samplesize" datatype="uint32" ispointer="0" isarray="0"
+             meaning="Sample Length"/>
+      <field name="zeros" datatype="uint32" ispointer="0" isarray="1" meaning="None"
+             arraylenfixed="3" defaultval="0"/>
+    </struct>
+    <struct name="ALADPCMBook" NUM_PRED="-1">
+      <field name="order" datatype="int32" ispointer="0" isarray="0" meaning="None"/>
+      <field name="npredictors" datatype="int32" ispointer="0" isarray="0"
+             meaning="NUM_PRED"/>
+      <field name="book" datatype="ALADPCMPredictor" ispointer="0" isarray="1"
+             meaning="Array of Predictors" arraylenvar="NUM_PRED"/>
+    </struct>
+    <struct name="ALADPCMPredictor">
+      <field name="data" datatype="int16" ispointer="0" isarray="1" meaning="None"
+             arraylenfixed="16"/>
+    </struct>
+    <struct name="ALADPCMLoop" HAS_TAIL="-1">
+      <field name="start" datatype="uint32" ispointer="0" isarray="0" meaning="Loop Start"/>
+      <field name="end" datatype="uint32" ispointer="0" isarray="0" meaning="Loop End"/>
+      <field name="count" datatype="uint32" ispointer="0" isarray="0" meaning="Loop Count"
+             defaultval="-1"/>
+      <field name="adpcm_state" datatype="uint32" ispointer="0" isarray="0"
+             meaning="None" defaultval="0"/>
+      <field name="tail" datatype="ALADPCMTail" ispointer="0" isarray="1"
+             meaning="Tail Data (if Loop Start != 0)" arraylenvar="HAS_TAIL"/>
+    </struct>
+    <struct name="ALADPCMTail">
+      <field name="some_adpcm_data" datatype="int16" ispointer="0" isarray="1"
+             meaning="None" arraylenfixed="16"/>
+    </struct>
+  </abfstructs>
 </RomDesc>
