@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "CommandAndConquerDecoder.h"
+#include <vector>
 
 CommandAndConquerDecoder::CommandAndConquerDecoder(void)
 {
@@ -159,6 +160,350 @@ int CommandAndConquerDecoder::dec(unsigned char* input, unsigned char* output, i
 			}
 		}
         bits >>= 1;
+	}
+
+	return outputPosition;
+}
+
+unsigned long Flip32Bit(unsigned long inLong)
+{
+	return (((inLong & 0xFF000000) >> 24) | ((inLong & 0x00FF0000) >> 8) | ((inLong & 0x0000FF00) << 8) | ((inLong & 0x000000FF) << 24));
+}
+
+unsigned long CharArrayToLong(unsigned char* currentSpot)
+{
+	return Flip32Bit(*reinterpret_cast<unsigned long*> (currentSpot));
+}
+
+
+std::vector<int> _hasho(unsigned char b[4], int w)
+{
+    unsigned long v = (b[0] << 8) ^ (b[1] << 4) ^ b[2];
+    v *= 0x9E5F;
+    if (w == NONE)
+	{
+        v >>= 4;
+        v &= 0xFFF;
+	}
+    else
+	{
+        v >>= 1;
+        v &= 0xFF8;
+        v += w;
+        w += 1;
+        w &= 7;
+	}
+	std::vector<int> returnHash;
+	returnHash.resize(2);
+	returnHash[0] = v;
+	returnHash[1] = w;
+	return returnHash;
+}
+
+bool Compare(unsigned char* array, unsigned char* needle, int needleLen, int startIndex)
+{
+    // compare
+    for (int i = 0, p = startIndex; i < needleLen; i++, p++)
+    {
+        if (array[p] != needle[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+
+std::vector<int> _search(unsigned char* data, std::vector<int> hashes, int pos, int sz, int wrap)
+{
+	std::vector<int> returnData;
+	returnData.resize(2);
+
+    //# TODO: combine these?  (or not...)
+    int ml = min(18, sz - pos);
+    if (ml < 4)
+	{
+		returnData[0] = 0;
+		returnData[1] = 0;
+        return returnData;
+	}
+    //# Annoyingly only can look back to specific entries.  Stupidly inefficient.
+	int hitl;
+	int h;
+	int hitp;
+
+    if (wrap == NONE)
+	{
+        //# Type 1 is a simple table lookup.
+        hitl = 3;
+        h = _hasho(&data[pos], wrap)[0];
+        hitp = hashes[h];
+        //# Test if accidental collision.
+        if ((hitp < 0) || (Compare(&data[pos], &data[hitp], hitl, 0) == false))
+		{
+            hitl = 0;
+		}
+        //# Determine length.
+        else
+		{
+            while ((hitl < ml) && (data[pos + hitl] == data[hitp + hitl]))
+                hitl += 1;
+		}
+	}
+    else
+	{
+        //# Type 2 is really a 0x200 table with up to 8 entries for each index.
+        //#   In this case, iterate _hasho w/ wrap=range(0,8) to get all possible hitp
+        //#   then find the best possible match from list.
+        int hh = _hasho(&data[pos], 0)[0]; //   # base hash
+        hitl = 2;
+		h = -1; //     # first real hit sets actual return, h
+        for (int i = 0; i < 8; i++)
+		{
+            hitp = hashes[hh+i];
+            if (hitp < 0)
+			{
+                continue;
+			}
+
+            //# Test if accidental collision.
+            if ((Compare(&data[pos], &data[hitp], hitl, 0)) == false)
+			{
+                continue;
+			}
+
+            //# Determine length.
+            while ((hitl < ml) && (data[pos + hitl] == data[hitp + hitl]))
+			{
+                hitl += 1;
+                h = hh + i; //  # this updates the hash for the longest hit
+			}
+		}
+        if (h < 0)
+		{
+            hitl = 0;
+		}
+	}
+
+	// Put back later
+	//_default = b"123456789012345678"
+
+    //# See if default string would make a better hit.
+    /*if ((data[pos:pos+3] == _default[:3]) and -1 in hashes)
+	{
+        int tstl = 3;
+        while ((tstl < ml) and (data[pos + tstl] == _default[tstl]))
+		{
+            tstl += 1;
+		}
+        if (tstl > hitl)
+            return hashes.index(-1), tstl
+	}*/
+
+	returnData[0] = h;
+	returnData[1] = hitl;
+	return returnData;
+}
+
+int CommandAndConquerDecoder::encode(unsigned char* data, int dataSize, unsigned char* output, int kind = 1)
+{
+    //"""Do things here.  TODO: fix type 2 to be efficient.  Type 1 okay.
+    //Valid kinds are:
+        //0   store (which just returns data)
+        //1   type 11
+        //2   type 22
+    //Should only require a minor modification to support type22, but meh."""
+	int wrap;
+
+    if (kind == 0)
+	{
+        memcpy(output, data, dataSize);
+		return dataSize;
+	}
+    else if (kind == 1)
+	{
+        wrap = NONE;
+	}
+    else if (kind == 2)
+	{
+        wrap = 0;
+	}
+    else
+	{
+        //raise ValueError('"kind" must be 0, 1, or 2.')
+		return 0;
+	}
+
+    int l = dataSize;
+    int ll = l - 3;
+    if (ll < 0)
+	{
+        //# raise UserError("Why are you trying to compress a file with so little data?")
+		for (int r = 0; r < 6; r++)
+		{
+			output[r] = 0;
+		}
+		return 6;
+	}
+
+	int outputPosition = 0;
+	output[outputPosition++] = 0x00;
+	output[outputPosition++] = 0x00;
+	output[outputPosition++] = 0x00;
+	output[outputPosition++] = 0x00;
+
+	std::vector<unsigned char> buf;
+
+	std::vector<int> returnData;
+
+    //# Generate a table for hashes.  Yes, it can only use hashes it initializes.  This is dumb.
+    //# TODO: Really should init. to default string, but not terribly likely will need to.
+	std::vector<int> hashes;
+	hashes.resize(0x1000);
+	for (int x = 0; x < 0x1000; x++)
+	{
+		hashes[x] = -1;
+	}
+
+    int pos = 0;
+	int count = 0;
+	unsigned long f = 1;
+	unsigned long fl = 0;
+
+    while (pos < l)
+	{
+        if (pos == 0x1E)
+		{
+            pos = pos;
+		}
+
+        if (f & 0x10000)
+		{
+            //# Flush.
+			output[outputPosition++] = (fl & 0xFF);
+            output[outputPosition++] = (fl >> 8);
+
+			for (int x = 0; x < buf.size(); x++)
+			{
+				output[outputPosition++] = buf[x];
+			}
+            buf.clear();
+            f = 1;
+			fl = 0;
+		}
+
+		int hitp;
+		int hitl;
+		int h;
+
+		returnData = _search(data, hashes, pos, l, wrap);
+		hitp = returnData[0];
+		hitl = returnData[1];
+
+        if (hitl < 3)
+		{
+            buf.push_back(data[pos]);
+
+            pos += 1;
+            count += 1;
+            if (count == 3)
+			{
+                count = 2;
+				
+                returnData = _hasho(&data[pos-3], wrap);
+				h = returnData[0];
+				wrap = returnData[1];
+
+                hashes[h] = pos - 3;
+			}
+		}
+        else
+		{
+            //# Prognostication!
+            returnData = _search(data, hashes, pos+1, l, wrap);
+			int tstp = returnData[0];
+			int tstl = returnData[1];
+
+            if ((hitl + 1) < tstl)
+			{
+                buf.push_back(data[pos]);
+                pos += 1;
+                count += 1;
+                if (count == 3)
+				{
+                    count = 2;
+                    returnData = _hasho(&data[pos-3], wrap);
+					h = returnData[0];
+					wrap = returnData[1];
+
+                    hashes[h] = pos - 3;
+				}
+                f <<= 1;
+                if (f & 0x10000)
+				{
+                    //# Flush.
+                    output[outputPosition++] = (fl & 0xFF);
+                    output[outputPosition++] = (fl >> 8);
+                    
+					for (int x = 0; x < buf.size(); x++)
+					{
+						output[outputPosition++] = buf[x];
+					}
+					buf.clear();
+
+                    f = 1;
+					fl = 0;
+				}
+                hitl = tstl;
+                hitp = tstp;
+			}
+
+            //# Update hash table.
+            if (count)
+			{
+                int v = pos - count;
+                returnData = _hasho(&data[v], wrap);
+				h = returnData[0];
+				wrap = returnData[1];
+
+                hashes[h] = v;
+                if (count == 2)
+				{
+                    returnData = _hasho(&data[v+1], wrap);
+					h = returnData[0];
+					wrap = returnData[1];
+                    hashes[h] = v+1;
+				}
+                count = 0;
+			}
+            returnData = _hasho(&data[pos], wrap);
+			h = returnData[0];
+			wrap = returnData[1];
+            hashes[h] = pos;
+			count = 0;
+
+            //# Encode.
+            fl |= f;
+            pos += hitl;
+            hitl -= 3;
+            hitl |= (hitp >> 4) & 0xF0;
+            buf.push_back(hitl);
+            buf.push_back(hitp & 0xFF);
+		}
+		f <<= 1;
+	}
+
+	//# Flush any remaining data
+    if (f != 1)
+	{
+        output[outputPosition++] = (fl & 0xFF);
+        output[outputPosition++] = (fl >> 8);
+        
+		for (int x = 0; x < buf.size(); x++)
+		{
+			output[outputPosition++] = buf[x];
+		}
+		buf.clear();
 	}
 
 	return outputPosition;

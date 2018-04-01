@@ -27,6 +27,9 @@
 #include "H20Decoder.h"
 #include "TetrisphereDecoder.h"
 #include "CommandAndConquerDecoder.h"
+#include "MidwayDecoder.h"
+#include "MarioTennisDecoder.h"
+#include "NintendoEncoder.h"
 
 #include <algorithm>
 
@@ -82,7 +85,7 @@ public:
 	static void WriteResult(bool genTextFile, CString filename, unsigned char* outputDecompressed, int fileSize, bool appendFile);
 	static int DecompressZLibSpot(GECompression* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, unsigned long printedAddress, bool printBank, unsigned printbankAddress);
 	static int DecompressRNCSpot(RncDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, bool appendFile, unsigned long appendROMLocation, CString appendInternalFileName);
-	static int DecompressCommandConquerSpot(CommandAndConquerDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, bool appendFile, unsigned long appendROMLocation, CString appendInternalFileName, int kind);
+	static int DecompressCommandConquerSpot(CommandAndConquerDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, bool appendFile, unsigned long appendROMLocation, CString appendInternalFileName, int kind, unsigned long offsetHeader);
 	static int DecompressMIO0Spot(MIO0* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type);
 	static int DecompressBOLTSpot(CBoltDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, int bank, int entry);
 	static int DecompressSupermanSpot(SupermanDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type);
@@ -98,6 +101,7 @@ public:
 	static int DecompressFLA2Spot(CFLA2Decoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type);
 	static int DecompressBlitzSpot(CBlitzDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type);
 	static void WriteBinaryFile(CString filename, unsigned char* outputDecompressed, int fileSize, bool appendFile);
+	void WriteLongToBuffer(unsigned char* Buffer, unsigned long address, unsigned long data);
 	static void DecompressZLibFromTable(CString gameNameStr, CGEDecompressorDlg* dlg, CString filein, unsigned long start, unsigned long end, int step, int GAME, unsigned long tblOffset, int shift, int multiplier, int offset);
 	static void DecompressConkerFromTable(CGEDecompressorDlg* dlg, CString filein, unsigned char* input, int size, unsigned long start, unsigned long end, int GAME, bool writeFileNumberInstead, int bankNumber);
 	static void DecryptBTFile(int fileNumber, unsigned char* input, unsigned char* output, int size);
@@ -152,4 +156,6 @@ public:
 	CEdit mEncryptedFileNumber;
 	unsigned short StringToUnsignedShort(CString inString);
 	CStatic mFileNumberStatic;
+	CButton mCompressFileButton;
+	CButton mDecompressFileButton;
 };

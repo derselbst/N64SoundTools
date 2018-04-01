@@ -172,6 +172,8 @@ bool MIO0::CompressMIO0File(CString mainFolder, CString inputFile, CString outpu
 		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
 		if (tempOutputFile == 0)
 		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
 			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
 			return false;
 		}
@@ -208,6 +210,7 @@ bool MIO0::CompressMIO0File(CString mainFolder, CString inputFile, CString outpu
 			FILE* outputFileName = fopen(outputFile, "wb");
 			if (outputFileName == NULL)
 			{
+				delete [] tempBufferNew;
 				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
 				return false;
 			}

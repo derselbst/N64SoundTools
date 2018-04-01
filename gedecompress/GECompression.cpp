@@ -261,6 +261,8 @@ bool GECompression::CompressGZipFile(CString inputFile, CString outputFile, bool
 		FILE* tempOutputFile = fopen((mainFolder+"tempgh9.bin"), "wb");
 		if (tempOutputFile == 0)
 		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
 			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
 			return false;
 		}
@@ -309,6 +311,7 @@ bool GECompression::CompressGZipFile(CString inputFile, CString outputFile, bool
 			FILE* outputFileName = fopen(outputFile, "wb");
 			if (outputFileName == NULL)
 			{
+				delete [] tempBufferNew;
 				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
 				return false;
 			}
@@ -1105,6 +1108,7 @@ void GECompression::CreateGlobalDecompressionTable(int bit1TableChoice, int size
 			{
 				if ((thisTableStart+nu_accum_a3) > 0xFFFF)
 				{
+					delete [] moreWords;
 					return;
 				}
 				unpackTable[thisTableStart+nu_accum_a3].bits = localTableEntry.bits;

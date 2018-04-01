@@ -72,6 +72,8 @@ void CGEDecompressorDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_COMPRESSFILEBUTTONENCRYPTED, mCompressEncryptedButton);
 	DDX_Control(pDX, IDC_EDITENCRYPTED, mEncryptedFileNumber);
 	DDX_Control(pDX, IDC_FILENUMBERLABEL, mFileNumberStatic);
+	DDX_Control(pDX, IDC_COMPRESSFILEBUTTON, mCompressFileButton);
+	DDX_Control(pDX, IDC_BUTTON1, mDecompressFileButton);
 }
 
 BEGIN_MESSAGE_MAP(CGEDecompressorDlg, CDialog)
@@ -757,6 +759,241 @@ BOOL CGEDecompressorDlg::OnInitDialog()
 	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
+
+	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\Resident Evil 2 (U) (V1.1) [!].z64", "rb");
+	unsigned char* tempChar = new unsigned char[0x4000000];
+	fread(tempChar, 1, 0x4000000, inTemp);
+	fclose(inTemp);
+
+	unsigned long starts[0x103]; unsigned long ends[0x103]; CString names[0x103];
+
+	starts[0] = 0x1440F38;ends[0] = 0x1483BA4;names[0] = "annet_ab22.m2v";
+starts[1] = 0x1483BA4;ends[1] = 0x14A4C2A;names[1] = "annet_action9.m2v";
+starts[2] = 0x14A4C2A;ends[2] = 0x14BA546;names[2] = "annet_beyes26.m2v";
+starts[3] = 0x14BA546;ends[3] = 0x14BFC06;names[3] = "annet_bface13.m2v";
+starts[4] = 0x14BFC06;ends[4] = 0x14C910C;names[4] = "annet_bhurt18.m2v";
+starts[5] = 0x14C910C;ends[5] = 0x14E031E;names[5] = "annet_birkin5.m2v";
+starts[6] = 0x14E031E;ends[6] = 0x14F1B56;names[6] = "annet_birkin7.m2v";
+starts[7] = 0x14F1B56;ends[7] = 0x14F9420;names[7] = "annet_bshot16.m2v";
+starts[8] = 0x14F9420;ends[8] = 0x1506E58;names[8] = "annet_bump12.m2v";
+starts[9] = 0x1506E58;ends[9] = 0x1519404;names[9] = "annet_bvial20.m2v";
+starts[10] = 0x1519404;ends[10] = 0x152B61E;names[10] = "annet_case19.m2v";
+starts[11] = 0x152B61E;ends[11] = 0x1530670;names[11] = "annet_door8.m2v";
+starts[12] = 0x1530670;ends[12] = 0x153A528;names[12] = "annet_eye36.m2v";
+starts[13] = 0x153A528;ends[13] = 0x155D59A;names[13] = "annet_g33.m2v";
+starts[14] = 0x155D59A;ends[14] = 0x156172A;names[14] = "annet_gunfire14.m2v";
+starts[15] = 0x156172A;ends[15] = 0x1564FFE;names[15] = "annet_gunfire15.m2v";
+starts[16] = 0x1564FFE;ends[16] = 0x15709C2;names[16] = "annet_hall29.m2v";
+starts[17] = 0x15709C2;ends[17] = 0x1611106;names[17] = "annet_hdie35.m2v";
+starts[18] = 0x1611106;ends[18] = 0x162AB8A;names[18] = "annet_her21.m2v";
+starts[19] = 0x162AB8A;ends[19] = 0x1632E42;names[19] = "annet_hunk11.m2v";
+starts[20] = 0x1632E42;ends[20] = 0x163D11C;names[20] = "annet_hunk17.m2v";
+starts[21] = 0x163D11C;ends[21] = 0x1668A94;names[21] = "annet_hunk1_2.m2v";
+starts[22] = 0x1668A94;ends[22] = 0x16765B2;names[22] = "annet_hunk3.m2v";
+starts[23] = 0x16765B2;ends[23] = 0x168E910;names[23] = "annet_hunks24.m2v";
+starts[24] = 0x168E910;ends[24] = 0x169FA9A;names[24] = "annet_hunks30.m2v";
+starts[25] = 0x169FA9A;ends[25] = 0x16A4D5E;names[25] = "annet_hunks31.m2v";
+starts[26] = 0x16A4D5E;ends[26] = 0x16AF914;names[26] = "annet_hunks32.m2v";
+starts[27] = 0x16AF914;ends[27] = 0x16DC57C;names[27] = "annet_hunks34.m2v";
+starts[28] = 0x16DC57C;ends[28] = 0x16EA92C;names[28] = "annet_inject25.m2v";
+starts[29] = 0x16EA92C;ends[29] = 0x17069F0;names[29] = "annet_leaves28.m2v";
+starts[30] = 0x17069F0;ends[30] = 0x171C8EE;names[30] = "annet_mice37.m2v";
+starts[31] = 0x171C8EE;ends[31] = 0x172961E;names[31] = "annet_mouse23.m2v";
+starts[32] = 0x172961E;ends[32] = 0x174F8D2;names[32] = "annet_negot10.m2v";
+starts[33] = 0x174F8D2;ends[33] = 0x176E16C;names[33] = "annet_talks27.m2v";
+starts[34] = 0x176E16C;ends[34] = 0x1779596;names[34] = "annet_virus4.m2v";
+starts[35] = 0x1779596;ends[35] = 0x1787222;names[35] = "annet_virus6.m2v";
+starts[36] = 0x1787222;ends[36] = 0x1787596;names[36] = "BLACKMASTER.m2v";
+starts[37] = 0x1787596;ends[37] = 0x17963C2;names[37] = "endblink.m2v";
+starts[38] = 0x17963C2;ends[38] = 0x17A41E2;names[38] = "endC1.m2v";
+starts[39] = 0x17A41E2;ends[39] = 0x17AF908;names[39] = "endC2.m2v";
+starts[40] = 0x17AF908;ends[40] = 0x17B5B84;names[40] = "endC3.m2v";
+starts[41] = 0x17B5B84;ends[41] = 0x17CCA2A;names[41] = "endC4.m2v";
+starts[42] = 0x17CCA2A;ends[42] = 0x17E3D6C;names[42] = "endC5.m2v";
+starts[43] = 0x17E3D6C;ends[43] = 0x17EAD1C;names[43] = "endC6.m2v";
+starts[44] = 0x17EAD1C;ends[44] = 0x17F7126;names[44] = "endC7.m2v";
+starts[45] = 0x17F7126;ends[45] = 0x17FEB04;names[45] = "endC9.m2v";
+starts[46] = 0x17FEB04;ends[46] = 0x18073E8;names[46] = "endCface24.m2v";
+starts[47] = 0x18073E8;ends[47] = 0x1820C24;names[47] = "endCL14.m2v";
+starts[48] = 0x1820C24;ends[48] = 0x182D378;names[48] = "endCpits22.m2v";
+starts[49] = 0x182D378;ends[49] = 0x18357C2;names[49] = "endCS10.m2v";
+starts[50] = 0x18357C2;ends[50] = 0x184E480;names[50] = "endCS11.m2v";
+starts[51] = 0x184E480;ends[51] = 0x185C652;names[51] = "endCS13.m2v";
+starts[52] = 0x185C652;ends[52] = 0x1868324;names[52] = "endCS16.m2v";
+starts[53] = 0x1868324;ends[53] = 0x1878860;names[53] = "endCS8.m2v";
+starts[54] = 0x1878860;ends[54] = 0x1890BCA;names[54] = "endexplosion1.m2v";
+starts[55] = 0x1890BCA;ends[55] = 0x18A56EA;names[55] = "endexplosion2.m2v";
+starts[56] = 0x18A56EA;ends[56] = 0x18B5504;names[56] = "endgbye24.m2v";
+starts[57] = 0x18B5504;ends[57] = 0x18BB196;names[57] = "endgbye25.m2v";
+starts[58] = 0x18BB196;ends[58] = 0x18CA9A0;names[58] = "endgod22.m2v";
+starts[59] = 0x18CA9A0;ends[59] = 0x18D632E;names[59] = "endhug26.m2v";
+starts[60] = 0x18D632E;ends[60] = 0x18D742C;names[60] = "endhug27.m2v";
+starts[61] = 0x18D742C;ends[61] = 0x18E67A4;names[61] = "endL1.m2v";
+starts[62] = 0x18E67A4;ends[62] = 0x18F1E96;names[62] = "endL2.m2v";
+starts[63] = 0x18F1E96;ends[63] = 0x18F8BE0;names[63] = "endL3.m2v";
+starts[64] = 0x18F8BE0;ends[64] = 0x190FA58;names[64] = "endL4.m2v";
+starts[65] = 0x190FA58;ends[65] = 0x1929892;names[65] = "endL5.m2v";
+starts[66] = 0x1929892;ends[66] = 0x19308FE;names[66] = "endL6.m2v";
+starts[67] = 0x19308FE;ends[67] = 0x193CCE4;names[67] = "endL7.m2v";
+starts[68] = 0x193CCE4;ends[68] = 0x1944F0A;names[68] = "endL9.m2v";
+starts[69] = 0x1944F0A;ends[69] = 0x1950878;names[69] = "endLC18.m2v";
+starts[70] = 0x1950878;ends[70] = 0x196524E;names[70] = "endLcpit23.m2v";
+starts[71] = 0x196524E;ends[71] = 0x196CE32;names[71] = "endLS10.m2v";
+starts[72] = 0x196CE32;ends[72] = 0x197F62A;names[72] = "endLS11.m2v";
+starts[73] = 0x197F62A;ends[73] = 0x1990B7E;names[73] = "endLS8.m2v";
+starts[74] = 0x1990B7E;ends[74] = 0x19E0C9E;names[74] = "endover20.m2v";
+starts[75] = 0x19E0C9E;ends[75] = 0x19F39A0;names[75] = "endshake1.m2v";
+starts[76] = 0x19F39A0;ends[76] = 0x1A02726;names[76] = "endshake2.m2v";
+starts[77] = 0x1A02726;ends[77] = 0x1A12020;names[77] = "endSjacket23.m2v";
+starts[78] = 0x1A12020;ends[78] = 0x1A1901C;names[78] = "endSS12.m2v";
+starts[79] = 0x1A1901C;ends[79] = 0x1A28686;names[79] = "endSS15.m2v";
+starts[80] = 0x1A28686;ends[80] = 0x1A380D2;names[80] = "endSS17.m2v";
+starts[81] = 0x1A380D2;ends[81] = 0x1A4635E;names[81] = "endSS19.m2v";
+starts[82] = 0x1A4635E;ends[82] = 0x1A4BD64;names[82] = "endStoC25.m2v";
+starts[83] = 0x1A4BD64;ends[83] = 0x1A5D9C2;names[83] = "endTcurve.m2v";
+starts[84] = 0x1A5D9C2;ends[84] = 0x1A8391A;names[84] = "endtrain1.m2v";
+starts[85] = 0x1A8391A;ends[85] = 0x1A91096;names[85] = "endtrain2.m2v";
+starts[86] = 0x1A91096;ends[86] = 0x1A9F454;names[86] = "endtrain3.m2v";
+starts[87] = 0x1A9F454;ends[87] = 0x1AB3D4A;names[87] = "endtrain4.m2v";
+starts[88] = 0x1AB3D4A;ends[88] = 0x1AC62B8;names[88] = "heli1.m2v";
+starts[89] = 0x1AC62B8;ends[89] = 0x1ACD1D0;names[89] = "heli10.m2v";
+starts[90] = 0x1ACD1D0;ends[90] = 0x1AD439E;names[90] = "heli11.m2v";
+starts[91] = 0x1AD439E;ends[91] = 0x1ADA596;names[91] = "heli12.m2v";
+starts[92] = 0x1ADA596;ends[92] = 0x1AE375E;names[92] = "heli13.m2v";
+starts[93] = 0x1AE375E;ends[93] = 0x1AEEEFE;names[93] = "heli14.m2v";
+starts[94] = 0x1AEEEFE;ends[94] = 0x1B08A22;names[94] = "heli15.m2v";
+starts[95] = 0x1B08A22;ends[95] = 0x1B17EBC;names[95] = "heli16.m2v";
+starts[96] = 0x1B17EBC;ends[96] = 0x1B2411E;names[96] = "heli17.m2v";
+starts[97] = 0x1B2411E;ends[97] = 0x1B2DDD0;names[97] = "heli18.m2v";
+starts[98] = 0x1B2DDD0;ends[98] = 0x1B35B76;names[98] = "heli2.m2v";
+starts[99] = 0x1B35B76;ends[99] = 0x1B428C2;names[99] = "heli20.m2v";
+starts[100] = 0x1B428C2;ends[100] = 0x1B4EDFC;names[100] = "heli3.m2v";
+starts[101] = 0x1B4EDFC;ends[101] = 0x1B5F05C;names[101] = "heli4.m2v";
+starts[102] = 0x1B5F05C;ends[102] = 0x1B6CE92;names[102] = "heli5.m2v";
+
+CString tempStr;
+FILE* outComb = fopen("C:\\temp\\RE211\\all.m2v", "wb");
+
+for (int x = 0; x < 103; x++)
+{
+	CString tempStr;
+	tempStr = "C:\\temp\\RE211\\" + names[x];
+	FILE* outTemp = fopen(tempStr, "wb");
+	fwrite(&tempChar[starts[x]], 1, ends[x] - starts[x] + 1, outTemp);
+	fclose(outTemp);
+
+	fwrite(&tempChar[starts[x]], 1, ends[x] - starts[x] + 1, outComb);
+}
+
+fclose(outComb);
+
+	delete [] tempChar;*/
+
+	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\Mario Tennis 64 (J) (VC).z64", "rb");
+	unsigned char* tempChar = new unsigned char[0x1000000];
+	fread(tempChar, 1, 0x1000000, inTemp);
+	fclose(inTemp);
+
+	CMarioTennisDecoder dec;
+
+	FILE* listFile = fopen("C:\\temp\\mariolist.txt", "w");
+
+	for (int x = 0x00011690; x < 0x00013E5C; x+=4)
+	{
+		if (CharArrayToLong(&tempChar[x]) == CharArrayToLong(&tempChar[x+4]))
+			continue;
+
+		unsigned long offset = CharArrayToLong(&tempChar[x]);
+		if (tempChar[offset] != 0x01)
+			continue;
+
+		unsigned char* output = new unsigned char[0x100000];
+
+		int fileSizeCompressed = -1;
+		int decSize = dec.dec(&tempChar[CharArrayToLong(&tempChar[x])], CharArrayToLong(&tempChar[x+4]) - CharArrayToLong(&tempChar[x]), output);;
+
+		if (decSize > 0)
+		{
+			CString tempStr;
+			tempStr.Format("%06X", CharArrayToLong(&tempChar[x]));
+			//FILE* outTest = fopen("C:\\temp\\mariotennis\\" + tempStr + ".bin", "wb");
+			//fwrite(output, 1, decSize, outTest);
+			//fclose(outTest);			
+
+			if (CharArrayToLong(&output[0]) == 0x00000215)
+			{
+				fprintf(listFile, "%06X,%06X\n", CharArrayToLong(&tempChar[x]), CharArrayToLong(&tempChar[x+4]));
+			}
+		}
+
+		delete [] output;
+	}
+
+	fclose(listFile);
+	delete [] tempChar;*/
+
+
+	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\California Speed (U) [!].z64", "rb");
+	unsigned char* tempChar = new unsigned char[0x1000000];
+	fread(tempChar, 1, 0x1000000, inTemp);
+	fclose(inTemp);
+
+	unsigned char* output = new unsigned char[0x100000];
+
+	CMidwayDecoder midDec;
+	int packLen = 0x1A28;
+
+	int decSize = midDec.dec(&tempChar[0xD6A00C], packLen, output, "WILLIAMS");
+
+	FILE* outTest = fopen("C:\\temp\\test.bin", "wb");
+	fwrite(output, 1, decSize, outTest);
+	fclose(outTest);
+
+	delete [] output;
+	delete [] tempChar;*/
+
+	/*FILE* inTemp = fopen("C:\\GoldeneyeStuff\\N64Hack\\ROMs\\GoodSet\\Command & Conquer (U) [!].z64", "rb");
+	unsigned char* tempChar = new unsigned char[0x2000000];
+	fread(tempChar, 1, 0x2000000, inTemp);
+	fclose(inTemp);
+
+	unsigned char* output = new unsigned char[0x200000];
+
+	CommandAndConquerDecoder cmdConqDec;
+
+	int offset = 0x0045D220;
+	unsigned long dataOffset = CharArrayToLong(&tempChar[offset + 0xC]);
+	int fileSizeCompressed = CharArrayToLong(&tempChar[offset + 0x14]) & 0xFFFFFF;
+	int fileSizeDecompressed = CharArrayToLong(&tempChar[offset + 0x10]);
+	unsigned char compressionFormat = tempChar[offset + 0x14];
+
+	while (tempChar[offset] != 0)
+	{
+		offset += 0x18;
+	}
+
+	if ((offset % 0x10) != 0)
+		offset = offset + (0x10 - (offset % 0x10));
+
+	int decSize = cmdConqDec.dec(&tempChar[offset + dataOffset], output, fileSizeCompressed, (compressionFormat & 0x3));
+
+	FILE* outTest = fopen("C:\\temp\\test.bin", "wb");
+	fwrite(output, 1, decSize, outTest);
+	fclose(outTest);
+
+	unsigned char* reCompressed = new unsigned char[0x100000];
+	int reSize = cmdConqDec.encode(output, decSize, reCompressed, 1);
+
+	FILE* outTestre = fopen("C:\\temp\\testre.bin", "wb");
+	fwrite(reCompressed, 1, reSize, outTestre);
+	fclose(outTestre);
+
+	delete [] reCompressed;
+	delete [] output;
+	delete [] tempChar;*/
+
+
+
 	
 	// TODO: Add extra initialization here
 	char tempFolder[8000];
@@ -768,8 +1005,127 @@ BOOL CGEDecompressorDlg::OnInitDialog()
 	ROM = NULL;
 	romName = "";
 	ROMSize = 0;
+
+	m_gameselection.ResetContent();
+	m_gameselection.AddString("Goldeneye");
+	m_gameselection.AddString("Perfect Dark");
+	m_gameselection.AddString("Banjo Kazooie");
+	m_gameselection.AddString("Killer Instinct");
+	m_gameselection.AddString("Donkey Kong 64");
+	m_gameselection.AddString("Blast Corps");
+	m_gameselection.AddString("Banjo Tooie");
+	m_gameselection.AddString("Donkey Kong 64 Kiosk");
+	m_gameselection.AddString("Conker");
+	m_gameselection.AddString("Top Gear Rally");
+	m_gameselection.AddString("Milo's Astro Lanes");
+	m_gameselection.AddString("Blues Brothers");
+	m_gameselection.AddString("Jet Force Gemini");
+	m_gameselection.AddString("Diddy Kong Racing");
+	m_gameselection.AddString("JFG Kiosk");
+	m_gameselection.AddString("Mickey's Speedway Racing");
+	m_gameselection.AddString("Turok 1");
+	m_gameselection.AddString("Turok 2");
+	m_gameselection.AddString("Turok 3");
+	m_gameselection.AddString("Turok Rage Wars");
+	m_gameselection.AddString("Doubutsu no Mori");
+	m_gameselection.AddString("MajorasMask");
+	m_gameselection.AddString("OoT");
+	m_gameselection.AddString("1080Snow");
+	m_gameselection.AddString("BakuBomberman2");
+	m_gameselection.AddString("Battlezone Black Dogs");
+	m_gameselection.AddString("Bomberman 64 Second Attack");
+	m_gameselection.AddString("Disney's Donald Duck - Goin' Quackers");
+	m_gameselection.AddString("Doraemon 2");
+	m_gameselection.AddString("Fushigi no Dungeon");
+	m_gameselection.AddString("Kira to Kaiketsu");
+	m_gameselection.AddString("Neon Genesis Evangelion");
+	m_gameselection.AddString("Nushi Tsuri 64");
+	m_gameselection.AddString("Paper Mario");
+	m_gameselection.AddString("Parlor Pro 64");
+	m_gameselection.AddString("Pokemon Stadium");
+	m_gameselection.AddString("Pokemon Stadium 2");
+	m_gameselection.AddString("Rayman 2");
+	m_gameselection.AddString("Scooby-Doo");
+	m_gameselection.AddString("Shadowgate 64");
+	m_gameselection.AddString("Tonic Trouble");
+	m_gameselection.AddString("Tsumi to Batsu");
+	m_gameselection.AddString("Zool");
+	m_gameselection.AddString("AeroFighter");
+	m_gameselection.AddString("Beetle Adventure Racing");
+	m_gameselection.AddString("Body Harvest");
+	m_gameselection.AddString("Duck Dodgers");
+	m_gameselection.AddString("F-1 World Grand Prix");
+	m_gameselection.AddString("F-1 World Grand Prix II (E)");
+	m_gameselection.AddString("F-ZERO Expansion Kit 64DD");
+	m_gameselection.AddString("F-ZERO X");
+	m_gameselection.AddString("Indy Racing 2000");
+	m_gameselection.AddString("Lt. Duck Dodgers (Prototype)");
+	m_gameselection.AddString("MarioKart64");
+	m_gameselection.AddString("Pilotwings 64");
+	m_gameselection.AddString("StarFox64");
+	m_gameselection.AddString("Super Mario 64");
+	m_gameselection.AddString("WaveRace");
+	m_gameselection.AddString("40 Winks");
+	m_gameselection.AddString("Cruis'n World");
+	m_gameselection.AddString("Duke Nukem 64");
+	m_gameselection.AddString("Duke Nukem - ZER0 H0UR");
+	m_gameselection.AddString("Hydro Thunder");
+	m_gameselection.AddString("Mortal Kombat 4");
+	m_gameselection.AddString("NBA Showtime");
+	m_gameselection.AddString("Tarzan");
+	m_gameselection.AddString("TWINE");
+	m_gameselection.AddString("War Gods");
+	m_gameselection.AddString("ECW Hardcore Revolution");
+	m_gameselection.AddString("NFL QB Club 2000");
+	m_gameselection.AddString("NFL QB Club 2001");
+	m_gameselection.AddString("NFL QB Club 98");
+	m_gameselection.AddString("NFL QB Club 99");
+	m_gameselection.AddString("WWF WarZone");
+	m_gameselection.AddString("WWF Attitude");
+	m_gameselection.AddString("Iggy's Reckin' Balls");
+	m_gameselection.AddString("Shadowman");
+	m_gameselection.AddString("Armorines");
+	m_gameselection.AddString("Custom Robo");
+	m_gameselection.AddString("Custom Robo V2");
+	m_gameselection.AddString("O.D.T.");
+	m_gameselection.AddString("South Park");
+	m_gameselection.AddString("All-Star Baseball 99");
+	m_gameselection.AddString("South Park Chefs Love Shack");
+	m_gameselection.AddString("Tony Hawk Pro Skater 1");
+	m_gameselection.AddString("Tony Hawk Pro Skater 2");
+	m_gameselection.AddString("Tony Hawk Pro Skater 3");
+	m_gameselection.AddString("Monster Truck Madness");
+	m_gameselection.AddString("Spiderman");
+	m_gameselection.AddString("NHL Breakaway 98");
+	m_gameselection.AddString("NHL Breakaway 99");
+	m_gameselection.AddString("PGA European Tour");
+	m_gameselection.AddString("Mission Impossible");
+	m_gameselection.AddString("NHL 99");
+	m_gameselection.AddString("Stunt Racer 64");
+	m_gameselection.AddString("Superman");
+	m_gameselection.AddString("Monaco Grand Prix");
+	m_gameselection.AddString("Glover");
+	m_gameselection.AddString("SSB");
+	m_gameselection.AddString("Pokemon Snap");
+	m_gameselection.AddString("Shigesato Itoi Bass Fishing");
+	m_gameselection.AddString("Forsaken");
+	m_gameselection.AddString("Starcraft");
+	m_gameselection.AddString("Bassmasters 2000");
+	m_gameselection.AddString("Ms PacMan");
+	m_gameselection.AddString("Power Rangers");
+	m_gameselection.AddString("Star Fox Adventures (GC) ZLB");
+	m_gameselection.AddString("Resident Evil 2");
+	m_gameselection.AddString("New Tetris");
+	m_gameselection.AddString("Command and Conquer");
+	m_gameselection.AddString("Rogue Squadron");
+
+
 	m_gameselection.SetCurSel(2);
 
+	
+
+
+	
 
 
 
@@ -1339,7 +1695,145 @@ void CGEDecompressorDlg::OnBnClickedCompressfilebutton()
 	}
 	else if ((gameNameStr == "AeroFighter") || (gameNameStr == "Beetle Adventure Racing") || (gameNameStr == "Body Harvest") || (gameNameStr == "Duck Dodgers") || (gameNameStr == "F-1 World Grand Prix")|| (gameNameStr == "F-1 World Grand Prix II (E)")|| (gameNameStr == "F-ZERO Expansion Kit 64DD")|| (gameNameStr == "F-ZERO X")|| (gameNameStr == "Indy Racing 2000")|| (gameNameStr == "Lt. Duck Dodgers (Prototype)")|| (gameNameStr == "MarioKart64")|| (gameNameStr == "Pilotwings 64")|| (gameNameStr == "StarFox64")|| (gameNameStr == "Super Mario 64")|| (gameNameStr == "WaveRace"))
 	{
-		MIO0 mio0compression;
+		CNintendoEncoder ninEnc;
+		
+		CFileDialog m_svFile(FALSE, "bin", (m_ldFile.GetFileName() + ".bin"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File of Codes (*.*)|*.*|");
+		didRead = m_svFile.DoModal();
+		if ((didRead == IDCANCEL) || (m_svFile.GetPathName() == ""))
+			return;
+
+		if (didRead == FALSE)
+			return;
+
+		FILE* tempInputFile = fopen(m_ldFile.GetPathName(), "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size];
+		
+		fseek(tempInputFile, 0, SEEK_SET);
+		fread(tempBuffer, 1, size, tempInputFile);
+		fclose(tempInputFile);
+		
+		unsigned char* outputBuffer = new unsigned char[0x200000];
+		int compressedSize = ninEnc.encode(tempBuffer, size, outputBuffer, "MIO0");
+
+		if (compressedSize > 0)
+		{
+			FILE* outputFileName = fopen(m_svFile.GetPathName(), "wb");
+			if (outputFileName == NULL)
+			{
+				MessageBox("Error opening output file", "Error");
+				return;
+			}
+
+			fwrite(outputBuffer, 1, (compressedSize), outputFileName);	
+
+			fflush(outputFileName);
+			fclose(outputFileName);
+		}
+
+		delete [] tempBuffer;
+		delete [] outputBuffer;
+	}
+	else if ((gameNameStr == "Starcraft") || (gameNameStr == "Bassmasters 2000") || (gameNameStr == "Ms PacMan") || (gameNameStr == "Power Rangers"))
+	{
+		MessageBox("Unsupported game, cannot compress");
+		return;
+	}
+	else if ((gameNameStr == "1080Snow") || (gameNameStr == "BakuBomberman2")|| (gameNameStr == "Battlezone Black Dogs")|| (gameNameStr == "Bomberman 64 Second Attack")|| (gameNameStr == "Disney's Donald Duck - Goin' Quackers")|| (gameNameStr == "Doraemon 2")|| (gameNameStr == "Fushigi no Dungeon")|| (gameNameStr == "Kira to Kaiketsu")|| (gameNameStr == "Neon Genesis Evangelion")|| (gameNameStr == "Nushi Tsuri 64")|| (gameNameStr == "Paper Mario")|| (gameNameStr == "Parlor Pro 64")|| (gameNameStr == "Pokemon Stadium")|| (gameNameStr == "Pokemon Stadium 2")|| (gameNameStr == "Rayman 2")|| (gameNameStr == "Scooby-Doo")|| (gameNameStr == "Shadowgate 64")|| (gameNameStr == "Tonic Trouble")|| (gameNameStr == "Tsumi to Batsu")|| (gameNameStr == "Zool"))
+	{
+		// Yay
+		CNintendoEncoder ninEnc;
+		
+		CFileDialog m_svFile(FALSE, "bin", (m_ldFile.GetFileName() + ".bin"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File of Codes (*.*)|*.*|");
+		didRead = m_svFile.DoModal();
+		if ((didRead == IDCANCEL) || (m_svFile.GetPathName() == ""))
+			return;
+
+		if (didRead == FALSE)
+			return;
+
+		FILE* tempInputFile = fopen(m_ldFile.GetPathName(), "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size];
+		
+		fseek(tempInputFile, 0, SEEK_SET);
+		fread(tempBuffer, 1, size, tempInputFile);
+		fclose(tempInputFile);
+		
+		unsigned char* outputBuffer = new unsigned char[0x200000];
+		int compressedSize = ninEnc.encode(tempBuffer, size, outputBuffer, "Yay0");
+
+		if (compressedSize > 0)
+		{
+			FILE* outputFileName = fopen(m_svFile.GetPathName(), "wb");
+			if (outputFileName == NULL)
+			{
+				MessageBox("Error opening output file", "Error");
+				return;
+			}
+
+			fwrite(outputBuffer, 1, (compressedSize), outputFileName);	
+
+			fflush(outputFileName);
+			fclose(outputFileName);
+		}
+
+		delete [] tempBuffer;
+		delete [] outputBuffer;
+	}
+	else if (gameNameStr == "Command and Conquer")
+	{
+		CommandAndConquerDecoder commandConquerEnc;
+		
+		CFileDialog m_svFile(FALSE, "bin", (m_ldFile.GetFileName() + ".bin"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File of Codes (*.*)|*.*|");
+		didRead = m_svFile.DoModal();
+		if ((didRead == IDCANCEL) || (m_svFile.GetPathName() == ""))
+			return;
+
+		if (didRead == FALSE)
+			return;
+
+		FILE* tempInputFile = fopen(m_ldFile.GetPathName(), "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size];
+		
+		fseek(tempInputFile, 0, SEEK_SET);
+		fread(tempBuffer, 1, size, tempInputFile);
+		fclose(tempInputFile);
+		
+		unsigned char* outputBuffer = new unsigned char[0x200000];
+		int compressedSize = commandConquerEnc.encode(tempBuffer, size, outputBuffer, 2);
+
+		if (compressedSize > 0)
+		{
+			FILE* outputFileName = fopen(m_svFile.GetPathName(), "wb");
+			if (outputFileName == NULL)
+			{
+				MessageBox("Error opening output file", "Error");
+				return;
+			}
+
+			fwrite(outputBuffer, 1, (compressedSize), outputFileName);	
+
+			fflush(outputFileName);
+			fclose(outputFileName);
+		}
+
+		delete [] tempBuffer;
+		delete [] outputBuffer;
+	}
+	else if (gameNameStr == "SSB")
+	{
+		CVPK0Decoder vpk0compression;
 
 		CFileDialog m_svFile(FALSE, "bin", (m_ldFile.GetFileName() + ".bin"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File of Codes (*.*)|*.*|");
 		didRead = m_svFile.DoModal();
@@ -1350,22 +1844,7 @@ void CGEDecompressorDlg::OnBnClickedCompressfilebutton()
 			return;
 
 
-		mio0compression.CompressMIO0File(directory, m_ldFile.GetPathName(), m_svFile.GetPathName());
-	}
-	else if ((gameNameStr == "Starcraft") || (gameNameStr == "Bassmasters 2000") || (gameNameStr == "Ms PacMan") || (gameNameStr == "Power Rangers"))
-	{
-		MessageBox("Unsupported game, cannot compress");
-		return;
-	}
-	else if ((gameNameStr == "1080Snow") || (gameNameStr == "BakuBomberman2")|| (gameNameStr == "Battlezone Black Dogs")|| (gameNameStr == "Bomberman 64 Second Attack")|| (gameNameStr == "Disney's Donald Duck - Goin' Quackers")|| (gameNameStr == "Doraemon 2")|| (gameNameStr == "Fushigi no Dungeon")|| (gameNameStr == "Kira to Kaiketsu")|| (gameNameStr == "Neon Genesis Evangelion")|| (gameNameStr == "Nushi Tsuri 64")|| (gameNameStr == "Paper Mario")|| (gameNameStr == "Parlor Pro 64")|| (gameNameStr == "Pokemon Stadium")|| (gameNameStr == "Pokemon Stadium 2")|| (gameNameStr == "Rayman 2")|| (gameNameStr == "Scooby-Doo")|| (gameNameStr == "Shadowgate 64")|| (gameNameStr == "Tonic Trouble")|| (gameNameStr == "Tsumi to Batsu")|| (gameNameStr == "Zool"))
-	{
-		MessageBox("Unsupported game, cannot compress");
-		return;
-	}
-	else if (gameNameStr == "SSB")
-	{
-		MessageBox("Unsupported game, cannot compress");
-		return;
+		vpk0compression.CompressVPK0File(directory, m_ldFile.GetPathName(), m_svFile.GetPathName());
 	}
 	else if (gameNameStr == "Pokemon Snap")
 	{
@@ -1399,7 +1878,7 @@ void CGEDecompressorDlg::OnBnClickedCompressfilebutton()
 	}
 	else if ((gameNameStr == "Doubutsu no Mori") || (gameNameStr == "MajorasMask") || (gameNameStr == "OoT"))
 	{
-		YAZ0 yaz0;
+		CNintendoEncoder ninEnc;
 		
 		CFileDialog m_svFile(FALSE, "bin", (m_ldFile.GetFileName() + ".bin"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, "Bin File of Codes (*.*)|*.*|");
 		didRead = m_svFile.DoModal();
@@ -1419,10 +1898,9 @@ void CGEDecompressorDlg::OnBnClickedCompressfilebutton()
 		fseek(tempInputFile, 0, SEEK_SET);
 		fread(tempBuffer, 1, size, tempInputFile);
 		fclose(tempInputFile);
-		int compressedSize;
-
+		
 		unsigned char* outputBuffer = new unsigned char[0x200000];
-		yaz0.yaz0_encode(tempBuffer, size, outputBuffer, &compressedSize);
+		int compressedSize = ninEnc.encode(tempBuffer, size, outputBuffer, "Yaz0");
 
 		if (compressedSize > 0)
 		{
@@ -1783,9 +2261,12 @@ bool CGEDecompressorDlg::ReadROM(CString gameNameStr, CString fileLocation, unsi
 			byteFlippedROM = false;
 		else
 		{
-			delete [] GameBuffer;
-			::MessageBox(NULL, "Not a valid ROM", "Error", NULL);
-			return false;
+			int iResults = ::MessageBox(NULL, "Invalid ROM, do you want to try and continue?", "Wrong ROM Header", MB_YESNO);
+			if (iResults == IDNO)
+			{
+				delete [] GameBuffer;
+				return false;
+			}
 		}
 	}
 
@@ -2545,7 +3026,7 @@ int CGEDecompressorDlg::DecompressRNCSpot(RncDecoder* compressed, bool genText, 
 	return returnSize;
 }
 
-int CGEDecompressorDlg::DecompressCommandConquerSpot(CommandAndConquerDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, bool appendFile, unsigned long appendROMLocation, CString appendInternalFileName, int kind)
+int CGEDecompressorDlg::DecompressCommandConquerSpot(CommandAndConquerDecoder* compressed, bool genText, int offset, unsigned char* GameBuffer, int romSize, int GAME, CString folderPath, CString internalName, int expectedSize, CString& tempLocation, int& fileSizeCompressed, CString& type, bool appendFile, unsigned long appendROMLocation, CString appendInternalFileName, int kind, unsigned long offsetHeader)
 {
 	int returnSize = 0;
 	unsigned char* Buffer = NULL;
@@ -2575,9 +3056,9 @@ int CGEDecompressorDlg::DecompressCommandConquerSpot(CommandAndConquerDecoder* c
 					else
 					{
 						if (internalName == "")
-							tempLocation.Format("%s%06X", folderPath, offset);
+							tempLocation.Format("%s%06X", folderPath, offsetHeader);
 						else
-							tempLocation.Format("%s%06X_%s", folderPath, offset, internalName);
+							tempLocation.Format("%s%06X_%s", folderPath, offsetHeader, internalName);
 					}
 
 					WriteResult(genText, tempLocation, outputDecompressed, fileSize, appendFile);
@@ -2712,7 +3193,7 @@ int CGEDecompressorDlg::GetZLibGameName(CString gameNameStr)
 	{
 		return MILO;
 	}
-	else if (gameNameStr == "Stunt Racer 64")
+	else if ((gameNameStr == "Stunt Racer 64") || (gameNameStr == "Rogue Squadron"))
 	{
 		return STUNTRACER64;
 	}
@@ -3098,26 +3579,105 @@ UINT CGEDecompressorDlg::DecompressGameThread( LPVOID pParam )
 				{
 					int game = GetZLibGameName(gameNameStr);
 					compressed.SetGame(game);
-					DecompressConkerFromTable(dlg, strROMPath, GameBuffer, romSize, 0x029AE9E8, (0x029AE9E8 + 0x38), CONKER, false, 0x029AE9E8);
 
-					unsigned long start = 0x117FE50;
-					unsigned long end = 0x1180070;
+					std::vector<int> extraConkerSpots;
+					
+					extraConkerSpots.push_back(0x188328);
+					
+					//Table 03F87F68
+					extraConkerSpots.push_back(0x3F881B0); // Catapult
+					extraConkerSpots.push_back(0x3F88228); // Hit you fool
+					extraConkerSpots.push_back(0x3F88270); // Oh I can't seem to get any further
+					extraConkerSpots.push_back(0x3F883A0); // Hang on
+					extraConkerSpots.push_back(0x3F88440); // And if I'm a lot more confident
 
-					for (int x = start; x < end; x += 8)
+					//Table 03F88548
+					// Uncompressed
+					//03F88558
+					//03F88640
+					//03F88650
+
+					//Table 03F88870
+					// Uncompresssed 
+					//03F88880
+					//03F888E0
+					//03F888F0
+					//03F88A40
+
+					//Table 03F89230
+					extraConkerSpots.push_back(0x3F89660);
+					extraConkerSpots.push_back(0x3F89BA8);
+					extraConkerSpots.push_back(0x3F8AB60);
+					extraConkerSpots.push_back(0x3F8B180);
+					extraConkerSpots.push_back(0x3F8B378);
+
+					for (int s = 0; s < extraConkerSpots.size(); s++)
 					{
-						unsigned long offset = start + CharArrayToLong(&GameBuffer[x]);
-
-						DecompressConkerFromTable(dlg, strROMPath, GameBuffer, romSize, offset, (offset + 0x140), CONKER, false, ((x - start) / 8));
+						CString tempLocation;
+						int fileSizeCompressed = -1;
+						CString type = "";
+						int fileSizeUncompressed = 0;
+						fileSizeUncompressed = DecompressZLibSpot(&compressed, genText, extraConkerSpots[s], GameBuffer, romSize, game, folderPath, "", -1, tempLocation, fileSizeCompressed, type, extraConkerSpots[s], false, 0);
+						if (fileSizeUncompressed > 0)
+						{
+							AddRowData(dlg, extraConkerSpots[s], fileSizeCompressed, fileSizeUncompressed, "", tempLocation, type);
+						}
 					}
 
-					start = 0xAB1950;
-					end = 0xAB1A38;
+
+					DecompressConkerFromTable(dlg, strROMPath, GameBuffer, romSize, 0x029AE9E8, (0x029AE9E8 + 0x38), CONKER, false, 0x029AE9E8);
+
+					unsigned long compressedASMLocation = 0x00042C50;
+
+					while (compressedASMLocation < 0x00186B4C)
+					{
+						int fileSizeCompressed = -1;
+						CString type;
+						CString tempLocation;
+						int fileSizeUncompressed = DecompressZLibSpot(&compressed, genText, compressedASMLocation, GameBuffer, romSize, CONKER, folderPath, "", -1, tempLocation, fileSizeCompressed, type, compressedASMLocation, false, 0);
+
+						if (fileSizeCompressed == -1)
+							break;
+
+						if (fileSizeUncompressed > 0)
+						{
+							AddRowData(dlg, compressedASMLocation, fileSizeCompressed, fileSizeUncompressed, "", tempLocation, type);
+						}
+
+						compressedASMLocation += fileSizeCompressed;
+
+						while (GameBuffer[compressedASMLocation] != 0x00)
+							compressedASMLocation++;
+
+						while (
+							(GameBuffer[compressedASMLocation] == 0x00) 
+							&& (GameBuffer[compressedASMLocation+1] == 0x00)
+							&& (GameBuffer[compressedASMLocation+2] == 0x00))
+						{
+							compressedASMLocation++;
+						}
+					}
+
+					unsigned long start = 0xAB1950;
+					unsigned long end = 0xAB1A38;
 
 					for (int x = start; x < end; x += 8)
 					{
 						unsigned long offset = start + CharArrayToLong(&GameBuffer[x]);
 
 						DecompressConkerFromTable(dlg, strROMPath, GameBuffer, romSize, offset, (offset + CharArrayToLong(&GameBuffer[offset])), CONKER, false, ((x - start) / 8));
+					}
+
+
+
+					start = 0x117FE50;
+					end = 0x1180070;
+
+					for (int x = start; x < end; x += 8)
+					{
+						unsigned long offset = start + CharArrayToLong(&GameBuffer[x]);
+
+						DecompressConkerFromTable(dlg, strROMPath, GameBuffer, romSize, offset, (offset + 0x140), CONKER, false, ((x - start) / 8));
 					}
 					
 					
@@ -3272,7 +3832,7 @@ UINT CGEDecompressorDlg::DecompressGameThread( LPVOID pParam )
 			}
 			
 		}
-		else if ((gameNameStr == "Stunt Racer 64"))
+		else if ((gameNameStr == "Stunt Racer 64") || (gameNameStr == "Rogue Squadron"))
 		{
 			int game = GetZLibGameName(gameNameStr);
 			compressed.SetGame(game);
@@ -3582,7 +4142,11 @@ UINT CGEDecompressorDlg::DecompressGameThread( LPVOID pParam )
 					if (dlg->killThread)
 						break;
 					ToUpdateProgressBar(dlg, x, romSize);
-					if ((GameBuffer[x] == 0x52) && (GameBuffer[x+1] == 0x4E) && (GameBuffer[x+2] == 0x43) && (GameBuffer[x+3] == 0x01))
+					if (
+						((GameBuffer[x] == 0x52) && (GameBuffer[x+1] == 0x4E) && (GameBuffer[x+2] == 0x43) && (GameBuffer[x+3] == 0x01))
+						||
+						((GameBuffer[x] == 0x52) && (GameBuffer[x+1] == 0x4E) && (GameBuffer[x+2] == 0x43) && (GameBuffer[x+3] == 0x81))
+						)
 					{
 						CString tempLocation;
 						int fileSizeCompressed = -1;
@@ -3672,10 +4236,10 @@ UINT CGEDecompressorDlg::DecompressGameThread( LPVOID pParam )
 							else if (compressionFormat == 0x22)
 								type = "16Bit LZ";
 
-							int fileSizeUncompressed = DecompressCommandConquerSpot(&commandconquercompressed, genText, startData + dataOffset, GameBuffer, romSize, game, folderPath, internalName, fileSizeDecompressed, tempLocation, fileSizeCompressed, type, false, 0x0, "", (compressionFormat & 0x3));
+							int fileSizeUncompressed = DecompressCommandConquerSpot(&commandconquercompressed, genText, startData + dataOffset, GameBuffer, romSize, game, folderPath, internalName, fileSizeDecompressed, tempLocation, fileSizeCompressed, type, false, 0x0, "", (compressionFormat & 0x3), x);
 							if (fileSizeUncompressed > 0)
 							{
-								AddRowData(dlg, startData + dataOffset, fileSizeCompressed, fileSizeUncompressed, internalName, tempLocation, type);
+								AddRowData(dlg, x, fileSizeCompressed, fileSizeUncompressed, internalName, tempLocation, type);
 							}
 
 							x += 0x18;
@@ -4052,7 +4616,7 @@ UINT CGEDecompressorDlg::DecompressGameThread( LPVOID pParam )
 						int fileSizeUncompressed = DecompressVPK0Spot(&vpk0compressed, genText, offset+8, GameBuffer, romSize, game, folderPath, "", decompressedSize, tempLocation, compressedSize, type);
 						if (fileSizeUncompressed > 0)
 						{
-							AddRowData(dlg, offset+8, compressedSize, decompressedSize, "", tempLocation, type);
+							AddRowData(dlg, offset, compressedSize, decompressedSize, "", tempLocation, type);
 						}
 					}
 					else
@@ -4615,8 +5179,35 @@ void CGEDecompressorDlg::OnBnClickedDecompressgame()
 	lastSearchSpot = -1;
 	decompressGamethread = AfxBeginThread(&CGEDecompressorDlg::DecompressGameThread, this);
  
-	m_injectButton.ShowWindow(SW_SHOW);
-	m_saveROMButton.ShowWindow(SW_SHOW);
+	mDecompressFileButton.ShowWindow(SW_SHOW);
+
+
+	int zlibGame = GetZLibGameName(gameNameStr);
+	if ((zlibGame != -1)
+		 || ((gameNameStr == "Turok 1") || (gameNameStr == "Duke Nukem 64")|| (gameNameStr == "Turok 2") || (gameNameStr == "Turok 3") || (gameNameStr == "Turok Rage Wars") || (gameNameStr == "Iggy's Reckin' Balls") || (gameNameStr == "Shadowman") || (gameNameStr == "NHL Breakaway 98") || (gameNameStr == "NHL Breakaway 99") || (gameNameStr == "PGA European Tour"))
+ || (gameNameStr == "Command and Conquer")
+ || (gameNameStr == "Forsaken")
+ || ((gameNameStr == "ECW Hardcore Revolution") || (gameNameStr == "NFL QB Club 2000") || (gameNameStr == "NFL QB Club 2001") || (gameNameStr == "NFL QB Club 98") || (gameNameStr == "NFL QB Club 99") || (gameNameStr == "WWF WarZone") || (gameNameStr == "WWF Attitude") || (gameNameStr == "All-Star Baseball 99") || (gameNameStr == "South Park Chefs Love Shack"))
+ || (gameNameStr == "Armorines")
+ || (gameNameStr == "South Park")
+ || ((gameNameStr == "AeroFighter") || (gameNameStr == "Beetle Adventure Racing") || (gameNameStr == "Body Harvest") || (gameNameStr == "Duck Dodgers") || (gameNameStr == "F-1 World Grand Prix")|| (gameNameStr == "F-1 World Grand Prix II (E)")|| (gameNameStr == "F-ZERO Expansion Kit 64DD")|| (gameNameStr == "F-ZERO X")|| (gameNameStr == "Indy Racing 2000")|| (gameNameStr == "Lt. Duck Dodgers (Prototype)")|| (gameNameStr == "MarioKart64")|| (gameNameStr == "Pilotwings 64")|| (gameNameStr == "StarFox64")|| (gameNameStr == "Super Mario 64")|| (gameNameStr == "WaveRace"))
+ || (gameNameStr == "SSB")
+ || ((gameNameStr == "Doubutsu no Mori") || (gameNameStr == "MajorasMask") || (gameNameStr == "OoT"))
+ || ((gameNameStr == "40 Winks")|| (gameNameStr == "Cruis'n World")|| (gameNameStr == "Duke Nukem - ZER0 H0UR")|| (gameNameStr == "Hydro Thunder")|| (gameNameStr == "Mortal Kombat 4")|| (gameNameStr == "NBA Showtime")|| (gameNameStr == "Tarzan")|| (gameNameStr == "TWINE")|| (gameNameStr == "War Gods"))
+ || ((gameNameStr == "Custom Robo") || (gameNameStr == "Custom Robo V2"))
+ || (gameNameStr == "O.D.T.")
+		)
+	{
+		mCompressFileButton.ShowWindow(SW_SHOW);
+		m_injectButton.ShowWindow(SW_SHOW);
+		m_saveROMButton.ShowWindow(SW_SHOW);
+	}
+	else
+	{
+		mCompressFileButton.ShowWindow(SW_HIDE);
+		m_injectButton.ShowWindow(SW_HIDE);
+		m_saveROMButton.ShowWindow(SW_HIDE);
+	}
 	
 	//dkr
 	/*FILE* outA = fopen("C:\\temp\\dkrlist.txt", "w");
@@ -4984,6 +5575,14 @@ void CGEDecompressorDlg::WriteResult(bool genTextFile, CString filename, unsigne
 	}
 }
 
+void CGEDecompressorDlg::WriteLongToBuffer(unsigned char* Buffer, unsigned long address, unsigned long data)
+{
+	Buffer[address] = ((data >> 24) & 0xFF);
+	Buffer[address+1] = ((data >> 16) & 0xFF);
+	Buffer[address+2] = ((data >> 8) & 0xFF);
+	Buffer[address+3] = ((data) & 0xFF);
+}
+
 void CGEDecompressorDlg::OnBnClickedButton3()
 {
 	int rowSel = m_list.GetSelectionMark();
@@ -5022,7 +5621,36 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 	int zlibGame = GetZLibGameName(gameNameStr);
 	if (zlibGame != -1)
 	{
-		if (listUpdateStruct->type == "MP3")
+		if (listUpdateStruct->type == "Uncompressed")
+		{
+			unsigned long outSize = GetSizeFile(m_ldFile.GetPathName());
+			if (outSize > 0)
+			{
+				if (outSize > diff)
+				{
+					CString sizeTempStr;
+					sizeTempStr.Format("%08X is larger than %08X (next item), are you sure you want to replace?", outSize, diff);
+					int iResults = MessageBox(sizeTempStr, "Are you sure?", MB_YESNO | MB_ICONINFORMATION);
+					if (iResults == IDNO)
+						return;
+				}
+
+				FILE* inNew = fopen(m_ldFile.GetPathName(), "rb");
+				if (inNew == NULL)
+				{
+					MessageBox("Error opening temporary file");
+					return;
+				}
+
+				fread(&ROM[address], 1, outSize, inNew);
+				
+				fclose(inNew);
+				
+				listUpdateStruct->fileSizeCompressed = outSize;
+				listUpdateStruct->tempLocation = static_cast<LPCTSTR>(directory + tempAddrStr);
+			}
+		}
+		else if (listUpdateStruct->type == "MP3")
 		{
 			unsigned long outSize = GetSizeFile(m_ldFile.GetPathName());
 			if (outSize > 0)
@@ -5134,7 +5762,7 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 					address = ((CharArrayToLong(&ROM[address]) >> 8) * 4) + 0x12B24;
 					fread(&ROM[address], 1, diff, inNew);
 				}
-				else if ((zlibGame == BANJOTOOIE) && (address >= 0x1E8A77C)  && (address < 0x1E899B0))
+				else if ((zlibGame == BANJOTOOIE) && (address >= 0x1E8A77C))
 				{
 					address = ((CharArrayToLong(&ROM[address]))) + 0x10;
 					fread(&ROM[address], 1, diff, inNew);
@@ -5178,6 +5806,95 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 			listUpdateStruct->fileSizeCompressed = outSize;
 			listUpdateStruct->tempLocation = static_cast<LPCTSTR>(directory + tempAddrStr);
 		}
+	}
+	else if (gameNameStr == "Command and Conquer")
+	{
+		unsigned long startData = address;
+
+		while (ROM[startData] != 0)
+		{
+			startData += 0x18;
+		}
+
+		if ((startData % 0x10) != 0)
+			startData = startData + (0x10 - (startData % 0x10));
+
+		unsigned long dataOffset = CharArrayToLong(&ROM[address + 0xC]);
+		int fileSizeCompressed = CharArrayToLong(&ROM[address + 0x14]) & 0xFFFFFF;
+		int fileSizeDecompressed = CharArrayToLong(&ROM[address + 0x10]);
+		unsigned char compressionFormat = ROM[address + 0x14];
+
+
+		CommandAndConquerDecoder commandcompression;
+
+		int sizeFile = GetSizeFile(m_ldFile.GetPathName());
+		if (sizeFile <= 0)
+		{
+			MessageBox("Error opening input file, 0 sized");
+			return;
+		}
+
+		FILE* inFile = fopen(m_ldFile.GetPathName(), "rb");
+		if (inFile == NULL)
+		{
+			MessageBox("Error opening input file");
+			return;
+		}
+		unsigned char* inputFile = new unsigned char[sizeFile];
+		fread(inputFile, 1, sizeFile, inFile);
+		fclose(inFile);
+
+		unsigned char* output = new unsigned char[sizeFile * 3];
+		int outSize = commandcompression.encode(inputFile, sizeFile, output, 2);
+
+		// header
+		if (outSize > diff)
+		{
+			CString sizeTempStr;
+			sizeTempStr.Format("%08X is larger than %08X (next item), are you sure you want to replace?", outSize, diff);
+			int iResults = MessageBox(sizeTempStr, "Are you sure?", MB_YESNO | MB_ICONINFORMATION);
+			if (iResults == IDNO)
+			{
+				delete [] output;
+				delete [] inputFile;
+				return;
+			}
+		}
+
+		if (outSize < 6)
+		{
+			delete [] output;
+			delete [] inputFile;
+
+			MessageBox("Error compressing file");
+			return;
+		}
+		else
+		{
+			FILE* outTemp = fopen((directory + tempAddrStr), "wb");
+			if (outTemp == NULL)
+			{
+				MessageBox("Error creating output file");
+				delete [] output;
+				delete [] inputFile;
+				return;
+			}
+			fwrite(output, 1, outSize, outTemp);
+			fclose(outTemp);
+
+			memcpy(&ROM[startData + dataOffset], output, outSize);
+
+			listUpdateStruct->fileSizeCompressed = outSize;
+			listUpdateStruct->tempLocation = static_cast<LPCTSTR>(directory + tempAddrStr);
+			listUpdateStruct->type = "16Bit LZ";
+
+			WriteLongToBuffer(ROM, address + 0x14, (0x22000000 | outSize));
+			WriteLongToBuffer(ROM, address + 0x10, sizeFile);
+			
+			delete [] output;
+			delete [] inputFile;
+		}
+		
 	}
 	else if (gameNameStr == "Forsaken")
 	{
@@ -5340,8 +6057,64 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 	}
 	else if (gameNameStr == "SSB")
 	{
-		MessageBox("Unsupported game, cannot compress");
-		return;
+		if (listUpdateStruct->type == "VPK0")
+		{
+			unsigned long inSize = GetSizeFile(m_ldFile.GetPathName());
+
+			CVPK0Decoder vpkcompression;
+			vpkcompression.CompressVPK0File(directory, m_ldFile.GetPathName(), (directory + tempAddrStr));
+			unsigned long outSize = GetSizeFile((directory + tempAddrStr));
+			if (outSize > 0)
+			{
+				if (outSize > diff)
+				{
+					CString sizeTempStr;
+					sizeTempStr.Format("%08X is larger than %08X (next item), are you sure you want to replace?", outSize, diff);
+					int iResults = MessageBox(sizeTempStr, "Are you sure?", MB_YESNO | MB_ICONINFORMATION);
+					if (iResults == IDNO)
+						return;
+				}
+				FILE* inNew = fopen((directory + tempAddrStr), "rb");
+				if (inNew == NULL)
+				{
+					MessageBox("Error opening temporary file");
+					return;
+				}
+				fread(&ROM[address], 1, outSize, inNew);
+				fclose(inNew);
+				
+				listUpdateStruct->fileSizeCompressed = outSize;
+				listUpdateStruct->fileSizeUncompressed = inSize;
+				listUpdateStruct->tempLocation = static_cast<LPCTSTR>(directory + tempAddrStr);
+			}
+		}
+		else
+		{
+			unsigned long outSize = GetSizeFile(m_ldFile.GetPathName());
+			if (outSize > 0)
+			{
+				if (outSize > diff)
+				{
+					CString sizeTempStr;
+					sizeTempStr.Format("%08X is larger than %08X (next item), are you sure you want to replace?", outSize, diff);
+					int iResults = MessageBox(sizeTempStr, "Are you sure?", MB_YESNO | MB_ICONINFORMATION);
+					if (iResults == IDNO)
+						return;
+				}
+				FILE* inNew = fopen(m_ldFile.GetPathName(), "rb");
+				if (inNew == NULL)
+				{
+					MessageBox("Error opening temporary file");
+					return;
+				}
+				fread(&ROM[address], 1, outSize, inNew);
+				fclose(inNew);
+				
+				listUpdateStruct->fileSizeUncompressed = outSize;
+				listUpdateStruct->fileSizeCompressed = outSize;
+				listUpdateStruct->tempLocation = static_cast<LPCTSTR>(directory + tempAddrStr);
+			}
+		}
 	}
 	else if (gameNameStr == "Pokemon Snap")
 	{
@@ -5522,6 +6295,7 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 	lv2.iItem = rowSel;
 	lv2.iSubItem = 1;
 	lv2.pszText = (LPSTR) tempNewUncompressedSize.GetBuffer();
+	tempNewUncompressedSize.ReleaseBuffer();
 	lv2.mask = LVIF_TEXT;
 	m_list.SetItem(&lv2);   
 
@@ -5531,13 +6305,23 @@ void CGEDecompressorDlg::OnBnClickedButton3()
 	lv3.iItem = rowSel;
 	lv3.iSubItem = 2;
 	lv3.pszText = (LPSTR) tempNewCompressedSize.GetBuffer();
+	tempNewCompressedSize.ReleaseBuffer();
 	lv3.mask = LVIF_TEXT;
 	m_list.SetItem(&lv3);
 
+	LVITEM lv4;
+	lv4.iItem = rowSel;
+	lv4.iSubItem = 3;
+	lv4.pszText = (LPSTR) listUpdateStruct->type.GetBuffer();
+	listUpdateStruct->type.ReleaseBuffer();
+	lv4.mask = LVIF_TEXT;
+	m_list.SetItem(&lv4);
+
 	LVITEM lv5;
 	lv5.iItem = rowSel;
-	lv5.iSubItem = 3;
+	lv5.iSubItem = 4;
 	lv5.pszText = (LPSTR) listUpdateStruct->tempLocation.GetBuffer();
+	listUpdateStruct->tempLocation.ReleaseBuffer();
 	lv5.mask = LVIF_TEXT;
 	m_list.SetItem(&lv5);
 }

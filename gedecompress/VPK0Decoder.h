@@ -23,4 +23,8 @@ public:
 	int _tblsel(unsigned char* inputBuffer, int& inputPosition, unsigned char& flags, int& flagLeft, Triplet*& tbl, int& tripletCount, int compressedSize, int idx=-1);
 	void _tblbuild(unsigned char* inputBuffer, int& inputPosition, unsigned char& flags, int& flagLeft, Triplet*& tbl, int& tripletCount, int compressedSize);
 	int header(unsigned char* data, int& mode, unsigned long& dec_s);
+
+	bool CompressVPK0File(CString mainFolder, CString inputFile, CString outputFile);
+	BOOL IsFileExist(LPSTR lpszFilename);
+	BOOL hiddenExec (PTSTR pCmdLine, CString currentDirectory);
 };

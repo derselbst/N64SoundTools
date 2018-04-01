@@ -254,6 +254,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MarioTennisDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\MidwayDecoder.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\mio0.cpp"
 				>
 			</File>
@@ -275,6 +283,10 @@
 			</File>
 			<File
 				RelativePath=".\NinDec.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\NintendoEncoder.cpp"
 				>
 			</File>
 			<File
@@ -311,6 +323,10 @@
 			</File>
 			<File
 				RelativePath=".\TetrisphereDecoder.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\TigDecoder.cpp"
 				>
 			</File>
 			<File
@@ -395,6 +411,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\MarioTennisDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\MidwayDecoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\mio0.h"
 				>
 			</File>
@@ -423,6 +447,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\NintendoEncoder.h"
+				>
+			</File>
+			<File
 				RelativePath=".\ODTCompress.h"
 				>
 			</File>
@@ -448,6 +476,10 @@
 			</File>
 			<File
 				RelativePath=".\TetrisphereDecoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\TigDecoder.h"
 				>
 			</File>
 			<File

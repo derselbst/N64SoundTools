@@ -211,11 +211,14 @@ if(flagrant.table)
          }/*end calloc*/
        if(!(samp=(unsigned short*)calloc(num,2)))
          {printf("\nVirtual memory exhausted.\nCan not continue.\n\tPress ENTER to quit.");
+		 free(when);
          getchar();
          return 0;
          }/*end calloc*/
        if(!(number=(unsigned long*)calloc(16,4)))
          {printf("\nVirtual memory exhausted.\nCan not continue.\n\tPress ENTER to quit.");
+	     free(when);
+		 free(samp);
          getchar();
          return 0;
          }/*end calloc*/
@@ -308,6 +311,8 @@ if(flagrant.table)
        if(!(buf=(unsigned char*)calloc(1<<bufsize,1)))
          {printf("\nVirtual memory exhausted.\nCan not continue.\n\tPress ENTER to quit.");
          getchar();
+		 free(when);
+		 free(samp);
          return 0;
          }/*end calloc      80013918*/
        
@@ -361,7 +366,11 @@ if(flagrant.table)
           {y=buf[x];
           if(y)
             {y-=bufsize;
-            if(y>8) return -8;
+		    if(y>8) 
+		    {
+			  free(buf);
+			  return -8;
+		    }
             back=(z<<7) + (y<<4);  /*value*0x80 + bits<<4*/
             large[x]=back;
             z+=(1<<y);
@@ -1158,15 +1167,18 @@ bool CEDLCompress::encode(CString inFileName, CString outFileName)
 
  if (!(in = fopen(inFileName, "rb"))) 
  {
+	fclose(temp);
 	return false;
  }
 
  if (!(out = fopen(outFileName, "wb+")))
  {
+	fclose(in);
+	fclose(temp);
 	return false;
  }
 
- char filename[8];
+ char filename[9];
  /*tack on an EDL header - INTEL order
    x will be decompressed size and the first four bytes of filename=type
    compressed size is a placeholder, technically*/

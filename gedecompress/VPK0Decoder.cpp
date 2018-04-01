@@ -190,3 +190,121 @@ int CVPK0Decoder::dec(unsigned char* inputBuffer, int compressedSize, int dec_s,
 	delete [] tbl2;
     return outputPosition;
 }
+
+BOOL CVPK0Decoder::hiddenExec (PTSTR pCmdLine, CString currentDirectory)
+{
+   STARTUPINFO si;
+   PROCESS_INFORMATION processInfo;
+   ZeroMemory(&si, sizeof(si));
+   si.cb           = sizeof(si);
+   si.dwFlags      = STARTF_USESHOWWINDOW;
+   si.wShowWindow  = SW_HIDE;
+   ZeroMemory(&processInfo, sizeof(processInfo));
+   /*return */CreateProcess(0, pCmdLine, 0, 0, FALSE, 0, 0, currentDirectory, &si, &processInfo);
+   WaitForSingleObject(processInfo.hProcess, 60000);
+   DWORD exitCode;
+   if (GetExitCodeProcess(processInfo.hProcess, &exitCode))
+   {
+        if (exitCode == STILL_ACTIVE)
+		{
+			MessageBox(NULL, "For some reason GZip Failed", "Error", NULL);
+			TerminateProcess(processInfo.hProcess, exitCode);
+			return false;
+		}
+   }   
+   return true;
+};
+
+BOOL CVPK0Decoder::IsFileExist(LPSTR lpszFilename)
+{
+	DWORD dwAttr = GetFileAttributes(lpszFilename);
+	if (dwAttr == 0xffffffff)
+		return FALSE;
+	else 
+		return TRUE;
+}
+
+bool CVPK0Decoder::CompressVPK0File(CString mainFolder, CString inputFile, CString outputFile)
+{
+	CString gzipFileName = (mainFolder + "nvpktool.exe");
+	char tempFileExistName[1000];
+	strcpy(tempFileExistName, (mainFolder + "nvpktool.exe"));
+	if (IsFileExist(tempFileExistName) == false)
+	{
+		MessageBox(NULL, "nvpktool.exe not found!", "Error", NULL);
+		return false;
+	}
+
+	strcpy(tempFileExistName, inputFile);
+	if (IsFileExist(tempFileExistName))
+	{
+		FILE* tempInputFile = fopen(inputFile, "rb");
+		fseek(tempInputFile, 0, SEEK_END);
+		unsigned long size = ftell(tempInputFile);
+
+		unsigned char* tempBuffer;
+		tempBuffer = new unsigned char[size];
+		
+		fseek(tempInputFile, 0, SEEK_SET);
+		fread(tempBuffer, 1, size, tempInputFile);
+
+		FILE* tempOutputFile = fopen((mainFolder+"tempghv.bin"), "wb");
+		if (tempOutputFile == 0)
+		{
+			fclose(tempInputFile);
+			delete [] tempBuffer;
+			MessageBox(NULL, "Cannot Write Temporary File", "Error", NULL);
+			return false;
+		}
+
+		fwrite(tempBuffer, 1, size, tempOutputFile);	
+
+		fclose(tempInputFile);
+		fclose(tempOutputFile);
+
+		delete [] tempBuffer;
+
+		::SetCurrentDirectory(mainFolder);
+		CString tempStr = ("nvpktool.exe -c -i tempghv.bin -o TEMPGHV.BIZ");
+		hiddenExec(_T(tempStr.GetBuffer()), (mainFolder));
+		CString outputGZippedName = (mainFolder+"TEMPGHV.BIZ");
+
+		DeleteFile((mainFolder+"tempghv.bin"));
+
+		strcpy(tempFileExistName, outputGZippedName);
+		if (IsFileExist(tempFileExistName))
+		{
+			FILE* inputFileName = fopen(outputGZippedName, "rb");
+			int sizeNew = 0;
+			fseek(inputFileName, 0, SEEK_END);
+			sizeNew = ftell(inputFileName);
+			fseek(inputFileName, 0, SEEK_SET);
+
+			unsigned char* tempBufferNew;
+			tempBufferNew = new unsigned char[sizeNew];
+			fread(tempBufferNew, 1, sizeNew, inputFileName);
+
+			fclose(inputFileName);
+			DeleteFile((mainFolder+"TEMPGHV.BIZ"));
+			FILE* outputFileName = fopen(outputFile, "wb");
+			if (outputFileName == NULL)
+			{
+				delete [] tempBufferNew;
+				MessageBox(NULL, "Error opening temp output file", "Error", NULL);
+				return false;
+			}
+
+			fwrite(&tempBufferNew[0], 1, (sizeNew), outputFileName);	
+
+			delete [] tempBufferNew;
+			fflush(outputFileName);
+			fclose(outputFileName);
+			return true;
+		}
+		else
+		{
+			MessageBox(NULL, "Error Compressing - nvpktool didn't spit out a file", "Error", NULL);
+			return false;
+		}
+	}
+}
