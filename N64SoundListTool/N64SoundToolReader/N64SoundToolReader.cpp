@@ -452,7 +452,9 @@ void CN64SoundToolReader::InitializeSpecificGames(CString iniPath, int& countGam
 						gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = StringHexToLong(third);
 				}
 				else
+				{
 					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].numberInstruments = 0;
+				}
 				if (fourth.GetLength() > 0)
 					gameConfig[countGames].soundBanks[gameConfig[countGames].numberSoundBanks].mask = StringHexToLong(fourth);
 				else
@@ -792,6 +794,14 @@ void CN64SoundToolReader::ReadSoundbanks(unsigned char* ROM, int romSize, SoundG
 			else if (gameConfig.gameType.CompareNoCase("vox") == 0)
 			{
 				results[numberResults].bank = n64AudioLibrary.ReadAudioVox(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset], gameConfig.soundBanks[x].numberInstruments);
+			}
+			else if (gameConfig.gameType.CompareNoCase("Wav") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioWav(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
+			}
+			else if (gameConfig.gameType.CompareNoCase("MORT") == 0)
+			{
+				results[numberResults].bank = n64AudioLibrary.ReadAudioMORT(&ROM[0], results[numberResults].ctlSize, results[numberResults].ctlOffset, &ROM[results[numberResults].tblOffset]);
 			}
 			else if (gameConfig.gameType.CompareNoCase("BanjoTooie") == 0)
 			{

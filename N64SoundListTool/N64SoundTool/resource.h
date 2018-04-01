@@ -64,6 +64,7 @@
 #define IDC_BUTTONADDPREV2              1044
 #define IDC_BUTTONREMOVEPREV2           1045
 #define IDC_CHECK1                      1046
+#define IDC_BUTTONPLAYSND2              1046
 #define IDC_CHECKHALFSAMPLINGRATE       1047
 #define IDC_EDITBENDRANGE               1050
 #define IDC_STATICBENDRANGE             1051
@@ -113,7 +114,6 @@
 #define IDC_EDITT1FREQUENCY             1085
 #define IDC_T1FREQUENCYLABEL            1086
 #define IDC_T1FLAGSLABEL                1087
-#define IDC_EDITT1FREQUENCY2            1088
 #define IDC_EDITT1FLAGS                 1088
 #define IDC_LABELATTACKDRUM             1094
 #define IDC_LABELCOARSEDRUM             1095

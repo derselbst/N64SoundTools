@@ -72,10 +72,11 @@
 #define KONAMICTL 44
 #define KONAMI8CTL 45
 #define MORT 46
+#define WAV 47
 
 #pragma once
 
-enum    {AL_ADPCM_WAVE = 0, AL_RAW16_WAVE = 1, AL_VOX_WAVE=2, AL_MUSYX_WAVE=3, AL_SIGNED_RAW8=4, AL_SIGNED_RAW16=5, AL_MORT_WAVE=6};
+enum    {AL_ADPCM_WAVE = 0, AL_RAW16_WAVE = 1, AL_VOX_WAVE=2, AL_MUSYX_WAVE=3, AL_SIGNED_RAW8=4, AL_SIGNED_RAW16=5, AL_MORT_WAVE=6, AL_WAV=7};
 
 enum    {PRIMARY = 0, PREVIOUS = 1, SECONDARY = 2};
 
@@ -427,6 +428,7 @@ public:
 	static ALBank* ReadAudioConker(unsigned char* ctl, int ctlSize, int ctlOffset, int ctlOffsetPartTwo, unsigned char* tbl);
 	static ALBank* ReadAudio64dd(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioVox(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl, int samplingRate);
+	static ALBank* ReadAudioWav(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioMORT(unsigned char* ctl, int ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioN64PtrWavetableV2ZLIB(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
 	static ALBank* ReadAudioN64PtrWavetableV2MultiPartERZ(unsigned char* ctl, unsigned long& ctlSize, int ctlOffset, unsigned char* tbl);
@@ -489,9 +491,13 @@ public:
 	static CString CompareALBanks(ALBank* alBank1, ALBank* alBank2);
 	static CString CompareALInstrument(ALInst* alInst1, ALInst* alInst2);
 	static bool ExtractRawSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool halfSamplingRate);
+	static bool ExtractLoopSound(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, unsigned long samplingRate, byte primSel, bool halfSamplingRate);
 	static bool ExtractPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
+	static bool ExtractLoopPercussion(CString mainFolder, ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
 	static bool ExtractEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
+	static bool ExtractLoopEADPercussion(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
 	static bool ExtractSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
+	static bool ExtractLoopSfx(ALBank* alBank, int sound, CString outputFile, unsigned long samplingRate, bool halfSamplingRate);
 	static unsigned char ConvertEADGameValueToKeyBase(float eadKeyvalue);
 	static bool ExtractRawPCMData(CString mainFolder, ALBank* alBank, int instrument, int sound, CString outputFile, byte primSel);
 	static bool ExtractPercussionRawPCMData(CString mainFolder, ALBank* alBank, int sound, CString outputFile);

@@ -298,4 +298,7 @@ public:
 	CStatic mT1FlagsLabel;
 	CEdit mT1Flags;
 	afx_msg void OnEnChangeEditt1flags();
+	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
+	afx_msg void OnBnClickedButtonplaysnd2();
+	CButton m_playLoopedButton;
 };

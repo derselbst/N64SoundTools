@@ -1378,7 +1378,7 @@ label80045910:
 					T7 = (int)T6 - 1;
 
 					// Logic added...was not in Pokemon Stadium
-					// Sound 0...is weird in Rogue...it is 1 value, and goes below 0 here in Pokemon Snap rip...
+					// Sound 0...is weird in Rogue...it is 1 value, and goes below 0 here in Pokemon Stadium rip...
 					if ((int)T7 < 0)
 						T7 = 0;
 

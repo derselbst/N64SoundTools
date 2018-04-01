@@ -67,6 +67,7 @@
 #define IDC_BUTTONADDPREV2              1044
 #define IDC_BUTTONREMOVEPREV2           1045
 #define IDC_CHECK1                      1046
+#define IDC_BUTTONPLAYSND3              1046
 #define IDC_CHECKHALFSAMPLINGRATE       1047
 #define IDC_EDITBENDRANGE               1050
 #define IDC_STATICBENDRANGE             1051
